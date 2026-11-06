@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import { PrismaClient, type Calidad, type Rol } from "../src/generated/prisma/client";
+import { limpiarLiquidacion, sembrarLiquidacion } from "./seed-liquidacion";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -44,6 +45,9 @@ function personaFicticia() {
 
 let hashClave: string;
 
+/** Los responsables del seed figuran desde antes de la primera liquidación de ejemplo. */
+const ALTA = new Date(Date.UTC(2025, 0, 1));
+
 async function crearUsuario(nombre: string, email: string, rol: Rol) {
   const id = randomUUID();
   await db.user.create({
@@ -66,6 +70,7 @@ async function main() {
 
   // Limpieza (solo desarrollo)
   await db.auditoria.deleteMany();
+  await limpiarLiquidacion(db);
   await db.destinatarioExtra.deleteMany();
   await db.persona.deleteMany();
   await db.unidad.deleteMany();
@@ -106,13 +111,13 @@ async function main() {
         // ~3 de cada 4 ya confirmaron sus datos; el resto ve el aviso para revisarlos.
         const confirmado = indice % 4 !== 3 ? new Date() : null;
         await db.persona.create({
-          data: { unidadId: unidad.id, calidad, ...duenio, userId: userDuenio, datosConfirmadosEn: confirmado },
+          data: { unidadId: unidad.id, calidad, ...duenio, userId: userDuenio, datosConfirmadosEn: confirmado, altaEn: ALTA },
         });
         if (arrendada) {
           const inq = personaFicticia();
           const userInq = await crearUsuario(inq.nombre, inq.email, "UNIDAD");
           await db.persona.create({
-            data: { unidadId: unidad.id, calidad: "INQUILINO", ...inq, userId: userInq, datosConfirmadosEn: new Date() },
+            data: { unidadId: unidad.id, calidad: "INQUILINO", ...inq, userId: userInq, datosConfirmadosEn: new Date(), altaEn: ALTA },
           });
         }
         indice++;
@@ -139,6 +144,7 @@ async function main() {
         email: d.email,
         userId: d.userId,
         datosConfirmadosEn: d.datosConfirmadosEn,
+        altaEn: ALTA,
       },
     });
   }
@@ -146,6 +152,9 @@ async function main() {
   // Un miembro de la Comisión que además vive en el edificio
   const primerDuenio = duenios[0];
   await db.user.update({ where: { id: primerDuenio.userId! }, data: { rol: "COMISION" } });
+
+  const lineas = await sembrarLiquidacion(db);
+  console.log(`Liquidación de setiembre 2026 publicada con ${lineas} líneas (octubre queda para preparar).`);
 
   const [unidades, personas, usuarios] = await Promise.all([
     db.unidad.count(),
