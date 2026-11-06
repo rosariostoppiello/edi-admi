@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
+/* Tokens: ver docs/design.md ("El hall del edificio") */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --granito: #edefeb;
+  --losa: #ffffff;
+  --pizarra: #1d2830;
+  --pizarra-suave: #4a5761;
+  --bronce: #7a5a12;
+  --bronce-oscuro: #5e450d;
+  --bronce-claro: #e9ddbf;
+  --junta: #c9cec8;
+  --junta-fuerte: #9aa29b;
+  --alerta: #a1261b;
+  --alerta-fondo: #f8e6e3;
+  --ok: #2b6337;
+  --ok-fondo: #e2efe4;
+
+  --torre-avenue: #2f5c87;
+  --torre-sky: #2f6f6a;
+  --torre-pilay: #6a5590;
+  --torre-ne: #4c6e2e;
+  --torre-garajes: #5b5b5b;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-granito: var(--granito);
+  --color-losa: var(--losa);
+  --color-pizarra: var(--pizarra);
+  --color-pizarra-suave: var(--pizarra-suave);
+  --color-bronce: var(--bronce);
+  --color-bronce-oscuro: var(--bronce-oscuro);
+  --color-bronce-claro: var(--bronce-claro);
+  --color-junta: var(--junta);
+  --color-junta-fuerte: var(--junta-fuerte);
+  --color-alerta: var(--alerta);
+  --color-alerta-fondo: var(--alerta-fondo);
+  --color-ok: var(--ok);
+  --color-ok-fondo: var(--ok-fondo);
+
+  --font-sans: var(--fuente-texto), system-ui, sans-serif;
+  --font-mono: var(--fuente-placa), ui-monospace, monospace;
+
+  /* Escala tipográfica: 14 · 17 · 20 · 24 · 30 · 38 */
+  --text-chico: 0.875rem;
+  --text-base: 1.0625rem;
+  --text-medio: 1.25rem;
+  --text-titulo: 1.5rem;
+  --text-grande: 1.875rem;
+  --text-enorme: 2.375rem;
+
+  --radius-placa: 4px;
+  --radius-campo: 8px;
+  --radius-tecla: 14px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--granito);
+  color: var(--pizarra);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  body {
+    font-size: 1.125rem;
+  }
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+/* Foco visible y consistente en todo el sistema */
+:focus-visible {
+  outline: 3px solid var(--bronce);
+  outline-offset: 2px;
+}
+
+/* Sobre la cabecera pizarra el bronce no contrasta: anillo blanco */
+.sobre-pizarra :focus-visible {
+  outline-color: #ffffff;
+}
+
+.cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
