@@ -19,6 +19,11 @@ const ContextoAvisos = createContext<((mensaje: string) => void) | null>(null);
  * formulario de alta se reemplaza por su ficha). Los formularios de adentro
  * le pasan su mensaje en lugar de mostrarlo ellos.
  */
+/** Para formularios propios: si están dentro de una ZonaAvisos, le pasan su mensaje de éxito. */
+export function useAvisar() {
+  return useContext(ContextoAvisos);
+}
+
 export function ZonaAvisos({ children }: { children: ReactNode }) {
   const [aviso, setAviso] = useState<string | null>(null);
   return (
@@ -157,7 +162,7 @@ export function AccionConfirmada({
     return (
       <div className="flex flex-col gap-3">
         <MensajeEstado estado={estado} />
-        <Boton type="button" variante="secundario" className="self-start" onClick={() => setAbierto(true)}>
+        <Boton type="button" variante={variante === "primario" ? "primario" : "secundario"} className="self-start" onClick={() => setAbierto(true)}>
           {textoBoton}
         </Boton>
       </div>
