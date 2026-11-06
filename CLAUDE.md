@@ -39,10 +39,15 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
   `src/proxy.ts` solo hace la redirección optimista al login; la validación real está
   en el servidor.
 - **Simple antes que complejo:** sin colas ni workers; mails por lotes al publicar.
+- **Liquidación publicada = inmutable:** toda escritura de la confección pasa por
+  `enBorrador()` (bloquea la fila y exige estado BORRADOR). Para corregir, se anula.
+- **Dentro de una transacción**, consultas en serie (no `Promise.all` sobre `tx`).
 
 ## Estructura
-- `src/dominio/` lógica pura y testeable (sin DB ni Next)
-- `src/servidor/` db, auth, sesión/permisos, auditoría, mail
+- `src/dominio/` lógica pura y testeable (sin DB ni Next); `dominio/liquidacion/` tiene el cálculo,
+  el resumen por rubro, las disponibilidades y la validación de planillas
+- `src/servidor/` db, auth, sesión/permisos, auditoría, mail; `servidor/liquidacion/` confección,
+  importación, publicación (PDF + envío) y consulta
 - `src/app/(publico)/` login y recuperación · `src/app/(app)/` pantallas con sesión
 - `src/componentes/ui/` sistema de diseño
 - `prisma/` esquema, migraciones y seed · `tests/unit`, `tests/e2e`

@@ -45,10 +45,27 @@ Todos usan la clave de `SEED_PASSWORD`:
 - `laura.pereira.1@example.com` — Comisión + propietaria de 2-101 y de un garaje
 - Un usuario por cada propietario/inquilino del seed (ver `prisma/seed.ts`)
 
+El seed deja publicada la liquidación de **setiembre 2026** (ficticia), así que
+Administración puede preparar octubre desde *Liquidación → Preparar octubre*.
+
+## Liquidación mensual
+- **Confección** (Administración), en 6 pasos: ingresos, egresos, cargos extra,
+  cuotas, fondos y textos, revisar y publicar. Todo queda en borrador hasta publicar.
+- **Planilla de pagos** (.xlsx o .csv): una fila de encabezados con `Fecha`,
+  `Unidad` y `Monto` (y opcional `Referencia`), en cualquier orden. Unidad con
+  código completo (`2-201-A`, `2-301-P`, `2-301-I`); fecha `dd/mm/aaaa`; montos
+  `1.234,50`. Si una fila tiene errores no se carga ninguna.
+- **Primera liquidación:** los saldos anteriores se cargan con una planilla
+  `Unidad | Saldo` (negativo = saldo a favor).
+- **Publicar** genera el PDF y manda un mail a cada destinatario con su saldo y el
+  PDF adjunto. En desarrollo los mails quedan en `storage/mails/`.
+- **Anular** (solo la última publicada, con motivo) abre una copia en borrador que
+  se publica como *rectificada*.
+
 ## Tests
 
 ```bash
-npm test                         # unitarios: dinero, códigos, matriz de permisos
+npm test                         # unitarios: dinero, códigos, permisos, liquidación, planillas
 npm run build && npm run test:e2e   # e2e en móvil (390 px) y escritorio (1280 px)
 ```
 
