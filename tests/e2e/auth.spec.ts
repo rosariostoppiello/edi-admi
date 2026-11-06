@@ -1,0 +1,84 @@
+import { expect, test } from "@playwright/test";
+import { ADMIN, VECINA, ingresar, ultimoMailPara } from "./utiles";
+
+test("sin sesión, cualquier pantalla manda al login", async ({ page }) => {
+  await page.goto("/liquidaciones");
+  await expect(page).toHaveURL(/\/ingresar$/);
+  await expect(page.getByRole("heading", { name: "Ingresá con tu mail" })).toBeVisible();
+});
+
+test("contraseña incorrecta muestra un error claro", async ({ page }) => {
+  await ingresar(page, VECINA, "esta-no-es-la-clave");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("no coinciden");
+  await expect(page).toHaveURL(/\/ingresar$/);
+});
+
+test("la unidad ingresa, ve su placa y los 6 botones, y sale", async ({ page }) => {
+  await ingresar(page, VECINA);
+  await expect(page.getByRole("heading", { name: /^Hola, Laura/ })).toBeVisible();
+  await expect(page.getByText("2-101-A")).toBeVisible();
+
+  const secciones = page.getByRole("navigation", { name: "Secciones" }).getByRole("link");
+  await expect(secciones).toHaveCount(6);
+  for (const nombre of [
+    "Liquidación de gastos comunes",
+    "Reservas",
+    "Propietarios e inquilinos",
+    "Teléfonos y servicios",
+    "Solicitudes",
+    "Comunicados",
+  ]) {
+    await expect(page.getByRole("link", { name: new RegExp(nombre) })).toBeVisible();
+  }
+
+  // Cada tecla tiene al menos 44 px de alto (área táctil).
+  for (const caja of await secciones.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) {
+    expect(caja).toBeGreaterThanOrEqual(44);
+  }
+
+  await page.getByRole("button", { name: "Salir" }).click();
+  await expect(page).toHaveURL(/\/ingresar$/);
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/ingresar$/);
+});
+
+test("Administración ve su rol en la cabecera (no tiene unidad)", async ({ page }) => {
+  await ingresar(page, ADMIN);
+  await expect(page.getByRole("banner")).toContainText("Administración");
+});
+
+test("recuperar contraseña por mail y entrar con la nueva", async ({ page }, info) => {
+  // Cada proyecto usa un usuario distinto para no pisarse.
+  const email = info.project.name === "movil" ? "martin.olivera.2@example.com" : "valentina.piriz.3@example.com";
+  const nueva = `Nueva-clave-${info.project.name}-2026`;
+
+  await page.goto("/recuperar");
+  await page.getByLabel("Mail").fill(email);
+  await page.getByRole("button", { name: "Mandarme el enlace" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toContainText("Si el mail está registrado");
+
+  const mail = await ultimoMailPara(email);
+  const enlace = mail.texto.match(/https?:\/\/\S+/)?.[0];
+  expect(enlace).toBeTruthy();
+
+  await page.goto(enlace!);
+  await expect(page.getByRole("heading", { name: "Elegí tu contraseña nueva" })).toBeVisible();
+  await page.getByLabel("Contraseña nueva").fill(nueva);
+  await page.getByLabel("Repetí la contraseña").fill(nueva);
+  await page.getByRole("button", { name: "Guardar contraseña" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toContainText("cambiaste tu contraseña");
+
+  // El enlace no se puede reusar.
+  await page.goto(enlace!);
+  await expect(page.getByRole("heading", { name: "El enlace ya no sirve" })).toBeVisible();
+
+  await ingresar(page, email, nueva);
+  await expect(page.getByRole("heading", { name: /^Hola,/ })).toBeVisible();
+});
+
+test("pedir recuperación de un mail inexistente responde igual (no revela usuarios)", async ({ page }) => {
+  await page.goto("/recuperar");
+  await page.getByLabel("Mail").fill("nadie@example.com");
+  await page.getByRole("button", { name: "Mandarme el enlace" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toContainText("Si el mail está registrado");
+});
