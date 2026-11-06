@@ -42,3 +42,6 @@ next-env.d.ts
 .vercel
 *.pem
 src/generated/
+
+# Capturas y snapshots de Playwright MCP
+/.playwright-mcp/
