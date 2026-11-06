@@ -7,12 +7,19 @@ export const CLAVE = process.env.SEED_PASSWORD!;
 export const ADMIN = "admin@example.com";
 /** Primer dueño del seed: Comisión + propietario de 2-101 y de un garaje. */
 export const VECINA = "laura.pereira.1@example.com";
+/** Usuarios a los que el test de recuperación les cambia la contraseña (uno por proyecto). */
+export const USUARIOS_RESET = { movil: "martin.olivera.2@example.com", escritorio: "valentina.piriz.3@example.com" } as const;
 
 export async function ingresar(page: Page, email: string, clave = CLAVE) {
   await page.goto("/ingresar");
   await page.getByLabel("Mail").fill(email);
   await page.getByLabel("Contraseña").fill(clave);
-  await page.getByRole("button", { name: "Ingresar" }).click();
+  const [respuesta] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/api/auth/sign-in/email")),
+    page.getByRole("button", { name: "Ingresar" }).click(),
+  ]);
+  // Si el login salió bien, esperar a que termine la navegación al inicio.
+  if (respuesta.ok()) await page.waitForURL((u) => u.pathname === "/");
 }
 
 /** Último mail "enviado" (driver archivo) a un destinatario. */

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN, VECINA, ingresar, ultimoMailPara } from "./utiles";
+import { ADMIN, USUARIOS_RESET, VECINA, ingresar, ultimoMailPara } from "./utiles";
 
 test("sin sesión, cualquier pantalla manda al login", async ({ page }) => {
   await page.goto("/liquidaciones");
@@ -16,7 +16,7 @@ test("contraseña incorrecta muestra un error claro", async ({ page }) => {
 test("la unidad ingresa, ve su placa y los 6 botones, y sale", async ({ page }) => {
   await ingresar(page, VECINA);
   await expect(page.getByRole("heading", { name: /^Hola, Laura/ })).toBeVisible();
-  await expect(page.getByText("2-101-A")).toBeVisible();
+  await expect(page.getByRole("banner").locator("summary")).toContainText("2-101-A");
 
   const secciones = page.getByRole("navigation", { name: "Secciones" }).getByRole("link");
   await expect(secciones).toHaveCount(6);
@@ -49,7 +49,7 @@ test("Administración ve su rol en la cabecera (no tiene unidad)", async ({ page
 
 test("recuperar contraseña por mail y entrar con la nueva", async ({ page }, info) => {
   // Cada proyecto usa un usuario distinto para no pisarse.
-  const email = info.project.name === "movil" ? "martin.olivera.2@example.com" : "valentina.piriz.3@example.com";
+  const email = USUARIOS_RESET[info.project.name as keyof typeof USUARIOS_RESET];
   const nueva = `Nueva-clave-${info.project.name}-2026`;
 
   await page.goto("/recuperar");
