@@ -171,6 +171,18 @@ docs/design.md  docs/PLAN.md
 19. WhatsApp: número de Administración, configurable.
 20. Portería ve solo el código de la unidad y el nombre del ocupante.
 
+### Decisiones de implementación de la Fase 3 (liquidación)
+
+21. **Cuotas:** cada unidad tiene tres montos fijos (gasto común ordinario, parte de cargo del propietario, garaje) y quién paga el garaje si está alquilada. Se editan en el paso "Cuotas" de la confección y valen desde ese mes en adelante.
+22. **Cambio P+I → A:** si se va el inquilino con deuda, su saldo pasa a la línea A (el propietario responde por los gastos comunes de la unidad). A → P+I: el saldo queda en P y el inquilino arranca en cero.
+23. **Qué ve cada uno:** el responsable ve todas las líneas de su unidad; el inquilino solo la I, y solo desde el mes en que entró. El consolidado en pantalla, solo Administración y Comisión. El PDF completo, todos (decisión 13).
+24. **Planillas:** si una fila tiene errores no se carga ninguna (se corrige la planilla y se sube de nuevo). Los avisos (fecha de otro mes, pago repetido) no bloquean. Formato: `Fecha | Unidad | Monto | Referencia`; saldos iniciales: `Unidad | Saldo`. Acepta .xlsx y .csv.
+25. **Disponibilidades:** se cargan a mano los saldos iniciales (se arrastran solos del mes anterior) y la parte de los ingresos que va al fondo de reserva; ingresos, depósitos identificados, egresos y saldo final se calculan.
+26. **Publicación:** líneas + PDF + bandeja de mails en una sola transacción; los mails salen después, de a 10, cada uno con la línea de la persona y el PDF adjunto. Los que fallan se reintentan desde la pantalla de la liquidación.
+27. **Anulación:** solo la última publicada (y si no hay un borrador de un mes posterior). Queda como historia con su motivo y se abre una copia en borrador que, al publicarse, sale como "rectificada".
+28. **PDF:** @react-pdf con Helvetica (no descarga fuentes), guardado en la base (tabla `archivo`). Simple y suficiente para ~12 PDFs por año; si crece, se pasa a Vercel Blob detrás de la misma interfaz.
+29. **Pendiente para más adelante:** columna "Cuota extra FR" (no se usa hoy), cargo automático de barbacoa desde Reservas (Fase 4) y buscador en la pantalla de cuotas para las ~370 líneas reales.
+
 ## 8. Manejo de los documentos sensibles
 
 - `.gitignore` excluye los PDF/planillas de `docs/` y la spec (tiene una imagen embebida); nada de eso se commitea salvo que lo indiques.

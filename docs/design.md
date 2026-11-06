@@ -61,6 +61,15 @@ Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué tor
 - **Estados:** vacío = qué hacer a continuación; error = qué pasó y cómo seguir;
   carga = esqueleto con la forma del contenido.
 
+- **Recibo** (liquidación de la unidad): la placa grande con el saldo a pagar y el
+  vencimiento; debajo, la cuenta renglón por renglón como en una libreta (saldo
+  anterior − pagos = saldo; cada cargo; doble raya y saldo a pagar). Solo aparecen
+  los cargos que existen. Saldo a favor en verde.
+- **Pasos de la confección:** píldoras numeradas (es una secuencia real); en el
+  celular la barra se desliza y muestra el paso actual.
+- **Avisos de una sección:** el mensaje de éxito queda arriba de la sección aunque el
+  formulario que lo generó desaparezca (ej. al confirmar una planilla).
+
 ## Disposición
 - Mobile-first, alineado a la izquierda, una columna con márgenes de 16 px.
 - Home: 2 teclas por fila en móvil (3 filas), 3 por fila desde 768 px.
