@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   datosPersonaSchema,
+  destinatariosDeUnidad,
   validarAltaInquilino,
   validarBajaInquilino,
   type EstadoUnidad,
@@ -68,5 +69,49 @@ describe("transición P+I → A (baja de inquilino)", () => {
   });
   it("no si la unidad no está arrendada", () => {
     expect(validarBajaInquilino(sinAlquilar, "p")).toBe("NO_ARRENDADA");
+  });
+});
+
+describe("destinatarios de mail por unidad", () => {
+  const dueno = { calidad: "PROPIETARIO" as const, email: "dueno@example.com", nombre: "Dueño" };
+  const inq = { calidad: "INQUILINO" as const, email: "inq@example.com", nombre: "Inquilina" };
+
+  it("sin alquilar: el responsable y los extras van con código A", () => {
+    const r = destinatariosDeUnidad({
+      arrendada: false,
+      personasActivas: [dueno],
+      extras: [{ email: "Socio@Example.com", nombre: null }],
+    });
+    expect(r).toEqual([
+      { email: "dueno@example.com", nombre: "Dueño", sufijo: "A" },
+      { email: "socio@example.com", nombre: null, sufijo: "A" },
+    ]);
+  });
+
+  it("alquilada: el responsable y extras van con P, el inquilino con I", () => {
+    const r = destinatariosDeUnidad({
+      arrendada: true,
+      personasActivas: [inq, dueno],
+      extras: [{ email: "socio@example.com", nombre: "Socio" }],
+    });
+    expect(r.map((d) => [d.email, d.sufijo])).toEqual([
+      ["dueno@example.com", "P"],
+      ["inq@example.com", "I"],
+      ["socio@example.com", "P"],
+    ]);
+  });
+
+  it("no repite mails (extra igual al del responsable o al del inquilino)", () => {
+    const r = destinatariosDeUnidad({
+      arrendada: true,
+      personasActivas: [dueno, inq],
+      extras: [{ email: "DUENO@example.com", nombre: null }, { email: "inq@example.com", nombre: null }],
+    });
+    expect(r).toHaveLength(2);
+  });
+
+  it("un inquilino que quedó cargado en una unidad sin alquilar no recibe", () => {
+    const r = destinatariosDeUnidad({ arrendada: false, personasActivas: [dueno, inq], extras: [] });
+    expect(r.map((d) => d.email)).toEqual(["dueno@example.com"]);
   });
 });

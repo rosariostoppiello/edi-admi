@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Calidad } from "./permisos";
+import type { Sufijo } from "./codigos";
 
 /**
  * Validación de los datos de contacto de un responsable. Se usa en el servidor
@@ -91,4 +92,36 @@ export function validarBajaInquilino(u: EstadoUnidad, personaId: string): ErrorT
   const p = u.personasActivas.find((x) => x.id === personaId);
   if (!p || p.calidad !== "INQUILINO") return "INQUILINO_NO_ENCONTRADO";
   return null;
+}
+
+export interface Destinatario {
+  email: string;
+  nombre: string | null;
+  /** Línea de la liquidación que le corresponde (A, P o I). */
+  sufijo: Sufijo;
+}
+
+/**
+ * A quién se le manda la liquidación y los comunicados de una unidad:
+ * el responsable (A, o P si está alquilada), el inquilino (I) y los mails
+ * extra, que van con el responsable. Sin mails repetidos.
+ */
+export function destinatariosDeUnidad(u: {
+  arrendada: boolean;
+  personasActivas: { calidad: Calidad; email: string; nombre: string }[];
+  extras: { email: string; nombre: string | null }[];
+}): Destinatario[] {
+  const sufijoDueno: Sufijo = u.arrendada ? "P" : "A";
+  const lista: Destinatario[] = [];
+  const vistos = new Set<string>();
+  const agregar = (email: string, nombre: string | null, sufijo: Sufijo) => {
+    const e = email.trim().toLowerCase();
+    if (!e || vistos.has(e)) return;
+    vistos.add(e);
+    lista.push({ email: e, nombre, sufijo });
+  };
+  for (const p of u.personasActivas) if (esDueno(p.calidad)) agregar(p.email, p.nombre, sufijoDueno);
+  if (u.arrendada) for (const p of u.personasActivas) if (p.calidad === "INQUILINO") agregar(p.email, p.nombre, "I");
+  for (const x of u.extras) agregar(x.email, x.nombre, sufijoDueno);
+  return lista;
 }
