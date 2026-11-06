@@ -130,6 +130,7 @@ model Unidad {
   arrendada Boolean    @default(false)
   activa    Boolean    @default(true)
   personas  Persona[]
+  destinatarios DestinatarioExtra[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -152,12 +153,28 @@ model Persona {
   activa    Boolean   @default(true)
   altaEn    DateTime  @default(now())
   bajaEn    DateTime?
+  /// Cuándo el responsable revisó y confirmó sus datos (y si la unidad está arrendada).
+  datosConfirmadosEn DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   @@index([unidadId, activa])
   @@index([userId])
   @@map("persona")
+}
+
+/// Mails extra que reciben liquidaciones y comunicados de una unidad
+/// (ej. copropietarios), sin usuario en el sistema.
+model DestinatarioExtra {
+  id        String   @id @default(cuid())
+  unidadId  String
+  unidad    Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  nombre    String?
+  email     String
+  createdAt DateTime @default(now())
+
+  @@unique([unidadId, email])
+  @@map("destinatario_extra")
 }
 
 // ---------------------------------------------------------------------------
