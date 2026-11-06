@@ -1,0 +1,39 @@
+# --- Datos reales / sensibles: NUNCA versionar ---
+# Liquidaciones reales, planillas y cualquier documento con datos de copropietarios.
+docs/*.pdf
+docs/*.xlsx
+docs/*.xls
+docs/*.csv
+docs/*.png
+docs/*.jpg
+docs/privado/
+# La especificación incluye una imagen embebida; se versiona solo si el usuario lo decide.
+docs/Proyecto 1.doc.md
+
+# Archivos subidos en desarrollo (PDFs de comunicados, liquidaciones generadas)
+/storage/
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Node / Next
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# SO / editores
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json
