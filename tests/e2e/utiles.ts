@@ -25,12 +25,14 @@ export async function ingresar(page: Page, email: string, clave = CLAVE) {
 /** Último mail "enviado" (driver archivo) a un destinatario. */
 export async function ultimoMailPara(destinatario: string) {
   const dir = path.join(process.cwd(), "storage", "mails-e2e");
-  let encontrado: { para: string; asunto: string; texto: string } | undefined;
+  let encontrado: { para: string; asunto: string; texto: string; adjuntos?: { nombre: string; archivo: string }[] } | undefined;
   await expect
     .poll(() => {
       let archivos: string[] = [];
       try {
-        archivos = readdirSync(dir).sort();
+        archivos = readdirSync(dir)
+          .filter((a) => a.endsWith(".json"))
+          .sort();
       } catch {
         return false;
       }
