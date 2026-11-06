@@ -16,7 +16,21 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     resetPasswordTokenExpiresIn: 60 * 60, // 1 hora
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, url, token }) => {
+      const tieneClave = await db.account.count({ where: { userId: user.id, providerId: "credential" } });
+      if (tieneClave === 0) {
+        // Invitación: el usuario todavía no eligió contraseña. El enlace dura 7 días.
+        await db.verification.updateMany({
+          where: { identifier: `reset-password:${token}` },
+          data: { expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+        });
+        void enviarMail({
+          para: user.email,
+          asunto: "Tu acceso al sistema de gastos comunes",
+          texto: `Hola ${user.name}:\n\nTe dieron acceso al sistema de gastos comunes del edificio. Ahí vas a ver tus liquidaciones, reservar la barbacoa y mandar solicitudes a la administración.\n\nPara entrar, creá tu contraseña en este enlace (vence en 7 días):\n${url}\n\nTu usuario es este mail: ${user.email}`,
+        });
+        return;
+      }
       // Sin await para no revelar por tiempos si el mail existe.
       void enviarMail({
         para: user.email,

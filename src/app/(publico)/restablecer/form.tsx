@@ -6,7 +6,7 @@ import { Boton } from "@/componentes/ui/boton";
 import { Campo } from "@/componentes/ui/campo";
 import { Aviso } from "@/componentes/ui/aviso";
 
-export function FormRestablecer({ token }: { token: string }) {
+export function FormRestablecer({ token, bienvenida = false }: { token: string; bienvenida?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -29,9 +29,9 @@ export function FormRestablecer({ token }: { token: string }) {
   if (listo) {
     return (
       <div className="mt-6 flex flex-col gap-5">
-        <Aviso tono="ok">Listo, cambiaste tu contraseña.</Aviso>
+        <Aviso tono="ok">{bienvenida ? "Listo, ya creaste tu contraseña." : "Listo, cambiaste tu contraseña."}</Aviso>
         <Link href="/ingresar" className="self-start py-2 underline underline-offset-4">
-          Ingresar con la contraseña nueva
+          {bienvenida ? "Ingresar" : "Ingresar con la contraseña nueva"}
         </Link>
       </div>
     );
