@@ -1,0 +1,181 @@
+// Esquema de datos. Las tablas user/session/account/verification siguen el
+// esquema de Better Auth (nombres en inglés por convención de la librería).
+// El resto del dominio está en español.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Autenticación (Better Auth)
+// ---------------------------------------------------------------------------
+
+enum Rol {
+  ADMINISTRACION
+  COMISION
+  PORTERIA
+  UNIDAD
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  rol           Rol       @default(UNIDAD)
+  activo        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  personas      Persona[]
+  auditorias    Auditoria[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Edificio
+// ---------------------------------------------------------------------------
+
+enum TipoTorre {
+  TORRE
+  SECTOR // ej. gestión de garajes
+}
+
+enum TipoUnidad {
+  APTO
+  LOCAL
+  GARAJE
+  OFICINA
+}
+
+enum Calidad {
+  PROPIETARIO
+  PROMITENTE
+  INQUILINO
+}
+
+/// Torre o sector. `codigo` es el identificador que va en el código de unidad (2, 3, 4, 5…).
+model Torre {
+  codigo   Int        @id
+  nombre   String     @unique
+  tipo     TipoTorre  @default(TORRE)
+  orden    Int        @default(0)
+  unidades Unidad[]
+
+  @@map("torre")
+}
+
+model Unidad {
+  id        String     @id @default(cuid())
+  torreId   Int
+  torre     Torre      @relation(fields: [torreId], references: [codigo])
+  numero    String
+  tipo      TipoUnidad @default(APTO)
+  etiqueta  String?
+  arrendada Boolean    @default(false)
+  activa    Boolean    @default(true)
+  personas  Persona[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([torreId, numero])
+  @@map("unidad")
+}
+
+/// Responsable de una unidad. Un usuario puede estar vinculado a varias personas
+/// (ej. dueño de un apartamento y de un garaje).
+model Persona {
+  id        String    @id @default(cuid())
+  unidadId  String
+  unidad    Unidad    @relation(fields: [unidadId], references: [id])
+  calidad   Calidad
+  nombre    String
+  telefono  String
+  email     String
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  activa    Boolean   @default(true)
+  altaEn    DateTime  @default(now())
+  bajaEn    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([unidadId, activa])
+  @@index([userId])
+  @@map("persona")
+}
+
+// ---------------------------------------------------------------------------
+// Auditoría de acciones sensibles
+// ---------------------------------------------------------------------------
+
+model Auditoria {
+  id        String   @id @default(cuid())
+  fecha     DateTime @default(now())
+  usuarioId String?
+  usuario   User?    @relation(fields: [usuarioId], references: [id])
+  accion    String
+  entidad   String
+  entidadId String?
+  detalle   Json?
+  ip        String?
+
+  @@index([entidad, entidadId])
+  @@index([fecha])
+  @@map("auditoria")
+}
