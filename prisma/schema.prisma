@@ -23,15 +23,15 @@ enum Rol {
 }
 
 model User {
-  id            String    @id
+  id            String      @id
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String      @unique
+  emailVerified Boolean     @default(false)
   image         String?
-  rol           Rol       @default(UNIDAD)
-  activo        Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  rol           Rol         @default(UNIDAD)
+  activo        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
   sessions      Session[]
   accounts      Account[]
   personas      Persona[]
@@ -111,28 +111,38 @@ enum Calidad {
 
 /// Torre o sector. `codigo` es el identificador que va en el código de unidad (2, 3, 4, 5…).
 model Torre {
-  codigo   Int        @id
-  nombre   String     @unique
-  tipo     TipoTorre  @default(TORRE)
-  orden    Int        @default(0)
+  codigo   Int       @id
+  nombre   String    @unique
+  tipo     TipoTorre @default(TORRE)
+  orden    Int       @default(0)
   unidades Unidad[]
 
   @@map("torre")
 }
 
 model Unidad {
-  id        String     @id @default(cuid())
-  torreId   Int
-  torre     Torre      @relation(fields: [torreId], references: [codigo])
-  numero    String
-  tipo      TipoUnidad @default(APTO)
-  etiqueta  String?
-  arrendada Boolean    @default(false)
-  activa    Boolean    @default(true)
-  personas  Persona[]
-  destinatarios DestinatarioExtra[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id              String              @id @default(cuid())
+  torreId         Int
+  torre           Torre               @relation(fields: [torreId], references: [codigo])
+  numero          String
+  tipo            TipoUnidad          @default(APTO)
+  etiqueta        String?
+  arrendada       Boolean             @default(false)
+  activa          Boolean             @default(true)
+  // Cuotas mensuales fijas (centésimos). Se arrastran de mes a mes hasta que
+  // Administración las cambie (docs/PLAN.md, decisión 5).
+  gcUnidad        Int                 @default(0) // gasto común ordinario (lo paga A, o I si está alquilada)
+  gcPropietario   Int                 @default(0) // parte de cargo del propietario, ej. seguro (A o P)
+  gcGaraje        Int                 @default(0)
+  garajeACargoDe  ACargoDe            @default(INQUILINO)
+  personas        Persona[]
+  destinatarios   DestinatarioExtra[]
+  lineas          LineaLiquidacion[]
+  ingresos        Ingreso[]
+  cargos          CargoExtra[]
+  saldosIniciales SaldoInicial[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@unique([torreId, numero])
   @@map("unidad")
@@ -141,22 +151,22 @@ model Unidad {
 /// Responsable de una unidad. Un usuario puede estar vinculado a varias personas
 /// (ej. dueño de un apartamento y de un garaje).
 model Persona {
-  id        String    @id @default(cuid())
-  unidadId  String
-  unidad    Unidad    @relation(fields: [unidadId], references: [id])
-  calidad   Calidad
-  nombre    String
-  telefono  String
-  email     String
-  userId    String?
-  user      User?     @relation(fields: [userId], references: [id])
-  activa    Boolean   @default(true)
-  altaEn    DateTime  @default(now())
-  bajaEn    DateTime?
+  id                 String    @id @default(cuid())
+  unidadId           String
+  unidad             Unidad    @relation(fields: [unidadId], references: [id])
+  calidad            Calidad
+  nombre             String
+  telefono           String
+  email              String
+  userId             String?
+  user               User?     @relation(fields: [userId], references: [id])
+  activa             Boolean   @default(true)
+  altaEn             DateTime  @default(now())
+  bajaEn             DateTime?
   /// Cuándo el responsable revisó y confirmó sus datos (y si la unidad está arrendada).
   datosConfirmadosEn DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([unidadId, activa])
   @@index([userId])
@@ -195,4 +205,306 @@ model Auditoria {
   @@index([entidad, entidadId])
   @@index([fecha])
   @@map("auditoria")
+}
+
+// ---------------------------------------------------------------------------
+// Liquidación de gastos comunes. Todos los montos son Int en centésimos.
+// ---------------------------------------------------------------------------
+
+enum ACargoDe {
+  PROPIETARIO
+  INQUILINO
+}
+
+enum Sufijo {
+  A
+  P
+  I
+}
+
+enum EstadoLiquidacion {
+  BORRADOR
+  PUBLICADA
+  ANULADA
+}
+
+enum OrigenIngreso {
+  MANUAL
+  EXCEL
+  DEPOSITO // depósito no identificado que se asignó a la unidad
+}
+
+enum TipoCargo {
+  INTERES_OTRO // columna "Intereses y otros"
+  TAG
+  BARBACOA_OTROS
+  MULTA
+}
+
+enum TipoImportacion {
+  INGRESOS
+  SALDOS_INICIALES
+}
+
+enum EstadoImportacion {
+  PENDIENTE
+  CONFIRMADA
+  DESCARTADA
+}
+
+enum EstadoEnvio {
+  PENDIENTE
+  ENVIADO
+  ERROR
+}
+
+/**
+ * Parámetros generales (una sola fila, id = 1).
+ */
+model Configuracion {
+  id                 Int    @id @default(1)
+  direccion          String @default("")
+  tasaInteresPb      Int    @default(100) // puntos básicos: 100 = 1 %
+  tasaFondoReservaPb Int    @default(500) // 500 = 5 %
+  diaVencimiento     Int    @default(25)
+  procedimientoPago  String @default("")
+
+  @@map("configuracion")
+}
+
+model Liquidacion {
+  id                     String                   @id @default(cuid())
+  periodo                String // "AAAA-MM"
+  estado                 EstadoLiquidacion        @default(BORRADOR)
+  tasaInteresPb          Int
+  tasaFondoReservaPb     Int
+  diaVencimiento         Int
+  procedimientoPago      String
+  disponibilidades       Json?
+  rectificaId            String?                  @unique
+  rectifica              Liquidacion?             @relation("Rectificacion", fields: [rectificaId], references: [id])
+  rectificadaPor         Liquidacion?             @relation("Rectificacion")
+  publicadaEn            DateTime?
+  publicadaPorId         String?
+  anuladaEn              DateTime?
+  anuladaPorId           String?
+  motivoAnulacion        String?
+  pdfId                  String?                  @unique
+  pdf                    Archivo?                 @relation(fields: [pdfId], references: [id])
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  lineas                 LineaLiquidacion[]
+  ingresos               Ingreso[]
+  egresos                Egreso[]
+  cargos                 CargoExtra[]
+  saldosIniciales        SaldoInicial[]
+  importaciones          Importacion[]
+  depositosCargados      DepositoNoIdentificado[] @relation("DepositoCargado")
+  depositosIdentificados DepositoNoIdentificado[] @relation("DepositoIdentificado")
+
+  // Índices únicos parciales (en la migración): un solo período no anulado y
+  // un solo borrador a la vez.
+  @@index([periodo, estado])
+  @@map("liquidacion")
+}
+
+/**
+ * Foto de cada línea al publicar (lo que figura en el PDF).
+ */
+model LineaLiquidacion {
+  id            String      @id @default(cuid())
+  liquidacionId String
+  liquidacion   Liquidacion @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  unidadId      String
+  unidad        Unidad      @relation(fields: [unidadId], references: [id])
+  sufijo        Sufijo
+  codigo        String
+  descripcion   String
+  orden         Int
+  saldoAnterior Int
+  pagos         Int
+  saldo         Int
+  intereses     Int
+  gcUnidad      Int
+  gcGaraje      Int
+  fondoReserva  Int
+  tag           Int
+  barbacoaOtros Int
+  multas        Int
+  saldoAPagar   Int
+
+  @@unique([liquidacionId, unidadId, sufijo])
+  @@index([unidadId])
+  @@map("linea_liquidacion")
+}
+
+/**
+ * Saldo anterior de la primera liquidación (no hay una anterior de donde tomarlo).
+ */
+model SaldoInicial {
+  id            String      @id @default(cuid())
+  liquidacionId String
+  liquidacion   Liquidacion @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  unidadId      String
+  unidad        Unidad      @relation(fields: [unidadId], references: [id])
+  sufijo        Sufijo
+  monto         Int
+
+  @@unique([liquidacionId, unidadId, sufijo])
+  @@map("saldo_inicial")
+}
+
+model Ingreso {
+  id            String                  @id @default(cuid())
+  liquidacionId String
+  liquidacion   Liquidacion             @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  unidadId      String
+  unidad        Unidad                  @relation(fields: [unidadId], references: [id])
+  sufijo        Sufijo
+  fecha         DateTime                @db.Date
+  monto         Int
+  referencia    String?
+  origen        OrigenIngreso
+  importacionId String?
+  importacion   Importacion?            @relation(fields: [importacionId], references: [id])
+  deposito      DepositoNoIdentificado?
+  creadoPorId   String?
+  createdAt     DateTime                @default(now())
+
+  @@index([liquidacionId])
+  @@map("ingreso")
+}
+
+/**
+ * Planilla subida, con su vista previa, hasta que se confirma o descarta.
+ */
+model Importacion {
+  id            String            @id @default(cuid())
+  liquidacionId String
+  liquidacion   Liquidacion       @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  tipo          TipoImportacion
+  archivoNombre String
+  filas         Json
+  errores       Int
+  estado        EstadoImportacion @default(PENDIENTE)
+  usuarioId     String?
+  confirmadaEn  DateTime?
+  createdAt     DateTime          @default(now())
+  ingresos      Ingreso[]
+
+  @@map("importacion")
+}
+
+model Rubro {
+  id               String       @id @default(cuid())
+  codigo           String       @unique // "2.1"
+  nombre           String
+  padreId          String?
+  padre            Rubro?       @relation("Subrubros", fields: [padreId], references: [id])
+  hijos            Rubro[]      @relation("Subrubros")
+  cargoPropietario Boolean      @default(false) // ej. seguro: lo paga P, no I
+  activo           Boolean      @default(true)
+  orden            Int          @default(0)
+  egresos          Egreso[]
+  fijos            EgresoFijo[]
+
+  @@map("rubro")
+}
+
+model Egreso {
+  id            String      @id @default(cuid())
+  liquidacionId String
+  liquidacion   Liquidacion @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  rubroId       String
+  rubro         Rubro       @relation(fields: [rubroId], references: [id])
+  fecha         DateTime    @db.Date
+  proveedor     String
+  detalle       String // período o detalle ("Agosto 2026")
+  monto         Int
+  fijoId        String?
+  fijo          EgresoFijo? @relation(fields: [fijoId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+
+  @@index([liquidacionId])
+  @@map("egreso")
+}
+
+/**
+ * Egresos que se repiten todos los meses: se precargan al crear la liquidación.
+ */
+model EgresoFijo {
+  id        String   @id @default(cuid())
+  rubroId   String
+  rubro     Rubro    @relation(fields: [rubroId], references: [id])
+  proveedor String
+  detalle   String
+  monto     Int
+  activo    Boolean  @default(true)
+  egresos   Egreso[]
+
+  @@map("egreso_fijo")
+}
+
+model CargoExtra {
+  id            String      @id @default(cuid())
+  liquidacionId String
+  liquidacion   Liquidacion @relation(fields: [liquidacionId], references: [id], onDelete: Cascade)
+  unidadId      String
+  unidad        Unidad      @relation(fields: [unidadId], references: [id])
+  sufijo        Sufijo
+  tipo          TipoCargo
+  concepto      String
+  monto         Int
+  createdAt     DateTime    @default(now())
+
+  @@index([liquidacionId])
+  @@map("cargo_extra")
+}
+
+model DepositoNoIdentificado {
+  id               String       @id @default(cuid())
+  fecha            DateTime     @db.Date
+  forma            String // "Depósito", "Transferencia"
+  documento        String?
+  monto            Int
+  cargadoEnId      String
+  cargadoEn        Liquidacion  @relation("DepositoCargado", fields: [cargadoEnId], references: [id], onDelete: Cascade)
+  identificadoEnId String?
+  identificadoEn   Liquidacion? @relation("DepositoIdentificado", fields: [identificadoEnId], references: [id], onDelete: SetNull)
+  ingresoId        String?      @unique
+  ingreso          Ingreso?     @relation(fields: [ingresoId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+
+  @@map("deposito_no_identificado")
+}
+
+model Archivo {
+  id          String       @id @default(cuid())
+  nombre      String
+  tipo        String
+  tamano      Int
+  datos       Bytes
+  createdAt   DateTime     @default(now())
+  liquidacion Liquidacion?
+
+  @@map("archivo")
+}
+
+/**
+ * Bandeja de salida: cada mail de un envío masivo, con su estado (reintento manual).
+ */
+model EnvioMail {
+  id           String      @id @default(cuid())
+  tipo         String // "liquidacion"
+  refId        String?
+  destinatario String
+  asunto       String
+  estado       EstadoEnvio @default(PENDIENTE)
+  error        String?
+  intentos     Int         @default(0)
+  enviadoEn    DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@index([tipo, refId, estado])
+  @@map("envio_mail")
 }
