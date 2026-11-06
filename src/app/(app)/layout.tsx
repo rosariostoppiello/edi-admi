@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { exigirUsuario } from "@/servidor/sesion";
-import { Placa } from "@/componentes/ui/placa";
 import { NOMBRE_COMPLEJO, NOMBRE_ROL, codigoDePersona } from "@/lib/edificio";
+import { unidadActiva } from "@/servidor/unidad-activa";
 import { salir } from "./acciones";
+import { SelectorUnidad } from "./selector-unidad";
+
+const TIPO = { APTO: "Apartamento", LOCAL: "Local", GARAJE: "Garaje", OFICINA: "Oficina" } as const;
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const usuario = await exigirUsuario();
-  const unidad = usuario.unidadesDetalle[0];
+  const unidad = await unidadActiva(usuario);
+  const opciones = usuario.unidadesDetalle.map((u) => ({
+    unidadId: u.unidadId,
+    codigo: codigoDePersona(u),
+    descripcion: `${TIPO[u.tipo]} en ${u.torreNombre}`,
+  }));
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -23,10 +31,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           </Link>
           <div className="flex items-center gap-3">
             {unidad ? (
-              <span className="flex items-center gap-2">
-                <span className="sr-only">Tu unidad:</span>
-                <Placa codigo={codigoDePersona(unidad)} />
-              </span>
+              <SelectorUnidad activa={opciones.find((o) => o.unidadId === unidad.unidadId)!} opciones={opciones} />
             ) : (
               <span className="text-chico text-white/85">{NOMBRE_ROL[usuario.rol]}</span>
             )}

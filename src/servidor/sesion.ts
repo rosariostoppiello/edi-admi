@@ -15,8 +15,10 @@ export interface UsuarioActual extends Actor {
     torre: number;
     torreNombre: string;
     numero: string;
+    tipo: "APTO" | "LOCAL" | "GARAJE" | "OFICINA";
     arrendada: boolean;
     calidad: Actor["unidades"][number]["calidad"];
+    datosConfirmados: boolean;
   }[];
 }
 
@@ -41,10 +43,12 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioActual | null> => {
         select: {
           id: true,
           calidad: true,
+          datosConfirmadosEn: true,
           unidad: {
             select: {
               id: true,
               numero: true,
+              tipo: true,
               arrendada: true,
               torre: { select: { codigo: true, nombre: true } },
             },
@@ -71,8 +75,10 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioActual | null> => {
       torre: p.unidad.torre.codigo,
       torreNombre: p.unidad.torre.nombre,
       numero: p.unidad.numero,
+      tipo: p.unidad.tipo,
       arrendada: p.unidad.arrendada,
       calidad: p.calidad,
+      datosConfirmados: p.datosConfirmadosEn !== null,
     })),
   };
 });
