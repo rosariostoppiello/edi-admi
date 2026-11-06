@@ -66,6 +66,7 @@ async function main() {
 
   // Limpieza (solo desarrollo)
   await db.auditoria.deleteMany();
+  await db.destinatarioExtra.deleteMany();
   await db.persona.deleteMany();
   await db.unidad.deleteMany();
   await db.torre.deleteMany();
@@ -102,14 +103,16 @@ async function main() {
         const duenio = personaFicticia();
         const calidad: Calidad = indice % 5 === 0 ? "PROMITENTE" : "PROPIETARIO";
         const userDuenio = await crearUsuario(duenio.nombre, duenio.email, "UNIDAD");
+        // ~3 de cada 4 ya confirmaron sus datos; el resto ve el aviso para revisarlos.
+        const confirmado = indice % 4 !== 3 ? new Date() : null;
         await db.persona.create({
-          data: { unidadId: unidad.id, calidad, ...duenio, userId: userDuenio },
+          data: { unidadId: unidad.id, calidad, ...duenio, userId: userDuenio, datosConfirmadosEn: confirmado },
         });
         if (arrendada) {
           const inq = personaFicticia();
           const userInq = await crearUsuario(inq.nombre, inq.email, "UNIDAD");
           await db.persona.create({
-            data: { unidadId: unidad.id, calidad: "INQUILINO", ...inq, userId: userInq },
+            data: { unidadId: unidad.id, calidad: "INQUILINO", ...inq, userId: userInq, datosConfirmadosEn: new Date() },
           });
         }
         indice++;
@@ -135,6 +138,7 @@ async function main() {
         telefono: d.telefono,
         email: d.email,
         userId: d.userId,
+        datosConfirmadosEn: d.datosConfirmadosEn,
       },
     });
   }

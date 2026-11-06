@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { exigirUsuario } from "@/servidor/sesion";
+import { Aviso } from "@/componentes/ui/aviso";
 import { MODULOS } from "./modulos";
 
 export const metadata: Metadata = { title: "Inicio" };
@@ -13,6 +14,17 @@ export default async function Inicio() {
     <>
       <h1 className="text-grande font-bold md:text-enorme">Hola, {nombre}</h1>
       <p className="mt-1 text-pizarra-suave">¿Qué necesitás hacer?</p>
+
+      {usuario.unidadesDetalle.some((u) => !u.datosConfirmados) && (
+        <div className="mt-5 max-w-2xl">
+          <Aviso tono="info">
+            Revisá tus datos de contacto: a ese mail te llegan la liquidación y los comunicados.{" "}
+            <Link href="/datos" className="underline underline-offset-4 hover:text-bronce">
+              Revisar mis datos
+            </Link>
+          </Aviso>
+        </div>
+      )}
 
       <nav aria-label="Secciones" className="mt-6 md:mt-8">
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
