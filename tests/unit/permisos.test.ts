@@ -50,6 +50,7 @@ const MATRIZ: Record<Accion, { recurso?: { unidadId?: string; personaId?: string
   "datos.editarPersona": { recurso: { unidadId: U1, personaId: "I1" }, pueden: ["admin", "propietario", "inquilino"] },
   "datos.altaInquilino": { recurso: { unidadId: U1 }, pueden: ["admin", "propietario"] },
   "datos.bajaInquilino": { recurso: { unidadId: U1, personaId: "I1" }, pueden: ["admin", "propietario", "inquilino"] },
+  "datos.gestionarDestinatarios": { recurso: { unidadId: U1 }, pueden: ["admin", "propietario"] },
   "datos.verTodos": { pueden: ["admin", "comision"] },
   "datos.verOcupantes": { pueden: ["admin", "comision", "porteria"] },
   "telefonos.ver": { pueden: NOMBRES },

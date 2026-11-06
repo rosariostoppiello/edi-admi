@@ -42,6 +42,7 @@ export const ACCIONES = [
   "datos.editarPersona", // requiere unidadId + personaId
   "datos.altaInquilino", // requiere unidadId
   "datos.bajaInquilino", // requiere unidadId + personaId
+  "datos.gestionarDestinatarios", // mails extra de la unidad; requiere unidadId
   "datos.verTodos",
   "datos.verOcupantes", // código + nombre del ocupante (Portería)
   // Teléfonos / servicios
@@ -102,6 +103,7 @@ const SOBRE_CUALQUIER_UNIDAD: Partial<Record<Accion, Rol[]>> = {
   "datos.editarPersona": ["ADMINISTRACION"],
   "datos.altaInquilino": ["ADMINISTRACION"],
   "datos.bajaInquilino": ["ADMINISTRACION"],
+  "datos.gestionarDestinatarios": ["ADMINISTRACION"],
   "solicitud.verDeUnidad": ["ADMINISTRACION", "COMISION"],
 };
 
@@ -125,6 +127,7 @@ function puedeComoVinculado(
       // Cada uno edita sus propios datos; el dueño además puede editar al inquilino.
       return recurso.personaId === vinculo.personaId || esDueno(vinculo.calidad);
     case "datos.altaInquilino":
+    case "datos.gestionarDestinatarios":
       return esDueno(vinculo.calidad);
     case "datos.bajaInquilino":
       // El dueño da de baja al inquilino; el inquilino puede darse de baja a sí mismo.
