@@ -17,18 +17,9 @@ import {
   validarBajaInquilino,
 } from "@/dominio/personas";
 
-export type Resultado =
-  | { ok: true; mensaje: string }
-  | { ok: false; error: string; campos?: Partial<Record<string, string>> };
+import { erroresDeZod, type Resultado } from "./resultado";
 
-function erroresDeZod(error: z.ZodError): Resultado {
-  const campos: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const k = String(issue.path[0] ?? "general");
-    campos[k] ??= issue.message;
-  }
-  return { ok: false, error: "Revisá los datos marcados.", campos };
-}
+export type { Resultado };
 
 /** Bloquea la fila de la unidad hasta el fin de la transacción (evita altas simultáneas). */
 async function bloquearUnidad(tx: Prisma.TransactionClient, unidadId: string) {

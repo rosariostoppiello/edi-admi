@@ -97,3 +97,8 @@ export function parsearFecha(texto: string): string | null {
 export function enPeriodo(fecha: string, periodo: string): boolean {
   return fecha.slice(0, 7) === periodo;
 }
+
+/** "octubre 2026", para usar dentro de una frase ("la liquidación de octubre 2026"). */
+export function periodoEnFrase(periodo: string): string {
+  return nombrePeriodo(periodo).toLowerCase();
+}

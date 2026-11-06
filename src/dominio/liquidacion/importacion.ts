@@ -105,7 +105,7 @@ function buscarEncabezados(filas: Celda[][], requeridos: (keyof typeof ENCABEZAD
   return null;
 }
 
-function resolverUnidad(texto: string, unidades: Map<string, UnidadConocida>) {
+export function resolverUnidad(texto: string, unidades: Map<string, UnidadConocida>) {
   const codigo = parsearCodigo(texto);
   if (!codigo) return { error: `"${texto}" no es un código de unidad válido (ej. 2-201-A).` } as const;
   const u = unidades.get(`${codigo.torre}-${codigo.numero}`);
@@ -130,7 +130,7 @@ function vacia(fila: Celda[]) {
   return fila.every((c) => textoDe(c) === "");
 }
 
-function indexarUnidades(unidades: UnidadConocida[]) {
+export function indexarUnidades(unidades: UnidadConocida[]) {
   return new Map(unidades.map((u) => [`${u.torre}-${u.numero.toUpperCase()}`, u]));
 }
 

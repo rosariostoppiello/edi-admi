@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
     },
   },
   poweredByHeader: false,
+  // exceljs usa módulos de Node: se carga tal cual en el servidor, sin empaquetar.
+  serverExternalPackages: ["exceljs"],
+  experimental: {
+    // Planillas de ingresos de hasta 3 MB (+ margen del multipart).
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   async headers() {
     return [
       {
