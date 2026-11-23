@@ -54,3 +54,23 @@ export function estadoAlResponder(actual: EstadoSolicitud, marcarResuelta: boole
   if (marcarResuelta) return "RESUELTA";
   return actual === "NUEVA" ? "EN_CURSO" : actual;
 }
+
+/** Foto de un desperfecto: el navegador la achica antes de subir; igual se controla acá. */
+export const MAX_FOTO = 3 * 1024 * 1024;
+
+/** Tipo de imagen por su contenido (no por la extensión), o null si no es JPEG, PNG ni WebP. */
+export function tipoDeImagen(inicio: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | null {
+  const b = inicio;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  const txt = (i: number, n: number) => String.fromCharCode(...b.slice(i, i + n));
+  if (txt(0, 4) === "RIFF" && txt(8, 4) === "WEBP") return "image/webp";
+  return null;
+}
+
+export function errorDeFoto(tamano: number, inicio: Uint8Array): string | null {
+  if (tamano === 0) return "La foto está vacía.";
+  if (tamano > MAX_FOTO) return "La foto pesa más de 3 MB. Probá con otra o sacala de nuevo.";
+  if (!tipoDeImagen(inicio)) return "La foto tiene que ser JPG, PNG o WebP.";
+  return null;
+}

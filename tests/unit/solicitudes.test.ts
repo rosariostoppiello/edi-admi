@@ -38,3 +38,22 @@ describe("estados", () => {
     expect(categoriaDeSlug("venta")).toBeNull();
   });
 });
+
+describe("foto de un desperfecto", async () => {
+  const { errorDeFoto, tipoDeImagen, MAX_FOTO } = await import("@/dominio/solicitudes");
+  const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+  const webp = new TextEncoder().encode("RIFF1234WEBP");
+  it("reconoce la imagen por su contenido", () => {
+    expect(tipoDeImagen(jpg)).toBe("image/jpeg");
+    expect(tipoDeImagen(png)).toBe("image/png");
+    expect(tipoDeImagen(webp)).toBe("image/webp");
+    expect(tipoDeImagen(new TextEncoder().encode("%PDF-"))).toBeNull();
+  });
+  it("rechaza vacías, pesadas y lo que no es imagen", () => {
+    expect(errorDeFoto(1000, jpg)).toBeNull();
+    expect(errorDeFoto(0, jpg)).toMatch(/vacía/);
+    expect(errorDeFoto(MAX_FOTO + 1, jpg)).toMatch(/3 MB/);
+    expect(errorDeFoto(10, new TextEncoder().encode("GIF89a"))).toMatch(/JPG, PNG o WebP/);
+  });
+});

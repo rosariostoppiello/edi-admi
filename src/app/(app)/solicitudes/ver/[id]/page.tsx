@@ -59,6 +59,12 @@ export default async function PaginaSolicitud({ params }: PageProps<"/solicitude
                 {s.gestiona && `. Autor: ${s.autor.name}`}
               </p>
               <p className="mt-2 whitespace-pre-line">{s.texto}</p>
+              {s.fotoId && (
+                <a href={`/api/solicitudes/${s.id}/foto`} target="_blank" rel="noopener" className="mt-3 block max-w-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- foto privada servida con control de acceso */}
+                  <img src={`/api/solicitudes/${s.id}/foto`} alt={`Foto adjunta: ${s.asunto}`} className="w-full rounded-[var(--radius-campo)] border border-junta" />
+                </a>
+              )}
             </li>
             {s.eventos.map((e) =>
               e.tipo === "CAMBIO_ESTADO" ? (

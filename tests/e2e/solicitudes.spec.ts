@@ -5,6 +5,8 @@ import { ADMIN, ingresar, ultimoMailPara } from "./utiles";
 const main = (page: Page) => page.getByRole("main");
 const exito = (page: Page, texto: string | RegExp) => main(page).getByRole("status").filter({ hasText: texto });
 const proyecto = (nombre: string) => (nombre === "movil" ? 0 : 1);
+// PNG de 1×1 (se achica y se convierte a JPEG en el navegador antes de subir).
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 test("la unidad avisa un desperfecto, la Administración responde y nadie más lo ve", async ({ page }, info) => {
   const p = proyecto(info.project.name);
@@ -25,6 +27,11 @@ test("la unidad avisa un desperfecto, la Administración responde y nadie más l
   await expect(main(page)).toContainText("Contá qué pasa.");
   await main(page).getByLabel("Asunto").fill(asunto);
   await main(page).getByLabel("Contá qué pasa").fill("Gotea desde anoche en la cocina.");
+  // Un archivo que no es imagen se rechaza.
+  await main(page).getByLabel("Foto (opcional)").setInputFiles({ name: "foto.jpg", mimeType: "image/jpeg", buffer: Buffer.from("no soy una foto") });
+  await main(page).getByRole("button", { name: "Enviar a la Administración" }).click();
+  await expect(main(page)).toContainText("La foto tiene que ser JPG, PNG o WebP.");
+  await main(page).getByLabel("Foto (opcional)").setInputFiles({ name: "canilla.png", mimeType: "image/png", buffer: PNG });
   await main(page).getByRole("button", { name: "Enviar a la Administración" }).click();
   await expect(main(page)).toContainText("Enviaste la solicitud");
   // Botón de WhatsApp con el mensaje armado (categoría + unidad + asunto), sin integración.
@@ -48,6 +55,11 @@ test("la unidad avisa un desperfecto, la Administración responde y nadie más l
   await expect(page).toHaveURL(/categoria=DESPERFECTO/);
   await main(page).getByRole("link", { name: new RegExp(asunto.replace(/[()]/g, "\\$&")) }).click();
   await expect(main(page)).toContainText("Gotea desde anoche");
+  const foto = main(page).getByRole("img", { name: `Foto adjunta: ${asunto}` });
+  await expect(foto).toBeVisible();
+  const urlFoto = new URL((await foto.getAttribute("src"))!, page.url()).toString();
+  const r = await page.request.get(urlFoto);
+  expect(r.headers()["content-type"]).toBe("image/jpeg");
   await main(page).getByLabel("Respuesta").fill("Mañana a las 10 pasa el sanitario.");
   await main(page).getByRole("button", { name: "Enviar respuesta" }).click();
   await expect(exito(page, "Respondiste la solicitud")).toBeVisible();
@@ -75,6 +87,7 @@ test("la unidad avisa un desperfecto, la Administración responde y nadie más l
   await expect(main(page)).not.toContainText(asunto);
   await page.goto(url!);
   await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
+  expect((await page.request.get(`${url!.replace("/solicitudes/ver/", "/api/solicitudes/")}/foto`)).status()).toBe(404);
   await page.goto("/solicitudes/bandeja");
   await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
 });

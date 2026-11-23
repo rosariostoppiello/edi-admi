@@ -52,6 +52,7 @@ export default async function PaginaCategoria({ params }: PageProps<"/solicitude
           codigo={codigo}
           whatsapp={whatsapp}
           ayudaTexto={AYUDA[cat.slug]}
+          conFoto={cat.categoria === "DESPERFECTO"}
         />
       </section>
       <section aria-labelledby="mias" className="mt-8 flex max-w-2xl flex-col gap-3">

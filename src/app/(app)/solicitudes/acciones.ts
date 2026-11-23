@@ -20,7 +20,7 @@ async function ejecutar<T extends Resultado>(fn: () => Promise<T>): Promise<T | 
 const campos = (fd: FormData, nombres: string[]) => Object.fromEntries(nombres.map((n) => [n, fd.get(n) ?? undefined]));
 
 export async function accionCrear(slug: string, _: Estado, fd: FormData) {
-  return ejecutar(() => sol.crearSolicitud(slug, campos(fd, ["asunto", "texto", "origen", "codigo", "pedidaPor"])));
+  return ejecutar(() => sol.crearSolicitud(slug, campos(fd, ["asunto", "texto", "origen", "codigo", "pedidaPor", "foto"])));
 }
 export async function accionResponder(id: string, _: Estado, fd: FormData) {
   return ejecutar(() => sol.responder(id, campos(fd, ["texto", "resuelta"])));

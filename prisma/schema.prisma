@@ -504,6 +504,7 @@ model Archivo {
   createdAt   DateTime     @default(now())
   liquidacion Liquidacion?
   comunicado  Comunicado?
+  solicitud   Solicitud?
 
   @@map("archivo")
 }
@@ -560,6 +561,9 @@ model Solicitud {
   origen     OrigenSolicitud    @default(UNIDAD)
   /// Quién la pidió, cuando la carga Portería a pedido de una unidad.
   pedidaPor  String?
+  /// Foto opcional (avisos de desperfectos), achicada en el navegador antes de subir.
+  fotoId     String?            @unique
+  foto       Archivo?           @relation(fields: [fotoId], references: [id])
   asunto     String
   texto      String
   estado     EstadoSolicitud    @default(NUEVA)

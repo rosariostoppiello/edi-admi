@@ -5,7 +5,7 @@ import { db } from "./db";
 import { registrarAuditoria } from "./auditoria";
 import { exigirPermiso, exigirUsuario, type UsuarioActual } from "./sesion";
 import { unidadActiva } from "./unidad-activa";
-import { enviarMail } from "./mail";
+import { avisar } from "./mail";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { puede } from "@/dominio/permisos";
 import { codigoBase } from "@/dominio/codigos";
@@ -14,7 +14,9 @@ import {
   NOMBRE_CATEGORIA,
   NOMBRE_ESTADO,
   categoriaDeSlug,
+  errorDeFoto,
   estadoAlResponder,
+  tipoDeImagen,
   normalizarWhatsapp,
   type Categoria,
   type EstadoSolicitud,
@@ -85,8 +87,23 @@ export async function crearSolicitud(slug: string, input: unknown): Promise<Resu
     codigo = codigoBase(u.torre, u.numero);
   }
 
-  const s = await db.solicitud.create({
-    data: { unidadId, autorId: usuario.userId, categoria: cat.categoria, origen, pedidaPor, asunto: d.asunto, texto: d.texto },
+  // Foto opcional, solo en desperfectos.
+  let foto: { datos: Uint8Array<ArrayBuffer>; tipo: string } | null = null;
+  const archivo = (input as Record<string, unknown>)?.foto;
+  if (cat.categoria === "DESPERFECTO" && archivo instanceof File && archivo.size > 0) {
+    const datos = new Uint8Array(await archivo.arrayBuffer());
+    const e = errorDeFoto(datos.length, datos.slice(0, 12));
+    if (e) return error("Revisá los datos marcados.", { foto: e });
+    foto = { datos, tipo: tipoDeImagen(datos.slice(0, 12))! };
+  }
+
+  const s = await db.$transaction(async (tx) => {
+    const a = foto
+      ? await tx.archivo.create({ data: { nombre: `foto.${foto.tipo.split("/")[1]}`, tipo: foto.tipo, tamano: foto.datos.length, datos: foto.datos } })
+      : null;
+    return tx.solicitud.create({
+      data: { unidadId, autorId: usuario.userId, categoria: cat.categoria, origen, pedidaPor, asunto: d.asunto, texto: d.texto, fotoId: a?.id },
+    });
   });
 
   // Mail a Administración (fuera de la transacción: si falla, la solicitud igual queda).
@@ -94,10 +111,10 @@ export async function crearSolicitud(slug: string, input: unknown): Promise<Resu
   const quien =
     origen === "PORTERIA_A_PEDIDO" ? `Portería, a pedido de ${pedidaPor} (unidad ${codigo})` : origen === "PORTERIA_PROPIA" ? "Portería" : `${usuario.nombre} (unidad ${codigo})`;
   for (const a of admins) {
-    await enviarMail({
+    await avisar({
       para: a.email,
       asunto: `${cat.corto}: ${d.asunto}`,
-      texto: [`${quien} hizo una solicitud.`, "", d.asunto, d.texto, "", `Para responderla: ${urlBase()}/solicitudes/ver/${s.id}`, "", NOMBRE_COMPLEJO].join("\n"),
+      texto: [`${quien} hizo una solicitud.`, "", d.asunto, d.texto, foto ? "\n(Tiene una foto: la ves en el sistema.)" : "", "", `Para responderla: ${urlBase()}/solicitudes/ver/${s.id}`, "", NOMBRE_COMPLEJO].join("\n"),
     });
   }
   return { ...ok("Enviaste la solicitud. Te avisamos por mail cuando la Administración responda."), id: s.id, codigo };
@@ -198,6 +215,13 @@ export async function obtenerSolicitud(id: string) {
   };
 }
 
+/** Foto de una solicitud: la ve quien puede ver la solicitud. */
+export async function obtenerFoto(id: string) {
+  const s = await obtenerSolicitud(id);
+  if (!s?.fotoId) return null;
+  return db.archivo.findUnique({ where: { id: s.fotoId }, select: { tipo: true, datos: true } });
+}
+
 // ---------------------------------------------------------------------------
 // Gestión (Administración)
 // ---------------------------------------------------------------------------
@@ -227,7 +251,7 @@ export async function responder(id: string, input: unknown): Promise<Resultado> 
   if (!r) return error("No encontramos esa solicitud.");
 
   if (r.autor.activo) {
-    await enviarMail({
+    await avisar({
       para: r.autor.email,
       asunto: `Respuesta a tu solicitud: ${r.asunto}`,
       texto: [`Hola ${r.autor.name}:`, "", "La Administración respondió tu solicitud:", "", p.data.texto, "", `Podés verla acá: ${urlBase()}/solicitudes/ver/${id}`, "", NOMBRE_COMPLEJO].join("\n"),

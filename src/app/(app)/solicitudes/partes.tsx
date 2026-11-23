@@ -22,6 +22,31 @@ export function BotonWhatsapp({ numero, categoria, codigo, asunto }: { numero: s
   );
 }
 
+/**
+ * Achica la foto en el navegador (lado mayor 1600 px, JPEG) para que una foto del
+ * celular de 4 o 5 MB suba en segundos y entre en el límite. Si no se puede, va tal cual.
+ */
+async function achicarFoto(fd: FormData): Promise<FormData> {
+  const f = fd.get("foto");
+  if (!(f instanceof File) || f.size === 0) {
+    fd.delete("foto");
+    return fd;
+  }
+  try {
+    const img = await createImageBitmap(f);
+    const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const lienzo = document.createElement("canvas");
+    lienzo.width = Math.round(img.width * escala);
+    lienzo.height = Math.round(img.height * escala);
+    lienzo.getContext("2d")!.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+    const blob = await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, "image/jpeg", 0.82));
+    if (blob) fd.set("foto", blob, "foto.jpg");
+  } catch {
+    // Formato que el navegador no puede leer: el servidor decide.
+  }
+  return fd;
+}
+
 export function FormSolicitud({
   accion,
   categoria,
@@ -29,6 +54,7 @@ export function FormSolicitud({
   codigo,
   whatsapp,
   ayudaTexto,
+  conFoto = false,
 }: {
   accion: AccionForm;
   categoria: string;
@@ -36,6 +62,7 @@ export function FormSolicitud({
   codigo: string | null;
   whatsapp: string;
   ayudaTexto: string;
+  conFoto?: boolean;
 }) {
   const [enviada, setEnviada] = useState<{ asunto: string; codigo: string | null } | null>(null);
   const [origen, setOrigen] = useState(esPorteria ? "" : "UNIDAD");
@@ -46,7 +73,7 @@ export function FormSolicitud({
       setEnviada({ asunto: String(fd.get("asunto") ?? ""), codigo: cod });
     }
     return r;
-  });
+  }, conFoto ? achicarFoto : undefined);
 
   if (estado?.ok && enviada) {
     return (
@@ -91,6 +118,17 @@ export function FormSolicitud({
       )}
       <Campo etiqueta="Asunto" name="asunto" autoComplete="off" error={err.asunto} required />
       <AreaTexto etiqueta="Contá qué pasa" name="texto" rows={5} ayuda={ayudaTexto} error={err.texto} required />
+      {conFoto && (
+        <Campo
+          etiqueta="Foto (opcional)"
+          name="foto"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/*"
+          ayuda="Desde el celular podés sacarla en el momento."
+          error={err.foto}
+          className="[&_input]:py-2.5"
+        />
+      )}
       <Boton type="submit" disabled={pendiente} className="self-start">
         {pendiente ? "Enviando…" : "Enviar a la Administración"}
       </Boton>

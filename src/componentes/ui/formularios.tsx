@@ -38,15 +38,24 @@ export function ZonaAvisos({ children }: { children: ReactNode }) {
  * Envío de formulario que conserva lo escrito si hay un error (con `action={...}`
  * React limpia el formulario siempre, aun cuando el servidor devuelve errores).
  */
-export function useEnvioConservado(accion: Accion) {
+export function useEnvioConservado(accion: Accion, preparar?: (fd: FormData) => Promise<FormData>) {
   const [estado, enviar, pendiente] = useActionState(accion, null);
-  const alEnviar = (e: FormEvent<HTMLFormElement>) => {
+  const [preparando, setPreparando] = useState(false);
+  const alEnviar = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    let fd = new FormData(e.currentTarget);
+    if (preparar) {
+      setPreparando(true);
+      try {
+        fd = await preparar(fd);
+      } finally {
+        setPreparando(false);
+      }
+    }
     startTransition(() => enviar(fd));
   };
   const errores: Partial<Record<string, string>> = estado && !estado.ok ? (estado.campos ?? {}) : {};
-  return { estado, alEnviar, pendiente, errores };
+  return { estado, alEnviar, pendiente: pendiente || preparando, errores };
 }
 
 /** Resultado de una acción: aviso de éxito o de error. */
