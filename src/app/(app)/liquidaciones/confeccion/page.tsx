@@ -14,14 +14,14 @@ export default async function PaginaConfeccion() {
   const usuario = await exigirUsuario();
   if (!puede(usuario, "liquidacion.confeccionar")) notFound();
   const borrador = await borradorActual();
-  if (borrador) redirect(`/liquidaciones/confeccion/${borrador.id}/ingresos`);
+  if (borrador) redirect(`/liquidaciones/confeccion/${borrador.id}`);
   const proximo = await proximoPeriodo();
   const hoy = new Date();
   const sugerido = periodoDe(hoy.getFullYear(), hoy.getMonth() + 1);
 
   return (
     <>
-      <Volver href="/liquidaciones" texto="Liquidaciones" />
+      <Volver href="/liquidaciones" texto="Liquidación de gastos comunes" />
       <h1 className="mt-4 text-grande font-bold">
         {proximo ? `Preparar la liquidación de ${periodoEnFrase(proximo)}` : "Preparar la primera liquidación"}
       </h1>

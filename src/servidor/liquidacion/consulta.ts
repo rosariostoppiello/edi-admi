@@ -64,6 +64,17 @@ export async function verLiquidacion(periodo: string, liquidacionId?: string) {
   return { liquidacion: liq, propias, armada, usuario };
 }
 
+/** La última liquidación publicada (la rectificada, si hubo anulación). */
+export async function verUltima() {
+  await exigirPermiso("liquidacion.ver");
+  const ultima = await db.liquidacion.findFirst({
+    where: { estado: "PUBLICADA" },
+    orderBy: [{ periodo: "desc" }, { publicadaEn: "desc" }],
+    select: { id: true, periodo: true },
+  });
+  return ultima ? verLiquidacion(ultima.periodo, ultima.id) : null;
+}
+
 /**
  * PDF con control de acceso. El PDF de una publicada lo ve todo usuario
  * (decisión 13); el de un borrador, solo Administración; el de una anulada,

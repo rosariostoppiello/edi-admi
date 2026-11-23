@@ -8,15 +8,14 @@ import { importacionPendiente, resumenSaldosIniciales } from "@/servidor/liquida
 import {
   accionAgregarIngreso,
   accionCargarDeposito,
-  accionConfirmarImportacion,
-  accionDescartarImportacion,
   accionEliminarDeposito,
   accionEliminarIngreso,
   accionIdentificarDeposito,
   accionSubirPlanilla,
 } from "../../../acciones";
 import { Seccion } from "../../../partes";
-import { BotonAccion, BotonQuitar, FormDeposito, FormIdentificar, FormIngreso, FormPlanilla } from "../../formularios";
+import { VistaPrevia } from "../../vista-previa";
+import { BotonQuitar, FormDeposito, FormIdentificar, FormIngreso, FormPlanilla } from "../../formularios";
 
 export const metadata: Metadata = { title: "Ingresos de la liquidación" };
 
@@ -62,6 +61,23 @@ export default async function PaginaIngresos({ params }: PageProps<"/liquidacion
           )}
         </Seccion>
       )}
+
+      <Seccion titulo="Cómo se identifica cada pago">
+        <ul className="max-w-prose list-disc pl-6 text-pizarra-suave">
+          <li>
+            La referencia de cada pago es el <strong className="text-pizarra">código de la unidad</strong>, con la torre, el número y la
+            letra: por ejemplo <span className="font-mono font-bold text-pizarra">2-201-P</span>. A si no está alquilada, P el propietario,
+            I el inquilino.
+          </li>
+          <li>
+            En la planilla del banco o de la red de cobranza, ese código va en la columna <strong className="text-pizarra">Unidad</strong>.
+          </li>
+          <li>
+            Si un pago llegó sin código, cargalo abajo como <strong className="text-pizarra">depósito no identificado</strong>. Cuando
+            sepas de quién es (por el comprobante), asignalo a la unidad y se carga como su pago.
+          </li>
+        </ul>
+      </Seccion>
 
       <Seccion titulo="Importar pagos desde una planilla">
         <p className="max-w-prose text-pizarra-suave">
@@ -157,81 +173,5 @@ export default async function PaginaIngresos({ params }: PageProps<"/liquidacion
         <FormDeposito accion={accionCargarDeposito.bind(null, id)} fechaSugerida={fechaSugerida} />
       </Seccion>
     </>
-  );
-}
-
-function VistaPrevia({
-  liquidacionId,
-  imp,
-  tipo,
-}: {
-  liquidacionId: string;
-  imp: NonNullable<Awaited<ReturnType<typeof importacionPendiente>>>;
-  tipo: "INGRESOS" | "SALDOS_INICIALES";
-}) {
-  const conAvisos = imp.filas.filter((f) => f.avisos.length > 0).length;
-  return (
-    <div className="flex flex-col gap-4 rounded-[var(--radius-campo)] border-2 border-junta-fuerte bg-granito p-4">
-      <p className="font-bold">
-        Vista previa de “{imp.archivoNombre}”: {imp.filas.length} filas
-        {tipo === "INGRESOS" && imp.errores === 0 && (
-          <>
-            {" "}por <Monto valor={imp.total} conSimbolo />
-          </>
-        )}
-        .
-      </p>
-      {imp.errores > 0 ? (
-        <Aviso tono="error">
-          {imp.errores === 1 ? "Hay 1 fila con errores" : `Hay ${imp.errores} filas con errores`}. Corregí la planilla y subila de nuevo: no se
-          carga nada hasta que esté todo bien.
-        </Aviso>
-      ) : (
-        <Aviso tono="ok">
-          Todas las filas están bien{conAvisos ? `; revisá los ${conAvisos} avisos antes de confirmar` : ""}.
-        </Aviso>
-      )}
-      <div className="max-h-96 overflow-auto rounded-[var(--radius-campo)] border border-junta bg-losa" tabIndex={0} role="region" aria-label="Filas de la planilla">
-        <table className="w-full text-chico tabular-nums">
-          <thead className="sticky top-0 bg-granito">
-            <tr>
-              <th scope="col" className="px-3 py-2 text-left">Fila</th>
-              <th scope="col" className="px-3 py-2 text-left">Unidad</th>
-              {tipo === "INGRESOS" && <th scope="col" className="px-3 py-2 text-left">Fecha</th>}
-              <th scope="col" className="px-3 py-2 text-right">{tipo === "INGRESOS" ? "Monto" : "Saldo"}</th>
-              <th scope="col" className="px-3 py-2 text-left">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {imp.filas.map((f) => (
-              <tr key={f.fila} className={`border-t border-junta ${f.errores.length ? "bg-alerta-fondo" : ""}`}>
-                <td className="px-3 py-1.5">{f.fila}</td>
-                <td className="px-3 py-1.5 font-mono font-bold whitespace-nowrap">{f.codigo || "—"}</td>
-                {tipo === "INGRESOS" && <td className="px-3 py-1.5 whitespace-nowrap">{f.fecha ? formatearFecha(f.fecha) : "—"}</td>}
-                <td className="px-3 py-1.5 text-right">{f.monto !== null ? <Monto valor={f.monto} /> : "—"}</td>
-                <td className="px-3 py-1.5">
-                  {f.errores.length > 0 ? (
-                    <span className="font-bold text-alerta">{f.errores.join(" ")}</span>
-                  ) : f.avisos.length > 0 ? (
-                    <span>{f.avisos.join(" ")}</span>
-                  ) : (
-                    <span className="text-ok">Bien</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        {imp.errores === 0 && (
-          <BotonAccion
-            accion={accionConfirmarImportacion.bind(null, liquidacionId, imp.id)}
-            texto={tipo === "INGRESOS" ? `Cargar ${imp.filas.length} ${imp.filas.length === 1 ? "pago" : "pagos"}` : "Cargar los saldos"}
-          />
-        )}
-        <BotonAccion accion={accionDescartarImportacion.bind(null, liquidacionId, imp.id)} texto="Descartar planilla" variante="secundario" />
-      </div>
-    </div>
   );
 }

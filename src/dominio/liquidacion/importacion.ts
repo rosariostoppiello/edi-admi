@@ -6,6 +6,7 @@
  * Formato (la primera fila con encabezados reconocibles; el orden no importa):
  * - Ingresos: Fecha | Unidad | Monto | Referencia (opcional)
  * - Saldos iniciales: Unidad | Saldo
+ * - Egresos: Fecha | Rubro (código, ej. 3.3) | Proveedor | Período | Monto
  */
 import { parsearMonto, type Centesimos } from "../dinero";
 import { formatearCodigo, parsearCodigo, type Sufijo } from "../codigos";
@@ -31,6 +32,11 @@ export interface FilaImportada {
   referencia: string | null;
   errores: string[];
   avisos: string[];
+  /** Solo egresos: rubro resuelto, proveedor y período (va al detalle del egreso). */
+  rubroId?: string | null;
+  rubroNombre?: string | null;
+  proveedor?: string | null;
+  detalle?: string | null;
 }
 
 export interface ResultadoImportacion {
@@ -47,6 +53,9 @@ const ENCABEZADOS = {
   monto: ["monto", "importe", "pago", "valor"],
   saldo: ["saldo", "saldo anterior", "saldo inicial"],
   referencia: ["referencia", "detalle", "concepto", "documento"],
+  rubro: ["rubro", "código de rubro", "codigo de rubro", "código rubro", "codigo rubro", "categoría", "categoria"],
+  proveedor: ["proveedor", "ente", "proveedor o ente", "ente o proveedor", "beneficiario", "proveedor / beneficiario"],
+  periodo: ["período", "periodo", "período al que corresponde", "periodo al que corresponde", "mes"],
 };
 
 function normalizar(c: Celda): string {
@@ -257,6 +266,97 @@ export function validarSaldosIniciales(celdas: Celda[][], opciones: { unidades: 
     }
     filas.push(f);
   });
+  if (filas.length === 0) return resumir([], "La planilla no tiene filas con datos debajo de los encabezados.");
+  return resumir(filas);
+}
+
+export interface RubroConocido {
+  id: string;
+  codigo: string;
+  nombre: string;
+  /** Solo los subrubros (sin hijos) reciben egresos. */
+  hoja: boolean;
+}
+
+export function validarEgresos(
+  celdas: Celda[][],
+  opciones: {
+    periodo: string;
+    rubros: RubroConocido[];
+    /** Egresos ya cargados, para avisar posibles repetidos. */
+    existentes: { rubroId: string; fecha: string; proveedor: string; monto: number }[];
+  },
+): ResultadoImportacion {
+  const enc = buscarEncabezados(celdas, ["fecha", "rubro", "proveedor", "monto"], ["periodo"]);
+  if (!enc) {
+    return resumir([], "No encontramos los encabezados. La primera fila tiene que decir Fecha, Rubro, Proveedor, Período y Monto.");
+  }
+  const datos = celdas.slice(enc.fila + 1);
+  if (datos.length > MAX_FILAS) return resumir([], `La planilla tiene más de ${MAX_FILAS} filas. Dividila en partes.`);
+
+  const rubros = new Map(opciones.rubros.map((r) => [r.codigo.trim(), r]));
+  const clave = (rubroId: string, fecha: string, proveedor: string, monto: number) =>
+    `${rubroId}|${fecha}|${proveedor.toLowerCase()}|${monto}`;
+  const yaCargados = new Set(opciones.existentes.map((x) => clave(x.rubroId, x.fecha, x.proveedor, x.monto)));
+  const enArchivo = new Map<string, number>();
+  const filas: FilaImportada[] = [];
+
+  datos.forEach((celdasFila, i) => {
+    if (vacia(celdasFila)) return;
+    const numero = enc.fila + 2 + i;
+    const celdaRubro = celdasFila[enc.cols.rubro!];
+    // Un código como 3.3 puede llegar como número desde Excel.
+    const codigoRubro = typeof celdaRubro === "number" ? String(celdaRubro) : textoDe(celdaRubro).split(/\s+/)[0] ?? "";
+    const f: FilaImportada = {
+      fila: numero,
+      codigo: codigoRubro,
+      unidadId: null,
+      sufijo: null,
+      fecha: null,
+      monto: null,
+      referencia: null,
+      errores: [],
+      avisos: [],
+      rubroId: null,
+      rubroNombre: null,
+      proveedor: textoDe(celdasFila[enc.cols.proveedor!]).slice(0, 120) || null,
+      detalle: enc.cols.periodo !== undefined ? textoDe(celdasFila[enc.cols.periodo]).slice(0, 160) || null : null,
+    };
+
+    const r = rubros.get(codigoRubro);
+    if (!codigoRubro) f.errores.push("Falta el rubro (ej. 3.3).");
+    else if (!r) f.errores.push(`El rubro ${codigoRubro} no existe.`);
+    else if (!r.hoja) f.errores.push(`${codigoRubro} ${r.nombre} agrupa otros rubros: usá un subrubro (ej. ${codigoRubro}.1).`);
+    else {
+      f.rubroId = r.id;
+      f.rubroNombre = r.nombre;
+    }
+
+    if (!f.proveedor) f.errores.push("Falta el proveedor o ente.");
+    if (!f.detalle) f.errores.push("Falta el período al que corresponde (ej. Agosto 2026).");
+
+    f.fecha = fechaDeCelda(celdasFila[enc.cols.fecha!]);
+    if (!f.fecha) f.errores.push(`La fecha "${textoDe(celdasFila[enc.cols.fecha!])}" no es válida (usá dd/mm/aaaa).`);
+    else if (!enPeriodo(f.fecha, opciones.periodo)) f.avisos.push("La fecha de pago es de otro mes.");
+
+    try {
+      const m = montoDeCelda(celdasFila[enc.cols.monto!]);
+      if (m <= 0) f.errores.push("El monto tiene que ser mayor que cero.");
+      else f.monto = m;
+    } catch (e) {
+      f.errores.push(`El monto ${problemaMonto(e, celdasFila[enc.cols.monto!])}.`);
+    }
+
+    if (f.errores.length === 0) {
+      const k = clave(f.rubroId!, f.fecha!, f.proveedor!, f.monto!);
+      if (yaCargados.has(k)) f.avisos.push("Ya hay un egreso igual cargado (mismo rubro, fecha, proveedor y monto).");
+      const previa = enArchivo.get(k);
+      if (previa) f.avisos.push(`Igual a la fila ${previa}.`);
+      else enArchivo.set(k, numero);
+    }
+    filas.push(f);
+  });
+
   if (filas.length === 0) return resumir([], "La planilla no tiene filas con datos debajo de los encabezados.");
   return resumir(filas);
 }

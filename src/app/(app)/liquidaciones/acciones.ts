@@ -25,7 +25,7 @@ const campos = (fd: FormData, nombres: string[]) => Object.fromEntries(nombres.m
 // Crear / eliminar
 export async function accionCrear(_: Estado, fd: FormData) {
   const r = await ejecutar(() => conf.crearLiquidacion({ periodo: String(fd.get("periodo") ?? "") || undefined }));
-  if (r.ok && "id" in r && r.id) redirect(`/liquidaciones/confeccion/${r.id}/ingresos`);
+  if (r.ok && "id" in r && r.id) redirect(`/liquidaciones/confeccion/${r.id}`);
   return r;
 }
 export async function accionEliminarBorrador(id: string, _: Estado) {
@@ -41,7 +41,7 @@ export async function accionAgregarIngreso(id: string, _: Estado, fd: FormData) 
 export async function accionEliminarIngreso(id: string, ingresoId: string, _: Estado) {
   return ejecutar(() => conf.eliminarIngreso(id, ingresoId));
 }
-export async function accionSubirPlanilla(id: string, tipo: "INGRESOS" | "SALDOS_INICIALES", _: Estado, fd: FormData) {
+export async function accionSubirPlanilla(id: string, tipo: imp.TipoPlanilla, _: Estado, fd: FormData) {
   return ejecutar(() => imp.subirPlanilla(id, tipo, fd.get("archivo")));
 }
 export async function accionConfirmarImportacion(id: string, importacionId: string, _: Estado) {
@@ -112,7 +112,7 @@ export async function accionGuardarDisponibilidades(id: string, _: Estado, fd: F
 // Publicar / anular / reenviar
 export async function accionPublicar(id: string, _: Estado) {
   const r = await ejecutar(() => pub.publicarLiquidacion(id));
-  if (r.ok && "periodo" in r && r.periodo) redirect(`/liquidaciones/${r.periodo}?publicada=1`);
+  if (r.ok && "periodo" in r && r.periodo) redirect("/liquidaciones/ultima?publicada=1");
   return r;
 }
 export async function accionAnular(id: string, _: Estado, fd: FormData) {

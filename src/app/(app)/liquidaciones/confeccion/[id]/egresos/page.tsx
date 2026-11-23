@@ -3,15 +3,18 @@ import { Monto } from "@/componentes/ui/monto";
 import { formatearNumero, type Centesimos } from "@/dominio/dinero";
 import { fechaIso, formatearFecha, nombrePeriodo, periodoAnterior, rangoPeriodo } from "@/dominio/liquidacion/periodo";
 import { listarEgresosYRubros, obtenerBorrador } from "@/servidor/liquidacion/confeccion";
+import { importacionPendiente } from "@/servidor/liquidacion/importar";
 import {
   accionAgregarEgreso,
   accionAgregarRubro,
   accionDesactivarFijo,
   accionEditarEgreso,
   accionEliminarEgreso,
+  accionSubirPlanilla,
 } from "../../../acciones";
 import { Seccion } from "../../../partes";
-import { AgregarRubro, BotonQuitar, EditarEgreso, FormEgreso, type OpcionRubro } from "../../formularios";
+import { AgregarRubro, BotonQuitar, EditarEgreso, FormEgreso, FormPlanilla, type OpcionRubro } from "../../formularios";
+import { VistaPrevia } from "../../vista-previa";
 
 export const metadata: Metadata = { title: "Egresos de la liquidación" };
 
@@ -19,6 +22,7 @@ export default async function PaginaEgresos({ params }: PageProps<"/liquidacione
   const { id } = await params;
   const liq = (await obtenerBorrador(id))!;
   const { egresos, rubros, fijos, proveedores } = await listarEgresosYRubros(id);
+  const pendiente = await importacionPendiente(id, "EGRESOS");
   const total = egresos.reduce((s, e) => s + e.monto, 0);
 
   // Rubros para el selector, agrupados por su rubro padre.
@@ -35,6 +39,19 @@ export default async function PaginaEgresos({ params }: PageProps<"/liquidacione
 
   return (
     <>
+      <Seccion titulo="Importar egresos desde una planilla">
+        <p className="max-w-prose text-pizarra-suave">
+          La planilla tiene que tener una fila de encabezados con <strong>Fecha</strong>, <strong>Rubro</strong> (el código del subrubro,
+          ej. 3.3), <strong>Proveedor</strong>, <strong>Período</strong> (ej. Agosto 2026) y <strong>Monto</strong>. Antes de cargar nada te
+          mostramos cada fila con sus errores.
+        </p>
+        {pendiente ? (
+          <VistaPrevia liquidacionId={id} imp={pendiente} tipo="EGRESOS" />
+        ) : (
+          <FormPlanilla accion={accionSubirPlanilla.bind(null, id, "EGRESOS")} texto="Ver vista previa" />
+        )}
+      </Seccion>
+
       <Seccion titulo="Cargar un egreso">
         <p className="max-w-prose text-pizarra-suave">
           Cada pago del mes: el rubro, a quién se le pagó, a qué período corresponde (suele ser el mes anterior) y el monto.

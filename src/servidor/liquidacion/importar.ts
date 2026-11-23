@@ -8,6 +8,7 @@ import { error, ok, type Resultado } from "../resultado";
 import { formatearPesos, type Centesimos } from "@/dominio/dinero";
 import {
   leerCsv,
+  validarEgresos,
   validarIngresos,
   validarSaldosIniciales,
   type Celda,
@@ -19,6 +20,15 @@ import { esPrimera } from "./armado";
 import { unidadesConocidas } from "./confeccion";
 
 export const MAX_BYTES = 3 * 1024 * 1024;
+
+export type TipoPlanilla = "INGRESOS" | "SALDOS_INICIALES" | "EGRESOS";
+
+/** Rubros activos; solo los que no tienen hijos reciben egresos. */
+async function rubrosConocidos(tx: Pick<typeof db, "rubro"> = db) {
+  const rubros = await tx.rubro.findMany({ where: { activo: true }, select: { id: true, codigo: true, nombre: true, padreId: true } });
+  const conHijos = new Set(rubros.map((r) => r.padreId).filter(Boolean));
+  return rubros.map((r) => ({ id: r.id, codigo: r.codigo, nombre: r.nombre, hoja: !conHijos.has(r.id) }));
+}
 
 /** Valor "plano" de una celda de exceljs (fórmulas → resultado, texto enriquecido → texto). */
 function valorCelda(v: ExcelJS.CellValue): Celda {
@@ -54,7 +64,7 @@ async function leerArchivo(archivo: File): Promise<Celda[][]> {
 /** Sube una planilla y guarda la vista previa (no toca la liquidación todavía). */
 export async function subirPlanilla(
   liquidacionId: string,
-  tipo: "INGRESOS" | "SALDOS_INICIALES",
+  tipo: TipoPlanilla,
   archivo: unknown,
 ): Promise<Resultado & { importacionId?: string }> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
@@ -77,7 +87,14 @@ export async function subirPlanilla(
 
   const unidades = await unidadesConocidas();
   let r: ResultadoImportacion;
-  if (tipo === "INGRESOS") {
+  if (tipo === "EGRESOS") {
+    const existentes = await db.egreso.findMany({ where: { liquidacionId }, select: { rubroId: true, fecha: true, proveedor: true, monto: true } });
+    r = validarEgresos(celdas, {
+      periodo: liq.periodo,
+      rubros: await rubrosConocidos(),
+      existentes: existentes.map((x) => ({ ...x, fecha: fechaIso(x.fecha) })),
+    });
+  } else if (tipo === "INGRESOS") {
     const existentes = await db.ingreso.findMany({ where: { liquidacionId }, select: { unidadId: true, sufijo: true, fecha: true, monto: true } });
     r = validarIngresos(celdas, {
       periodo: liq.periodo,
@@ -106,7 +123,7 @@ export async function subirPlanilla(
   return { ...ok("Revisá la vista previa antes de confirmar."), importacionId: imp.id };
 }
 
-export async function importacionPendiente(liquidacionId: string, tipo: "INGRESOS" | "SALDOS_INICIALES") {
+export async function importacionPendiente(liquidacionId: string, tipo: TipoPlanilla) {
   await exigirPermiso("liquidacion.confeccionar");
   const imp = await db.importacion.findFirst({ where: { liquidacionId, tipo, estado: "PENDIENTE" }, orderBy: { createdAt: "desc" } });
   if (!imp) return null;
@@ -140,18 +157,36 @@ export async function confirmarImportacion(liquidacionId: string, importacionId:
     if (!imp) return error("Esa planilla ya se confirmó o se descartó.");
     if (imp.errores > 0) return error("La planilla tiene errores. Corregilos y subila de nuevo.");
 
-    // Las unidades pudieron cambiar (A ↔ P+I) desde que se subió: se revalida.
-    const vigentes = new Map((await unidadesConocidas(tx)).map((u) => [u.unidadId, u]));
     const filas = imp.filas as unknown as FilaImportada[];
-    for (const f of filas) {
-      const u = vigentes.get(f.unidadId!);
-      if (!u || (u.arrendada ? f.sufijo === "A" : f.sufijo !== "A")) {
-        return error(`La unidad ${f.codigo} cambió desde que subiste la planilla. Subila de nuevo.`);
+    if (imp.tipo === "EGRESOS") {
+      // Los rubros pudieron cambiar desde que se subió: se revalida.
+      const hojas = new Set((await rubrosConocidos(tx)).filter((r) => r.hoja).map((r) => r.id));
+      const cambiado = filas.find((f) => !hojas.has(f.rubroId!));
+      if (cambiado) return error(`El rubro ${cambiado.codigo} cambió desde que subiste la planilla. Subila de nuevo.`);
+    } else {
+      // Las unidades pudieron cambiar (A ↔ P+I) desde que se subió: se revalida.
+      const vigentes = new Map((await unidadesConocidas(tx)).map((u) => [u.unidadId, u]));
+      for (const f of filas) {
+        const u = vigentes.get(f.unidadId!);
+        if (!u || (u.arrendada ? f.sufijo === "A" : f.sufijo !== "A")) {
+          return error(`La unidad ${f.codigo} cambió desde que subiste la planilla. Subila de nuevo.`);
+        }
       }
     }
 
     const total = filas.reduce((s, f) => s + (f.monto ?? 0), 0);
-    if (imp.tipo === "INGRESOS") {
+    if (imp.tipo === "EGRESOS") {
+      await tx.egreso.createMany({
+        data: filas.map((f) => ({
+          liquidacionId,
+          rubroId: f.rubroId!,
+          fecha: new Date(`${f.fecha}T00:00:00Z`),
+          proveedor: f.proveedor!,
+          detalle: f.detalle!,
+          monto: f.monto!,
+        })),
+      });
+    } else if (imp.tipo === "INGRESOS") {
       await tx.ingreso.createMany({
         data: filas.map((f) => ({
           liquidacionId,
@@ -176,17 +211,20 @@ export async function confirmarImportacion(liquidacionId: string, importacionId:
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
-        accion: imp.tipo === "INGRESOS" ? "ingresos.importados" : "saldos_iniciales.importados",
+        accion: { INGRESOS: "ingresos.importados", EGRESOS: "egresos.importados", SALDOS_INICIALES: "saldos_iniciales.importados" }[imp.tipo],
         entidad: "liquidacion",
         entidadId: liquidacionId,
         detalle: { importacionId: imp.id, archivo: imp.archivoNombre, filas: filas.length, total },
       },
       tx,
     );
+    const n = filas.length;
     return ok(
       imp.tipo === "INGRESOS"
-        ? `Cargaste ${filas.length} ${filas.length === 1 ? "pago" : "pagos"} por ${formatearPesos(total as Centesimos)}.`
-        : `Cargaste los saldos iniciales de ${filas.length} líneas.`,
+        ? `Cargaste ${n} ${n === 1 ? "pago" : "pagos"} por ${formatearPesos(total as Centesimos)}.`
+        : imp.tipo === "EGRESOS"
+          ? `Cargaste ${n} ${n === 1 ? "egreso" : "egresos"} por ${formatearPesos(total as Centesimos)}.`
+          : `Cargaste los saldos iniciales de ${n} líneas.`,
     );
   });
 }

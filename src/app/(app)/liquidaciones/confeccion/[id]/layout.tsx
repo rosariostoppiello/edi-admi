@@ -3,9 +3,8 @@ import { puede } from "@/dominio/permisos";
 import { periodoEnFrase } from "@/dominio/liquidacion/periodo";
 import { exigirUsuario } from "@/servidor/sesion";
 import { obtenerBorrador } from "@/servidor/liquidacion/confeccion";
-import { Volver } from "../../../datos/volver";
 import { Estado } from "../../partes";
-import { Pasos } from "./pasos";
+import { VolverConfeccion } from "./volver-confeccion";
 
 export default async function LayoutConfeccion({ children, params }: LayoutProps<"/liquidaciones/confeccion/[id]">) {
   const usuario = await exigirUsuario();
@@ -17,7 +16,7 @@ export default async function LayoutConfeccion({ children, params }: LayoutProps
 
   return (
     <>
-      <Volver href="/liquidaciones" texto="Liquidaciones" />
+      <VolverConfeccion id={id} />
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <h1 className="text-grande font-bold">
           {liq.rectificaId ? "Corrección de la liquidación" : "Liquidación"} de {periodoEnFrase(liq.periodo)}
@@ -25,9 +24,6 @@ export default async function LayoutConfeccion({ children, params }: LayoutProps
         <Estado estado="BORRADOR" />
       </div>
       <p className="mt-1 text-pizarra-suave">Todo lo que cargues queda guardado. Las unidades no ven nada hasta que la publiques.</p>
-      <div className="mt-5">
-        <Pasos id={id} />
-      </div>
       <div className="mt-6 flex flex-col gap-5">{children}</div>
     </>
   );

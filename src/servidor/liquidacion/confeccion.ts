@@ -499,6 +499,19 @@ export async function obtenerBorrador(liquidacionId: string) {
   return { ...liq, primera: await esPrimera(liq.periodo) };
 }
 
+/** Totales para la pantalla de la confección (teclas Egresos e Ingresos). */
+export async function resumenBorrador(liquidacionId: string) {
+  await exigirPermiso("liquidacion.confeccionar");
+  const ingresos = await db.ingreso.aggregate({ where: { liquidacionId }, _count: true, _sum: { monto: true } });
+  const egresos = await db.egreso.aggregate({ where: { liquidacionId }, _count: true, _sum: { monto: true } });
+  const cargos = await db.cargoExtra.count({ where: { liquidacionId } });
+  return {
+    ingresos: { cantidad: ingresos._count, total: ingresos._sum.monto ?? 0 },
+    egresos: { cantidad: egresos._count, total: egresos._sum.monto ?? 0 },
+    cargos,
+  };
+}
+
 export async function borradorActual() {
   await exigirPermiso("liquidacion.confeccionar");
   return db.liquidacion.findFirst({ where: { estado: "BORRADOR" } });

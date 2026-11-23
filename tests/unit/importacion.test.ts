@@ -3,8 +3,10 @@ import {
   fechaDeCelda,
   leerCsv,
   montoDeCelda,
+  validarEgresos,
   validarIngresos,
   validarSaldosIniciales,
+  type RubroConocido,
   type UnidadConocida,
 } from "@/dominio/liquidacion/importacion";
 
@@ -122,5 +124,57 @@ describe("planilla de saldos iniciales", () => {
     );
     expect(r.filas.map((f) => f.monto)).toEqual([-150025, 0, 800000, 1000]);
     expect(r.filas[3].errores).toEqual(["La unidad ya aparece en la fila 2."]);
+  });
+});
+
+describe("planilla de egresos", () => {
+  const rubros: RubroConocido[] = [
+    { id: "r3", codigo: "3", nombre: "Mantenimiento", hoja: false },
+    { id: "r33", codigo: "3.3", nombre: "Sanitaria", hoja: true },
+    { id: "r21", codigo: "2.1", nombre: "UTE espacios comunes", hoja: true },
+  ];
+  const enc = ["Fecha", "Rubro", "Proveedor", "Período", "Monto"];
+  const op = { periodo: "2026-10", rubros, existentes: [] };
+
+  it("lee fecha, rubro (texto o número de Excel), proveedor, período y monto", () => {
+    const r = validarEgresos(
+      [enc, ["05/10/2026", "3.3", "Sanitaria Ejemplo", "Setiembre 2026", "4.000"], [new Date(Date.UTC(2026, 9, 8)), 2.1, "UTE", "Setiembre 2026", 1500.5]],
+      op,
+    );
+    expect(r.error).toBeNull();
+    expect(r.cantidadErrores).toBe(0);
+    expect(r.filas.map((f) => [f.rubroId, f.fecha, f.proveedor, f.detalle, f.monto])).toEqual([
+      ["r33", "2026-10-05", "Sanitaria Ejemplo", "Setiembre 2026", 400000],
+      ["r21", "2026-10-08", "UTE", "Setiembre 2026", 150050],
+    ]);
+    expect(r.totalValido).toBe(550050);
+  });
+
+  it("rubro inexistente o que agrupa otros, faltantes y monto inválido son errores", () => {
+    const r = validarEgresos(
+      [enc, ["05/10/2026", "9.9", "X", "Set", 10], ["05/10/2026", "3", "X", "Set", 10], ["05/10/2026", "3.3", "", "", "mil"]],
+      op,
+    );
+    expect(r.cantidadErrores).toBe(3);
+    expect(r.filas[0].errores).toContain("El rubro 9.9 no existe.");
+    expect(r.filas[1].errores[0]).toMatch(/agrupa otros rubros/);
+    expect(r.filas[2].errores).toEqual(
+      expect.arrayContaining(["Falta el proveedor o ente.", "Falta el período al que corresponde (ej. Agosto 2026)."]),
+    );
+    expect(r.filas[2].errores.some((e) => e.startsWith("El monto"))).toBe(true);
+  });
+
+  it("avisa fecha de otro mes y egresos repetidos, sin bloquear", () => {
+    const r = validarEgresos([enc, ["05/09/2026", "3.3", "Sanitaria", "Agosto", 100], ["05/09/2026", "3.3", "sanitaria", "Agosto", 100]], {
+      ...op,
+      existentes: [{ rubroId: "r33", fecha: "2026-09-05", proveedor: "Sanitaria", monto: 10000 }],
+    });
+    expect(r.cantidadErrores).toBe(0);
+    expect(r.filas[0].avisos).toEqual(["La fecha de pago es de otro mes.", "Ya hay un egreso igual cargado (mismo rubro, fecha, proveedor y monto)."]);
+    expect(r.filas[1].avisos).toContain("Igual a la fila 2.");
+  });
+
+  it("sin encabezados da un error general", () => {
+    expect(validarEgresos([["a", "b"]], op).error).toMatch(/Fecha, Rubro, Proveedor/);
   });
 });
