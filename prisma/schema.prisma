@@ -39,6 +39,7 @@ model User {
   solicitudes   Solicitud[]
   eventos       SolicitudEvento[]
   comunicados   Comunicado[]
+  consentimientos Contacto[] @relation("ConsentimientoRegistradoPor")
   reservas      Reserva[]   @relation("ReservaCreadaPor")
   cancelaciones Reserva[]   @relation("ReservaCanceladaPor")
 
@@ -699,4 +700,60 @@ model Comunicado {
 
   @@index([tipo, activo, fecha])
   @@map("comunicado")
+}
+
+// ---------------------------------------------------------------------------
+// Teléfonos y datos de interés (los carga Administración, los ven todos)
+// ---------------------------------------------------------------------------
+
+/// Datos de una sola ficha: "ADMINISTRACION" o "PORTERIA". `datos` se valida con Zod (servidor/telefonos.ts).
+model FichaContacto {
+  clave       String   @id
+  datos       Json
+  actualizada DateTime @updatedAt
+
+  @@map("ficha_contacto")
+}
+
+enum TipoContacto {
+  COMISION // integrante de la Comisión administradora
+  EMPRESA // ascensores, limpieza, sanitaria, bombas…
+  SERVICIO // UTE, OSE, saneamiento (datos del recibo, sin montos)
+}
+
+model Contacto {
+  id                            String       @id @default(cuid())
+  tipo                          TipoContacto
+  nombre                        String // integrante, empresa o servicio
+  detalle                       String       @default("") // cargo, rubro, o qué cubre el servicio
+  telefono                      String       @default("")
+  unidad                        String       @default("") // integrante de la Comisión: "2-101"
+  cuenta                        String       @default("") // servicio: número de cuenta
+  titular                       String       @default("") // servicio: titular del recibo
+  /// Ley 18.331: un integrante de la Comisión se muestra solo si dio su consentimiento.
+  consentimientoEn              DateTime?
+  consentimientoRegistradoPorId String?
+  consentimientoRegistradoPor   User?        @relation("ConsentimientoRegistradoPor", fields: [consentimientoRegistradoPorId], references: [id])
+  orden                         Int          @default(0)
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+
+  @@index([tipo, orden])
+  @@map("contacto")
+}
+
+model Poliza {
+  id                 String    @id @default(cuid())
+  aseguradora        String
+  numero             String
+  cobertura          String    @default("")
+  desde              DateTime  @db.Date
+  hasta              DateTime  @db.Date
+  telefono           String    @default("")
+  /// Cuándo se avisó por mail a Administración que vence (una vez por vigencia).
+  avisoVencimientoEn DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("poliza")
 }

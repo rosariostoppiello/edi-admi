@@ -14,6 +14,7 @@ import { limpiarLiquidacion, sembrarLiquidacion } from "./seed-liquidacion";
 import { limpiarReservas, sembrarReservas } from "./seed-reservas";
 import { sembrarSolicitudes } from "./seed-solicitudes";
 import { limpiarComunicados, sembrarComunicados } from "./seed-comunicados";
+import { limpiarTelefonos, sembrarTelefonos } from "./seed-telefonos";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -75,6 +76,7 @@ async function main() {
   await db.auditoria.deleteMany();
   await db.solicitud.deleteMany();
   await limpiarComunicados(db);
+  await limpiarTelefonos(db);
   await limpiarLiquidacion(db);
   await limpiarReservas(db);
   await db.destinatarioExtra.deleteMany();
@@ -165,6 +167,8 @@ async function main() {
   console.log(`Espacios comunes: 3 barbacoas con su solarium y el laundry; ${reservas} reservas de ejemplo.`);
   console.log(`${await sembrarSolicitudes(db)} solicitudes de ejemplo.`);
   console.log(`${await sembrarComunicados(db)} comunicados de ejemplo (avisos, reglamentos y un acta).`);
+  await sembrarTelefonos(db);
+  console.log("Teléfonos y datos de interés de ejemplo (la póliza vence en 20 días).");
 
   const [unidades, personas, usuarios] = await Promise.all([
     db.unidad.count(),
