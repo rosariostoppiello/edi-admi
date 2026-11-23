@@ -52,7 +52,7 @@ Confección de la liquidación mensual → Crear borrador*.
 ## Pantallas
 La estructura de pantallas y botones sigue [`docs/PROYECTO-EN-GRAFICO.md`](docs/PROYECTO-EN-GRAFICO.md):
 seis teclas en el inicio y, en cada una, sus sub-botones (filtrados por permiso; si
-alguien ve uno solo, entra directo). Solicitudes, Comunicados y Teléfonos
+alguien ve uno solo, entra directo). Comunicados y Teléfonos
 muestran sus sub-botones con el aviso "en construcción" hasta su fase.
 
 ## Reserva de espacios comunes
@@ -68,6 +68,15 @@ muestran sus sub-botones con el aviso "en construcción" hasta su fase.
   tarifa, reglas, texto del laundry, alta y baja.
 - **Cobro:** en la confección, *Cargos del mes → Traer las reservas de barbacoa del
   mes* carga un cargo por reserva con la tarifa de la barbacoa, sin duplicar.
+
+## Solicitudes varias
+- **Aviso de desperfectos, Consultas de gastos comunes, Inquietudes varias:** cada
+  una con su formulario y, abajo, "Mis solicitudes" con el estado y las respuestas.
+- **Portería** la hace por sí misma o a pedido de una unidad (código + quién lo pidió).
+- **Bandeja** (Administración; la Comisión, solo lectura): filtros por categoría y
+  estado, respuestas (le llegan por mail al autor), cambio de estado y notas internas.
+- Al crear, mail a la Administración y botón *Escribir por WhatsApp* (wa.me con el
+  texto armado) si la Administración cargó su número en la bandeja.
 
 ## Liquidación mensual
 - **Liquidación mensual** (todos): *Última liquidación* (recibo de la unidad, PDF y,

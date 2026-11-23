@@ -119,7 +119,7 @@ Notas:
 | Avisar venta de la unidad | — | — | — | ✔ (propietario o promitente) | — |
 | Alta / baja de inquilino | ✔ | — | — | ✔ | baja propia |
 | Teléfonos: ver / editar | ✔ / ✔ | ✔ / — | ✔ / — | ✔ / — | ✔ / — |
-| Solicitudes: crear / ver propias / gestionar todas | — / — / ✔ | ✔ / ✔ / ver | ✔ / ✔ / — | ✔ / ✔ / — | ✔ / ✔ / — |
+| Solicitudes: crear / ver propias / gestionar todas | — / — / ✔ | si tiene unidad / ✔ / ver (sin notas internas) | por sí o a pedido de una unidad / ✔ / — | ✔ / ✔ / — | ✔ / ✔ / — |
 | Comunicados: ver / publicar | ✔ / ✔ | ✔ / — | ✔ / — | ✔ / — | ✔ / — |
 
 Se implementa como una función `puede(usuario, accion, recurso)` que llaman **todas** las server actions y endpoints, más filtros de consulta por `unidadId` (nunca se confía en la UI).
@@ -155,7 +155,7 @@ Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gr
 | 3. Liquidación | Rubros, egresos fijos/variables, ingresos manuales + planilla con vista previa, cálculo, revisión, publicación (PDF + envío), anulación y rectificación, recibo por unidad | Hecha |
 | 4. Estructura según "Proyecto en gráfico" | Home en el orden de C.0, sub-botones por módulo, Liquidación mensual (última / anteriores), Confección con Egresos e Ingresos, egresos por planilla, columnas del gráfico (Barbacoas, Otros, Cuota extra F.R.), Datos con "Editar" y "Avisar venta", Comisión sin datos personales ajenos | Hecha |
 | 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | Hecha |
-| 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | |
+| 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | Hecha |
 | 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | |
 | 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | |
 | 9. Pulido y producción | Accesibilidad AA, estados vacío/carga/error, e2e por rol, seed completo, docs, deploy (Vercel + Neon + Blob), mail real, rama `main` | |
@@ -227,6 +227,16 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 51. **Doble reserva:** índice único parcial `(espacioId, fecha, turno) WHERE estado = 'ACTIVA'` en la base; la unidad se bloquea (`FOR UPDATE`) al reservar para que dos pedidos simultáneos no salteen el máximo.
 52. **Cobro en la liquidación:** botón "Traer las reservas de barbacoa del mes" en *Cargos del mes*. Cada cargo BARBACOAS guarda su reserva (`CargoExtra.reservaId`, en lugar de `Reserva.liquidacionId`): así repetir no duplica, quitar el cargo libera la reserva para volver a traerla, y al anular la copia conserva el vínculo. Si un espacio no tiene tarifa, se avisa y no se cobra.
 53. **Laundry:** espacio informativo con un texto que edita Administración. El reglamento de barbacoas se enlaza en la Fase 7.
+
+### Decisiones de la Fase 6 (solicitudes)
+
+54. **Rutas:** `/solicitudes/desperfectos`, `/consultas` e `/inquietudes` (formulario de la categoría y, abajo, "Mis solicitudes"); `/solicitudes/ver/{id}` (detalle con historial); `/solicitudes/bandeja` (Administración y Comisión). Administración y la Comisión sin unidad no crean solicitudes: al tocar una categoría van a la bandeja filtrada.
+55. **Qué ve cada uno:** "Mis solicitudes" son las que hizo el usuario y las que Portería cargó a pedido de sus unidades. Una unidad no ve las de otra (ni las de otra persona de su misma unidad). La Comisión lee la bandeja sin las notas internas.
+56. **Portería:** al crear elige "Por mí (Portería)" (sin unidad) o "A pedido de una unidad" (código `2-201` y quién lo pidió). Matriz: `solicitud.crear` incluye a Portería sobre cualquier unidad y `solicitud.crearPorteria` es la propia.
+57. **Historial:** `SolicitudEvento` (RESPUESTA, CAMBIO_ESTADO, NOTA_INTERNA). Responder pasa una solicitud nueva a "en curso" (o a resuelta si se marca) y le manda un mail al autor. Los cambios de estado se auditan.
+58. **Mail y WhatsApp:** al crear, mail a los usuarios de Administración. El número de WhatsApp (decisión 19) se guarda en `Configuracion.whatsapp` y se edita en la bandeja; con número cargado, la unidad ve "Escribir por WhatsApp" (enlace wa.me con categoría + unidad + asunto) al enviar y en el detalle. Sin API de WhatsApp.
+59. **Aviso de venta:** es una solicitud VENTA_UNIDAD (Fase 4); aparece en la bandeja con un enlace a la ficha de la unidad y se resuelve al cambiar de propietario.
+60. **Foto en desperfectos:** no se hizo (era opcional). Queda como pendiente si se quiere: usaría la tabla `Archivo` con límite de tamaño.
 
 ## 8. Manejo de los documentos sensibles
 

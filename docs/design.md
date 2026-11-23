@@ -82,6 +82,13 @@ Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué tor
   ya pasó o está fuera de plazo. El estado se dice en texto (y en un texto para
   lectores de pantalla con espacio, día y turno), nunca solo con color. Se navega de
   a semanas. "Tus reservas" va arriba del calendario.
+- **Solicitudes:** cada una es una tarjeta-enlace con un chip de estado (Nueva en
+  bronce claro, En curso en granito, Resuelta en verde, siempre con texto). El
+  detalle es un historial de arriba hacia abajo: la solicitud, las respuestas con
+  borde bronce, los cambios de estado como una línea chica y las notas internas con
+  borde punteado (solo Administración). La gestión va al costado desde 1024 px.
+- **Filtros:** pastillas de 44 px que son enlaces (la URL guarda el filtro); la activa,
+  en pizarra.
 - **Avisos de una sección:** el mensaje de éxito queda arriba de la sección aunque el
   formulario que lo generó desaparezca (ej. al confirmar una planilla).
 

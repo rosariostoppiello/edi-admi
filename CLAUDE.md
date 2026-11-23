@@ -55,7 +55,8 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
   el resumen por rubro, las disponibilidades y la validación de planillas; `dominio/reservas.ts` las
   reglas de reserva (turnos, 48 h, anticipación, máximo por unidad, solarium)
 - `src/servidor/` db, auth, sesión/permisos, auditoría, mail; `servidor/liquidacion/` confección,
-  importación, publicación (PDF + envío) y consulta; `servidor/reservas.ts` reservas y espacios
+  importación, publicación (PDF + envío) y consulta; `servidor/reservas.ts` reservas y espacios;
+  `servidor/solicitudes.ts` solicitudes, respuestas y WhatsApp
 - `src/app/(publico)/` login y recuperación · `src/app/(app)/` pantallas con sesión
 - `src/componentes/ui/` sistema de diseño
 - `prisma/` esquema, migraciones y seed · `tests/unit`, `tests/e2e`
