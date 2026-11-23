@@ -14,8 +14,6 @@ export interface Subtecla {
   ruta: string;
   nombre: string;
   visible?: (actor: Actor) => boolean;
-  /** Fase en la que se implementa (mientras tanto, aviso "en construcción"). */
-  fase?: number;
 }
 
 export interface Modulo {
@@ -84,12 +82,12 @@ export const MODULOS: Modulo[] = [
     descripcion: "Administración, empresas, servicios y seguro",
     Icono: IconoTelefonos,
     subteclas: [
-      { ruta: "/telefonos/administracion", nombre: "Administración", fase: 8 },
-      { ruta: "/telefonos/comision", nombre: "Comisión administradora", fase: 8 },
-      { ruta: "/telefonos/porteria", nombre: "Portería", fase: 8 },
-      { ruta: "/telefonos/empresas", nombre: "Empresas", fase: 8 },
-      { ruta: "/telefonos/servicios", nombre: "Servicios públicos", fase: 8 },
-      { ruta: "/telefonos/seguro", nombre: "Seguro de incendio", fase: 8 },
+      { ruta: "/telefonos/administracion", nombre: "Administración" },
+      { ruta: "/telefonos/comision", nombre: "Comisión administradora" },
+      { ruta: "/telefonos/porteria", nombre: "Portería" },
+      { ruta: "/telefonos/empresas", nombre: "Empresas" },
+      { ruta: "/telefonos/servicios", nombre: "Servicios públicos" },
+      { ruta: "/telefonos/seguro", nombre: "Seguro de incendio" },
     ],
   },
   {
