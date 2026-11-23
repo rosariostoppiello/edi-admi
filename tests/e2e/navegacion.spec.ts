@@ -34,11 +34,11 @@ test("una unidad recorre los módulos por sus sub-botones, en el orden del gráf
   }
 
   // Los módulos que vienen en fases siguientes avisan que están en construcción.
-  await page.goto("/comunicados");
-  await main(page).getByRole("link", { name: "Avisos importantes" }).click();
+  await page.goto("/telefonos");
+  await main(page).getByRole("link", { name: "Seguro de incendio" }).click();
   await expect(main(page)).toContainText("en construcción");
-  await page.getByRole("link", { name: "Comunicados de la Administración" }).click();
-  await expect(page).toHaveURL(/\/comunicados$/);
+  await page.getByRole("link", { name: "Teléfonos y datos de interés" }).click();
+  await expect(page).toHaveURL(/\/telefonos$/);
 
   // Liquidación: la unidad no ve Confección y salta directo a Liquidación mensual.
   await page.goto("/");
