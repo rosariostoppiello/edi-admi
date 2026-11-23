@@ -8,7 +8,7 @@
 - **Vercel** (Next.js 16, Node.js). `npm run vercel-build` genera el cliente de Prisma,
   aplica las migraciones pendientes (`prisma migrate deploy`) y compila.
 - **Neon Postgres** desde el Marketplace de Vercel: carga `DATABASE_URL` (pooler) y la
-  directa; poné la directa en `DIRECT_URL` para las migraciones.
+  directa (`DATABASE_URL_UNPOOLED`), que usan las migraciones.
 - **Gmail por SMTP** para el mail (decisión 77): la cuenta de la Administración y una
   contraseña de aplicación de Google. Gmail permite unos 500 mails por día, suficiente
   para el edificio. (Si más adelante hay un dominio propio, se puede pasar a Resend.)

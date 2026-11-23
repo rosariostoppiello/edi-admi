@@ -45,3 +45,4 @@ src/generated/
 
 # Capturas y snapshots de Playwright MCP
 /.playwright-mcp/
+.env*
