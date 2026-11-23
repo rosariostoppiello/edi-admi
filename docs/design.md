@@ -58,8 +58,10 @@ Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué tor
   (error con ícono + texto, nunca solo color). Radio 8 px.
 - **Tablas** (liquidación, Administración): primera columna (código) fija al hacer
   scroll horizontal; el scroll queda dentro de la tabla, nunca en la página.
-- **Estados:** vacío = qué hacer a continuación; error = qué pasó y cómo seguir;
-  carga = esqueleto con la forma del contenido.
+- **Estados:** vacío = qué hacer a continuación; error = qué pasó y cómo seguir
+  ("Probar de nuevo", volver al inicio y un código para la Administración, nunca el
+  detalle técnico); carga = esqueleto con la forma de una pantalla de teclas, sin
+  animación si el sistema pide movimiento reducido.
 
 - **Recibo** (liquidación de la unidad): la placa grande con el saldo a pagar y el
   vencimiento; debajo, la cuenta renglón por renglón como en una libreta (saldo

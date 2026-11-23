@@ -45,7 +45,9 @@ Todos usan la clave de `SEED_PASSWORD`:
 - `laura.pereira.1@example.com` — Comisión + propietaria de 2-101 y de un garaje
 - Un usuario por cada propietario/inquilino del seed (ver `prisma/seed.ts`)
 
-El seed deja publicada la liquidación de **setiembre 2026** (ficticia), así que
+El seed carga datos ficticios de todos los módulos (reservas, solicitudes, comunicados
+con PDF, teléfonos y un seguro que vence en 20 días) y deja publicada la liquidación de
+**setiembre 2026**, así que
 Administración puede preparar octubre desde *Liquidación de gastos comunes →
 Confección de la liquidación mensual → Crear borrador*.
 
@@ -112,6 +114,11 @@ seguro vence en 30 días o menos, se avisa en pantalla y por mail a la Administr
 - **Anular** (solo la última publicada, con motivo) abre una copia en borrador que
   se publica como *rectificada*.
 
+## Accesibilidad
+`tests/e2e/roles.spec.ts` recorre con cada rol el inicio, los 6 módulos y todos sus
+sub-botones (más las pantallas internas de Administración) en 390 y 1280 px, y falla
+si axe encuentra errores WCAG 2.1 AA, si falta el título o si hay scroll horizontal.
+
 ## Tests
 
 ```bash
@@ -126,5 +133,7 @@ La carpeta `docs/` puede contener liquidaciones y planillas reales del edificio.
 Están excluidas de git (`.gitignore`) y **no** se usan en el seed ni en los tests.
 
 ## Deploy
-Se documenta en la Fase 8 (objetivo: Vercel + Neon Postgres + Vercel Blob; la ubicación
-de los datos queda a confirmar con el asesor por la Ley 18.331).
+Vercel + Neon Postgres + Resend. Paso a paso en [`docs/DEPLOY.md`](docs/DEPLOY.md)
+(no se publica sin el OK de quien administra el proyecto; la ubicación de los datos
+queda a confirmar con el asesor por la Ley 18.331). El primer usuario de
+Administración se crea con `npm run admin:crear -- "Nombre" mail@dominio`.

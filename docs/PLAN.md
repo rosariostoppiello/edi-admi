@@ -158,7 +158,7 @@ Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gr
 | 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | Hecha |
 | 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | Hecha |
 | 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | Hecha |
-| 9. Pulido y producción | Accesibilidad AA, estados vacío/carga/error, e2e por rol, seed completo, docs, deploy (Vercel + Neon + Blob), mail real, rama `main` | |
+| 9. Pulido y producción | Accesibilidad AA, estados vacío/carga/error, e2e por rol, seed completo, docs, deploy (Vercel + Neon + Blob), mail real, rama `main` | Hecha, salvo el deploy y la rama `main` (esperan OK) |
 | 10. Pagos en línea (posterior) | Mercado Pago con webhook, archivos de cobranza de Abitab/Redpagos (decisión 11) | No arrancar sin pedido |
 
 Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Playwright en 390/768/1280, docs al día, commit y push, resumen y OK antes de seguir.
@@ -254,6 +254,14 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 69. **Servicios públicos:** servicio, dirección, número de cuenta y titular (datos del recibo), sin montos.
 70. **Seguro de incendio:** se muestra la póliza con la vigencia más reciente. Con 30 días o menos para el vencimiento (o vencida), aviso en la pantalla del seguro (para todos) y en el inicio de Administración, y un mail a Administración una sola vez por vigencia (`Poliza.avisoVencimientoEn`). Sin colas ni workers: la revisión corre cuando Administración entra al inicio o al seguro, y también está `/api/cron/seguro` (con `CRON_SECRET`) para programarla en el hosting. "Cargar la renovación" crea una póliza nueva; "Corregir los datos" edita la actual. El seed deja una póliza que vence en 20 días para ver el aviso.
 71. **Rutas genéricas:** con todos los módulos hechos, se quitó `/[modulo]/[sub]` ("en construcción").
+
+### Decisiones de la Fase 9 (pulido y producción)
+
+72. **Accesibilidad:** `tests/e2e/roles.spec.ts` recorre con los 4 roles el inicio, los 6 módulos y cada sub-botón (más las pantallas internas de Administración), en 390 y 1280 px, con axe (WCAG 2.1 A y AA), título visible y sin scroll horizontal. Hoy no hay errores.
+73. **Mail real:** driver `resend` por la API HTTP (sin SDK), con adjuntos en base64 y timeout de 15 s. En Vercel es el driver por defecto (el disco es de solo lectura). Un rechazo de Resend deja el envío con error para reintentar. Sigue pendiente elegir el dominio del remitente (decisión 17).
+74. **Estados:** `loading.tsx` (esqueleto con la forma de una pantalla de teclas), `error.tsx` (qué pasó, "Probar de nuevo" y el código para los logs, sin detalle técnico) y `global-error.tsx`. Los vacíos de cada lista dicen qué hacer.
+75. **Producción:** `vercel-build` aplica las migraciones antes de compilar; `DIRECT_URL` opcional para migrar sin el pooler de Neon; `vercel.json` con región `gru1` (a confirmar con el asesor) y el cron diario del seguro; `scripts/crear-admin.ts` crea el primer usuario de Administración sin seed (crea su clave con "Me olvidé la contraseña"). Archivos en la base (decisión 28): Vercel Blob no hace falta con el volumen actual. Guía: `docs/DEPLOY.md`.
+76. **Seed completo:** liquidación de setiembre publicada, espacios y reservas, solicitudes con respuesta y nota, comunicados con PDF, teléfonos, Comisión con y sin consentimiento y una póliza que vence en 20 días. Todo inventado (`@example.com`).
 
 ## 8. Manejo de los documentos sensibles
 

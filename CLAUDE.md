@@ -12,6 +12,8 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
 - `npm run lint` · `npm run typecheck`
 - `npm run db:migrate` — nueva migración · `npm run db:seed` — datos ficticios
 - `npx prisma generate` — regenerar el cliente (sale en `src/generated/`, no se versiona)
+- `npm run admin:crear -- "Nombre" mail@dominio` — primer usuario de Administración (producción)
+- Deploy: `docs/DEPLOY.md` (nunca sin OK explícito)
 
 ## Reglas del proyecto
 - **Idioma:** interfaz en español rioplatense (vos). Código de dominio en español; las
