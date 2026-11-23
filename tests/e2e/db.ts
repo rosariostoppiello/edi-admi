@@ -42,7 +42,7 @@ export async function unidad(arrendada: boolean, n: number): Promise<UnidadDePru
         AND EXISTS (SELECT 1 FROM account a WHERE a."userId" = d."userId" AND a."providerId" = 'credential')
         AND (i.id IS NULL OR EXISTS (SELECT 1 FROM account a WHERE a."userId" = i."userId" AND a."providerId" = 'credential'))
         -- Sin aviso de venta pendiente (lo crea otro test).
-        AND NOT EXISTS (SELECT 1 FROM solicitud s WHERE s."unidadId" = u.id AND s.estado <> 'RESUELTA')
+        AND NOT EXISTS (SELECT 1 FROM solicitud s WHERE s."unidadId" = u.id AND s.categoria = 'VENTA_UNIDAD' AND s.estado <> 'RESUELTA')
       ORDER BY u."torreId", u.numero
       OFFSET $2 LIMIT 1`,
     [arrendada, n, [VECINA, ...Object.values(USUARIOS_RESET)]],
