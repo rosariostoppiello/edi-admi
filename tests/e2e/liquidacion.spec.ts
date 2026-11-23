@@ -123,6 +123,18 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     await egreso.getByRole("button", { name: "Cargar egreso" }).click();
     await expect(exito(page, "Cargaste el egreso.")).toBeVisible();
 
+    // Las reservas de barbacoa de octubre (2 en el seed, $U 800 cada una) se traen como cargos, sin duplicar.
+    await aLaConfeccion(page);
+    await main(page).getByRole("link", { name: /^Cargos del mes/ }).click();
+    await expect(main(page)).toContainText("Hay 2 reservas de barbacoa de este mes sin cobrar");
+    await main(page).getByRole("button", { name: "Traer las reservas de barbacoa del mes" }).click();
+    await expect(exito(page, "Cargaste 2 reservas de barbacoa por $U 1.600,00.")).toBeVisible();
+    await expect(main(page).getByRole("heading", { name: "Cargos de este mes (2)" })).toBeVisible();
+    await expect(main(page)).toContainText("Barbacoas: Barbacoa Torre Avenue 10/10 noche");
+    await main(page).getByRole("button", { name: "Traer las reservas de barbacoa del mes" }).click();
+    await expect(exito(page, "No hay reservas nuevas para cobrar este mes.")).toBeVisible();
+    await expect(main(page).getByRole("heading", { name: "Cargos de este mes (2)" })).toBeVisible();
+
     await publicar(page);
     await expect(main(page)).toContainText(/\d+ enviados/);
 
@@ -201,6 +213,11 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     await aLaConfeccion(page);
     await main(page).getByRole("link", { name: /^Ingresos/ }).click();
     await expect(main(page).getByRole("heading", { name: "Pagos cargados (2)" })).toBeVisible();
+    // Las barbacoas ya cobradas vienen en la copia: traerlas de nuevo no las duplica.
+    await aLaConfeccion(page);
+    await main(page).getByRole("link", { name: /^Cargos del mes/ }).click();
+    await expect(main(page).getByRole("heading", { name: "Cargos de este mes (2)" })).toBeVisible();
+    await expect(main(page)).toContainText("No hay reservas de barbacoa de este mes pendientes de cobro.");
 
     await publicar(page);
     expect((await ultimoMailPara(u.duenoEmail)).asunto).toBe("Liquidación rectificada de gastos comunes de octubre 2026");

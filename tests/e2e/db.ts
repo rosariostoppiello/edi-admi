@@ -55,3 +55,13 @@ export async function idDeUnidadAjena(excepto: string): Promise<string> {
   const [f] = await consultar<{ id: string }>(`SELECT id FROM unidad WHERE id <> $1 ORDER BY numero LIMIT 1`, [excepto]);
   return f.id;
 }
+
+/** Reservas activas de un turno (para comprobar que la base no deja reservar dos veces). */
+export async function reservasActivas(espacio: string, fecha: string, turno: "MEDIODIA" | "NOCHE"): Promise<number> {
+  const [f] = await consultar<{ n: string }>(
+    `SELECT count(*) AS n FROM reserva r JOIN espacio e ON e.id = r."espacioId"
+      WHERE e.nombre = $1 AND r.fecha = $2::date AND r.turno = $3::"Turno" AND r.estado = 'ACTIVA'`,
+    [espacio, fecha, turno],
+  );
+  return Number(f.n);
+}

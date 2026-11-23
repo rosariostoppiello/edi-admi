@@ -34,11 +34,11 @@ test("una unidad recorre los módulos por sus sub-botones, en el orden del gráf
   }
 
   // Los módulos que vienen en fases siguientes avisan que están en construcción.
-  await page.goto("/reservas");
-  await main(page).getByRole("link", { name: "Barbacoas" }).click();
+  await page.goto("/solicitudes");
+  await main(page).getByRole("link", { name: "Aviso de desperfectos" }).click();
   await expect(main(page)).toContainText("en construcción");
-  await page.getByRole("link", { name: "Reserva de espacios comunes" }).click();
-  await expect(page).toHaveURL(/\/reservas$/);
+  await page.getByRole("link", { name: "Solicitudes varias" }).click();
+  await expect(page).toHaveURL(/\/solicitudes$/);
 
   // Liquidación: la unidad no ve Confección y salta directo a Liquidación mensual.
   await page.goto("/");
