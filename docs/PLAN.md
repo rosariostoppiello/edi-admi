@@ -2,6 +2,10 @@
 
 Fase 0. Documento vivo: se actualiza con las respuestas a las dudas.
 Fuentes: `docs/Proyecto 1.doc.md` (spec) y el PDF modelo de liquidación (setiembre 2026).
+
+**Desde la Fase 4, la fuente de verdad de qué pantallas y botones existen, en qué orden
+y quién entra es [`docs/PROYECTO-EN-GRAFICO.md`](PROYECTO-EN-GRAFICO.md).** Donde difiere
+de "Proyecto 1", gana ese documento.
 **Ningún dato real del PDF se copia a este repo, al seed ni a los tests.**
 
 ---
@@ -137,16 +141,22 @@ docs/design.md  docs/PLAN.md
 
 ## 6. Fases
 
-| Fase | Entrega | Cierre |
+Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gráfico".
+
+| Fase | Entrega | Estado |
 |---|---|---|
-| 1. Base | Proyecto, Postgres + Prisma, auth (login, sesión, reset, invitación), roles + matriz de permisos con tests, auditoría, layout, `docs/design.md` + componentes base, home con 6 botones | tests + build + revisión con Playwright en 390/768/1280 |
-| 2. Unidades y datos | ABM de torres/unidades (admin), flujo propietario → ¿arrendado? → inquilino + invitación, baja de inquilino (A ↔ P+I), mails de destinatarios | e2e alta/baja de inquilino |
-| 3. Liquidación | Rubros, egresos fijos/variables, ingresos manuales + importación Excel con vista previa, cálculo, revisión, publicación (PDF + envío), anulación auditada, vista por unidad | unitarios del cálculo (incluye replicar las reglas del PDF con datos ficticios) + e2e publicar |
-| 4. Reservas | Espacios configurables, calendario, reglas, 48 h, portería en nombre de unidad, Laundry "pendiente de definición" | e2e reservar/cancelar, test de concurrencia |
-| 5. Teléfonos/servicios | Contactos, UTE/OSE/saneamiento, pólizas con alerta de vencimiento | |
-| 6. Solicitudes | Formulario, estados, mail a Administración, botón wa.me, historial | |
-| 7. Comunicados | Avisos, actas, normativa, subida de PDF, mail opcional | |
-| 8. Pulido | Accesibilidad AA, estados vacíos/carga/error, e2e completos, README, CLAUDE.md, deploy | |
+| 1. Base | Proyecto, Postgres + Prisma, auth (login, sesión, reset, invitación), roles + matriz de permisos con tests, auditoría, layout, `docs/design.md` + componentes base, home con 6 botones | Hecha |
+| 2. Unidades y datos | ABM de torres/unidades, flujo propietario → ¿arrendado? → inquilino + invitación, baja de inquilino (A ↔ P+I), mails extra | Hecha |
+| 3. Liquidación | Rubros, egresos fijos/variables, ingresos manuales + planilla con vista previa, cálculo, revisión, publicación (PDF + envío), anulación y rectificación, recibo por unidad | Hecha |
+| 4. Estructura según "Proyecto en gráfico" | Home en el orden de C.0, sub-botones por módulo, Liquidación mensual (última / anteriores), Confección con Egresos e Ingresos, egresos por planilla, columnas del gráfico (Barbacoas, Otros, Cuota extra F.R.), Datos con "Editar" y "Avisar venta", Comisión sin datos personales ajenos | En curso |
+| 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | |
+| 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | |
+| 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | |
+| 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | |
+| 9. Pulido y producción | Accesibilidad AA, estados vacío/carga/error, e2e por rol, seed completo, docs, deploy (Vercel + Neon + Blob), mail real, rama `main` | |
+| 10. Pagos en línea (posterior) | Mercado Pago con webhook, archivos de cobranza de Abitab/Redpagos (decisión 11) | No arrancar sin pedido |
+
+Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Playwright en 390/768/1280, docs al día, commit y push, resumen y OK antes de seguir.
 
 ## 7. Decisiones tomadas (respuestas a las dudas de la Fase 0)
 
@@ -182,6 +192,20 @@ docs/design.md  docs/PLAN.md
 27. **Anulación:** solo la última publicada (y si no hay un borrador de un mes posterior). Queda como historia con su motivo y se abre una copia en borrador que, al publicarse, sale como "rectificada".
 28. **PDF:** @react-pdf con Helvetica (no descarga fuentes), guardado en la base (tabla `archivo`). Simple y suficiente para ~12 PDFs por año; si crece, se pasa a Vercel Blob detrás de la misma interfaz.
 29. **Pendiente para más adelante:** columna "Cuota extra FR" (no se usa hoy), cargo automático de barbacoa desde Reservas (Fase 4) y buscador en la pantalla de cuotas para las ~370 líneas reales.
+
+### Decisiones de la Fase 4 (estructura según "Proyecto en gráfico")
+
+30. **Fuente de verdad:** `docs/PROYECTO-EN-GRAFICO.md` para pantallas, botones, orden y acceso.
+31. **Navegación de dos niveles:** cada módulo tiene una pantalla con sus sub-botones (la misma tecla, más chica y sin descripción), en el orden de C.0 y filtrados por permiso. Si el usuario ve un solo sub-botón, se salta ese nivel.
+32. **Liquidación:** `Liquidación mensual` (Última liquidación / Liquidaciones anteriores) y `Confección de la liquidación mensual` (solo Administración). La última es la publicada más nueva (por consulta: al publicar, la anterior pasa sola a "anteriores"). La confección es una pantalla del borrador con dos teclas, Egresos e Ingresos, y como acciones secundarias Cargos del mes, Cuotas, Fondos y textos y Revisar y publicar. **Reemplaza** la barra de pasos numerados de la Fase 3.
+33. **Columnas** (tabla, recibo y PDF), como el gráfico: Saldo anterior, Pagos, Saldo, Intereses, G.C. unidad, G.C. garaje, Fondo de reserva, Cuota extra F.R., Barbacoas, Otros, Multas, Total a pagar. Tag pasa a Otros; los cargos "Barbacoa / otros" ya cargados pasan a Otros. "Intereses" es solo el interés calculado; los ajustes manuales (incluso negativos, para bonificar) van a Otros. **Cambia** las decisiones 9 y 29.
+34. **Cuota extra F.R.:** monto fijo por unidad que se arrastra como las cuotas (cero si no se usa). La paga A, o P si está alquilada. No lleva el 5 % del fondo. En el PDF la columna sale siempre; en el recibo, solo si hay monto. **Cambia** la decisión 8.
+35. **Agrupación de columnas:** sin fondos de color; encabezado de dos niveles "Estado de cuenta" y "Cargos del mes" en pantalla y PDF.
+36. **Comisión y datos personales:** la Comisión ve las unidades como Portería (código + nombre del ocupante). Si tiene unidad propia, ve sus datos. Sigue viendo el consolidado de la liquidación (montos por código, sin teléfonos ni mails). **Cambia** la tabla de permisos (§4) en "Ver datos personales".
+37. **Egresos por planilla:** `Fecha | Rubro (código) | Proveedor | Período | Monto`, .xlsx o .csv, con vista previa; si una fila tiene error no se carga ninguna. El rubro tiene que ser un subrubro (ej. 3.3). El período va al detalle del egreso.
+38. **Datos:** la pantalla de la unidad muestra los datos propios y la tecla Editar, que abre el flujo existente (responsable → ¿alquilada? → inquilino). Los mails extra quedan dentro de Editar.
+39. **Avisar venta de la unidad** (propietario o promitente): crea una `Solicitud` de categoría VENTA_UNIDAD (tabla mínima que la Fase 6 completa) y manda mail a los usuarios de Administración. Administración ve el aviso pendiente en la ficha de la unidad y lo cierra al hacer el cambio de propietario (que ya existía: baja del anterior, alta del nuevo con invitación, saldo en la línea de la unidad, auditado).
+40. **Estilo:** se mantiene "El hall del edificio" (no el gris azulado del gráfico).
 
 ## 8. Manejo de los documentos sensibles
 
