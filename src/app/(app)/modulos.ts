@@ -62,9 +62,9 @@ export const MODULOS: Modulo[] = [
     descripcion: "Avisá un desperfecto o hacé una consulta",
     Icono: IconoSolicitudes,
     subteclas: [
-      { ruta: "/solicitudes/desperfectos", nombre: "Aviso de desperfectos", fase: 6 },
-      { ruta: "/solicitudes/consultas", nombre: "Consultas de gastos comunes", fase: 6 },
-      { ruta: "/solicitudes/inquietudes", nombre: "Inquietudes varias", fase: 6 },
+      { ruta: "/solicitudes/desperfectos", nombre: "Aviso de desperfectos" },
+      { ruta: "/solicitudes/consultas", nombre: "Consultas de gastos comunes" },
+      { ruta: "/solicitudes/inquietudes", nombre: "Inquietudes varias" },
     ],
   },
   {
