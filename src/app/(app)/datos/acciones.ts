@@ -60,6 +60,10 @@ export async function accionCambiarPropietario(unidadId: string, _: Estado, fd: 
   return ejecutar(() => datos.cambiarPropietario(unidadId, campos(fd, ["nombre", "telefono", "email", "calidad"])));
 }
 
+export async function accionAvisarVenta(unidadId: string, _: Estado, fd: FormData) {
+  return ejecutar(() => datos.avisarVenta(unidadId, campos(fd, ["comentario"])));
+}
+
 export async function accionReenviarInvitacion(unidadId: string, personaId: string, _: Estado) {
   return ejecutar(() => datos.reenviarInvitacion(unidadId, personaId));
 }

@@ -45,13 +45,15 @@ const MATRIZ: Record<Accion, { recurso?: { unidadId?: string; personaId?: string
   "reserva.crearParaUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "porteria", "propietario", "inquilino"] },
   "reserva.cancelarDeUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "porteria", "propietario", "inquilino"] },
   "reserva.configurarEspacios": { pueden: ["admin"] },
-  "datos.verUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "comision", "propietario", "inquilino"] },
+  // La Comisión no ve datos personales de otras unidades (decisión 36): ve ocupantes como Portería.
+  "datos.verUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "propietario", "inquilino"] },
   // Editar los datos del inquilino I1: él mismo, el dueño y Administración.
   "datos.editarPersona": { recurso: { unidadId: U1, personaId: "I1" }, pueden: ["admin", "propietario", "inquilino"] },
   "datos.altaInquilino": { recurso: { unidadId: U1 }, pueden: ["admin", "propietario"] },
   "datos.bajaInquilino": { recurso: { unidadId: U1, personaId: "I1" }, pueden: ["admin", "propietario", "inquilino"] },
   "datos.gestionarDestinatarios": { recurso: { unidadId: U1 }, pueden: ["admin", "propietario"] },
-  "datos.verTodos": { pueden: ["admin", "comision"] },
+  "datos.avisarVenta": { recurso: { unidadId: U1 }, pueden: ["propietario"] },
+  "datos.verTodos": { pueden: ["admin"] },
   "datos.verOcupantes": { pueden: ["admin", "comision", "porteria"] },
   "telefonos.ver": { pueden: NOMBRES },
   "telefonos.editar": { pueden: ["admin"] },

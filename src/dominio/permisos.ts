@@ -43,7 +43,8 @@ export const ACCIONES = [
   "datos.altaInquilino", // requiere unidadId
   "datos.bajaInquilino", // requiere unidadId + personaId
   "datos.gestionarDestinatarios", // mails extra de la unidad; requiere unidadId
-  "datos.verTodos",
+  "datos.avisarVenta", // propietario o promitente avisa que vendió; requiere unidadId
+  "datos.verTodos", // datos personales de todas las unidades (solo Administración, decisión 36)
   "datos.verOcupantes", // código + nombre del ocupante (Portería)
   // Teléfonos / servicios
   "telefonos.ver",
@@ -81,7 +82,7 @@ const POR_ROL: Partial<Record<Accion, Rol[]>> = {
   "liquidacion.anular": ["ADMINISTRACION"],
   "reserva.ver": TODOS,
   "reserva.configurarEspacios": ["ADMINISTRACION"],
-  "datos.verTodos": ["ADMINISTRACION", "COMISION"],
+  "datos.verTodos": ["ADMINISTRACION"],
   "datos.verOcupantes": ["ADMINISTRACION", "COMISION", "PORTERIA"],
   "telefonos.ver": TODOS,
   "telefonos.editar": ["ADMINISTRACION"],
@@ -99,7 +100,7 @@ const SOBRE_CUALQUIER_UNIDAD: Partial<Record<Accion, Rol[]>> = {
   "liquidacion.verCuentaUnidad": ["ADMINISTRACION", "COMISION"],
   "reserva.crearParaUnidad": ["ADMINISTRACION", "PORTERIA"],
   "reserva.cancelarDeUnidad": ["ADMINISTRACION", "PORTERIA"],
-  "datos.verUnidad": ["ADMINISTRACION", "COMISION"],
+  "datos.verUnidad": ["ADMINISTRACION"],
   "datos.editarPersona": ["ADMINISTRACION"],
   "datos.altaInquilino": ["ADMINISTRACION"],
   "datos.bajaInquilino": ["ADMINISTRACION"],
@@ -128,6 +129,7 @@ function puedeComoVinculado(
       return recurso.personaId === vinculo.personaId || esDueno(vinculo.calidad);
     case "datos.altaInquilino":
     case "datos.gestionarDestinatarios":
+    case "datos.avisarVenta":
       return esDueno(vinculo.calidad);
     case "datos.bajaInquilino":
       // El dueño da de baja al inquilino; el inquilino puede darse de baja a sí mismo.

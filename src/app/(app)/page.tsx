@@ -20,7 +20,7 @@ export default async function Inicio() {
         <div className="mt-5 max-w-2xl">
           <Aviso tono="info">
             Revisá tus datos de contacto: a ese mail te llegan la liquidación y los comunicados.{" "}
-            <Link href="/datos" className="underline underline-offset-4 hover:text-bronce">
+            <Link href="/datos/editar" className="underline underline-offset-4 hover:text-bronce">
               Revisar mis datos
             </Link>
           </Aviso>

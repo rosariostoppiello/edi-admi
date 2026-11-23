@@ -18,6 +18,9 @@ import {
 } from "@/dominio/personas";
 
 import { erroresDeZod, type Resultado } from "./resultado";
+import { enviarMail } from "./mail";
+import { codigoBase } from "@/dominio/codigos";
+import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 
 export type { Resultado };
 
@@ -395,6 +398,11 @@ export async function cambiarPropietario(unidadId: string, input: unknown): Prom
     invitar = necesitaInvitacion;
     await tx.persona.create({ data: { unidadId, calidad, ...datos, userId } });
     for (const a of anteriores) if (a.userId !== userId) await desactivarSiNoTieneUnidades(tx, a.userId);
+    // El aviso de venta del propietario anterior queda resuelto con el cambio.
+    await tx.solicitud.updateMany({
+      where: { unidadId, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
+      data: { estado: "RESUELTA", resueltaEn: new Date() },
+    });
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
@@ -419,6 +427,85 @@ export async function reenviarInvitacion(unidadId: string, personaId: string): P
   if (await tieneContrasena(persona.userId)) return { ok: false, error: "Esa persona ya creó su contraseña." };
   await enviarInvitacion(persona.email);
   return { ok: true, mensaje: `Le reenviamos la invitación a ${persona.email}.` };
+}
+
+// ---------------------------------------------------------------------------
+// Aviso de venta de la unidad (decisión 39). En la Fase 6 pasa a la bandeja de solicitudes.
+// ---------------------------------------------------------------------------
+
+const avisoVentaSchema = z.object({
+  comentario: z
+    .string()
+    .trim()
+    .max(1000, "Escribí hasta 1.000 caracteres.")
+    .optional()
+    .transform((v) => v || ""),
+});
+
+/** El propietario o promitente avisa que vendió: queda registrado y le llega un mail a Administración. */
+export async function avisarVenta(unidadId: string, input: unknown): Promise<Resultado> {
+  const actor = await exigirPermiso("datos.avisarVenta", { unidadId });
+  const parse = avisoVentaSchema.safeParse(input);
+  if (!parse.success) return erroresDeZod(parse.error);
+  const { comentario } = parse.data;
+
+  const r = await db.$transaction(async (tx) => {
+    const unidad = await bloquearUnidad(tx, unidadId);
+    const previo = await tx.solicitud.findFirst({
+      where: { unidadId, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
+    });
+    if (previo) return { ok: false as const, error: "Ya avisaste la venta de esta unidad. La Administración se va a comunicar con vos." };
+    const torre = await tx.torre.findUnique({ where: { codigo: unidad.torreId } });
+    const codigo = codigoBase(unidad.torreId, unidad.numero);
+    const quien = unidad.personas.find((p) => p.userId === actor.userId);
+    const solicitud = await tx.solicitud.create({
+      data: {
+        unidadId,
+        autorId: actor.userId,
+        categoria: "VENTA_UNIDAD",
+        origen: "UNIDAD",
+        asunto: `Venta de la unidad ${codigo}`,
+        texto: comentario || "El propietario avisó que vendió la unidad.",
+      },
+    });
+    await registrarAuditoria(
+      { usuarioId: actor.userId, accion: "unidad.venta_avisada", entidad: "unidad", entidadId: unidadId, detalle: { solicitudId: solicitud.id } },
+      tx,
+    );
+    return { ok: true as const, codigo, torre: torre?.nombre ?? "", nombre: quien?.nombre ?? actor.nombre };
+  });
+  if (!r.ok) return r;
+
+  // Mail a Administración (fuera de la transacción: si falla, el aviso igual queda registrado).
+  const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
+  const base = process.env.BETTER_AUTH_URL ?? "";
+  for (const a of admins) {
+    await enviarMail({
+      para: a.email,
+      asunto: `Aviso de venta de la unidad ${r.codigo}`,
+      texto: [
+        `${r.nombre} avisó que vendió la unidad ${r.codigo} (torre ${r.torre}).`,
+        comentario ? `\nComentario:\n${comentario}` : "",
+        `\nPara dar de alta al nuevo propietario, entrá a la ficha de la unidad y usá "Cambiar de propietario":`,
+        `${base}/datos/${unidadId}`,
+        `\n${NOMBRE_COMPLEJO}`,
+      ].join("\n"),
+    });
+  }
+  return { ok: true, mensaje: "Le avisamos a la Administración. Te van a pedir los datos del nuevo propietario para darle su usuario." };
+}
+
+/** Avisos de venta sin resolver de una unidad (para la ficha). */
+export async function ventaPendiente(unidadId: string) {
+  const usuario = await exigirPermiso("datos.verUnidad", { unidadId });
+  const s = await db.solicitud.findFirst({
+    where: { unidadId, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
+    orderBy: { creadaEn: "desc" },
+    select: { creadaEn: true, texto: true, autor: { select: { name: true } } },
+  });
+  if (!s) return null;
+  // El comentario solo lo ve Administración; el propietario ve que ya avisó.
+  return puede(usuario, "unidades.administrar") ? s : { creadaEn: s.creadaEn, texto: null, autor: null };
 }
 
 export type { UsuarioActual };

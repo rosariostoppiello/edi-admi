@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { puede } from "@/dominio/permisos";
 import { exigirUsuario } from "@/servidor/sesion";
 import { unidadActiva } from "@/servidor/unidad-activa";
+import { TeclaChica, Teclado } from "@/componentes/ui/teclas";
 import { Ficha } from "./ficha";
 import { Volver } from "./volver";
 
-export const metadata: Metadata = { title: "Propietarios e inquilinos" };
+export const metadata: Metadata = { title: "Datos de propietarios e inquilinos" };
 
 export default async function PaginaDatos() {
   const usuario = await exigirUsuario();
@@ -31,7 +32,17 @@ export default async function PaginaDatos() {
         )}
       </div>
       <div className="mt-4">
-        <Ficha unidadId={activa.unidadId} />
+        <Ficha
+          unidadId={activa.unidadId}
+          modo="ver"
+          acciones={
+            <Teclado etiqueta="Datos de propietarios e inquilinos">
+              <li>
+                <TeclaChica href="/datos/editar" nombre="Editar" />
+              </li>
+            </Teclado>
+          }
+        />
       </div>
     </>
   );

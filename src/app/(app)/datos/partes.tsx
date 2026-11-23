@@ -13,7 +13,7 @@ import {
   type ValoresPersona,
 } from "@/componentes/ui/formularios";
 import { Boton } from "@/componentes/ui/boton";
-import { Campo } from "@/componentes/ui/campo";
+import { AreaTexto, Campo } from "@/componentes/ui/campo";
 
 type AccionForm = (estado: Estado, fd: FormData) => Promise<Estado>;
 type AccionSimple = (estado: Estado) => Promise<Estado>;
@@ -170,6 +170,30 @@ export function CambiarPropietario({ accion }: { accion: AccionForm }) {
           </p>
           <FormPersona accion={accion} conCalidad textoBoton="Guardar nuevo propietario" />
         </>
+      )}
+    </Desplegable>
+  );
+}
+
+export function AvisarVenta({ accion }: { accion: AccionForm }) {
+  const [estado, enviar, pendiente] = useActionState(accion, null);
+  if (estado?.ok) return <MensajeEstado estado={estado} />;
+  return (
+    <Desplegable textoBoton="Avisar venta de la unidad">
+      {() => (
+        <form action={enviar} className="flex flex-col gap-4">
+          <MensajeEstado estado={estado} />
+          <AreaTexto
+            etiqueta="Comentario para la Administración (opcional)"
+            name="comentario"
+            rows={3}
+            ayuda="Por ejemplo, la fecha de la escritura o cómo contactar al comprador."
+            error={estado && !estado.ok ? estado.campos?.comentario : undefined}
+          />
+          <Boton type="submit" disabled={pendiente} className="self-start">
+            {pendiente ? "Avisando…" : "Avisar a la Administración"}
+          </Boton>
+        </form>
       )}
     </Desplegable>
   );

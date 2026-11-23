@@ -5,12 +5,14 @@ import { Placa } from "@/componentes/ui/placa";
 import { ErrorPermiso, puede } from "@/dominio/permisos";
 import { NOMBRE_CALIDAD, esDueno } from "@/dominio/personas";
 import { formatearCodigo } from "@/dominio/codigos";
-import { obtenerFicha } from "@/servidor/datos";
+import { obtenerFicha, ventaPendiente } from "@/servidor/datos";
+import { formatearFecha } from "@/dominio/liquidacion/periodo";
 import { tieneContrasena } from "@/servidor/invitaciones";
 import { COLOR_TORRE } from "@/lib/edificio";
 import {
   accionAgregarDestinatario,
   accionAltaInquilino,
+  accionAvisarVenta,
   accionBajaInquilino,
   accionCambiarPropietario,
   accionConfirmarSinAlquilar,
@@ -20,6 +22,7 @@ import {
 } from "./acciones";
 import {
   AgregarDestinatario,
+  AvisarVenta,
   CambiarPropietario,
   DarDeBaja,
   EditarPersona,
@@ -48,7 +51,20 @@ function DatoPersona({ etiqueta, valor, ancho = false }: { etiqueta: string; val
   );
 }
 
-export async function Ficha({ unidadId }: { unidadId: string }) {
+/**
+ * Ficha de una unidad. En modo "ver" muestra los datos propios sin formularios
+ * (pantalla de Datos); en modo "editar", el flujo completo (tecla Editar y
+ * Administración). `acciones` va debajo del encabezado (ej. la tecla Editar).
+ */
+export async function Ficha({
+  unidadId,
+  modo = "editar",
+  acciones,
+}: {
+  unidadId: string;
+  modo?: "ver" | "editar";
+  acciones?: React.ReactNode;
+}) {
   // Sin permiso se responde igual que si no existiera: no se revela qué unidades hay.
   const ficha = await obtenerFicha(unidadId).catch((e) => {
     if (e instanceof ErrorPermiso) return null;
@@ -67,10 +83,12 @@ export async function Ficha({ unidadId }: { unidadId: string }) {
     await Promise.all(personas.map(async (p) => [p.id, p.userId ? !(await tieneContrasena(p.userId)) : false] as const)),
   );
 
-  const puedeEditar = (personaId: string) => puede(usuario, "datos.editarPersona", { unidadId, personaId });
-  const puedeAlta = puede(usuario, "datos.altaInquilino", { unidadId });
+  const edita = modo === "editar";
+  const puedeEditar = (personaId: string) => edita && puede(usuario, "datos.editarPersona", { unidadId, personaId });
+  const puedeAlta = edita && puede(usuario, "datos.altaInquilino", { unidadId });
   const puedeDestinatarios = puede(usuario, "datos.gestionarDestinatarios", { unidadId });
-  const esAdmin = puede(usuario, "unidades.administrar");
+  const esAdmin = edita && puede(usuario, "unidades.administrar");
+  const venta = soyDueno || esAdmin ? await ventaPendiente(unidadId) : null;
 
   const tarjetaPersona = (p: (typeof personas)[number], sufijo: "A" | "P" | "I") => {
     const propia = p.id === vinculo?.personaId;
@@ -130,7 +148,16 @@ export async function Ficha({ unidadId }: { unidadId: string }) {
       {yo && !yo.datosConfirmadosEn && (
         <Aviso tono="info">
           Revisá que tus datos estén bien{soyDueno && !unidad.arrendada ? " y contanos si la unidad está alquilada" : ""}.
-          A este mail te llegan la liquidación y los comunicados.
+          A este mail te llegan la liquidación y los comunicados.{edita ? "" : " Tocá Editar para hacerlo."}
+        </Aviso>
+      )}
+
+      {acciones}
+
+      {venta && esAdmin && (
+        <Aviso tono="info">
+          {venta.autor?.name ?? "El propietario"} avisó el {formatearFecha(venta.creadaEn.toISOString())} que vendió la unidad
+          {venta.texto ? `: “${venta.texto}”` : "."} Cargá al nuevo propietario con “Cambiar de propietario”.
         </Aviso>
       )}
 
@@ -149,7 +176,7 @@ export async function Ficha({ unidadId }: { unidadId: string }) {
             {inquilino ? (
               <>
                 {tarjetaPersona(inquilino, "I")}
-                {puede(usuario, "datos.bajaInquilino", { unidadId, personaId: inquilino.id }) && (
+                {edita && puede(usuario, "datos.bajaInquilino", { unidadId, personaId: inquilino.id }) && (
                   <DarDeBaja
                     accion={accionBajaInquilino.bind(null, unidadId, inquilino.id)}
                     propia={false}
@@ -172,13 +199,13 @@ export async function Ficha({ unidadId }: { unidadId: string }) {
                 />
               </>
             ) : (
-              <p className="text-pizarra-suave">La unidad no tiene inquilino.</p>
+              <p className="text-pizarra-suave">La unidad no está alquilada: no tiene inquilino.</p>
             )}
           </ZonaAvisos>
         </Seccion>
       )}
 
-      {vinculo && !soyDueno && yo && (
+      {edita && vinculo && !soyDueno && yo && (
         <Seccion titulo="Dejar la unidad">
           <DarDeBaja accion={accionBajaInquilino.bind(null, unidadId, yo.id)} propia nombre={yo.nombre} codigoP={codigo("P")} />
         </Seccion>
@@ -197,14 +224,33 @@ export async function Ficha({ unidadId }: { unidadId: string }) {
                     <span className="font-bold">{d.email}</span>
                     {d.nombre && <span className="text-pizarra-suave"> ({d.nombre})</span>}
                   </span>
-                  <QuitarDestinatario accion={accionQuitarDestinatario.bind(null, unidadId, d.id)} email={d.email} />
+                  {edita && <QuitarDestinatario accion={accionQuitarDestinatario.bind(null, unidadId, d.id)} email={d.email} />}
                 </li>
               ))}
             </ul>
           ) : (
             <p>Todavía no agregaste otros mails.</p>
           )}
-          <AgregarDestinatario accion={accionAgregarDestinatario.bind(null, unidadId)} />
+          {edita && <AgregarDestinatario accion={accionAgregarDestinatario.bind(null, unidadId)} />}
+        </Seccion>
+      )}
+
+      {soyDueno && !edita && (
+        <Seccion titulo="¿Vendiste la unidad?">
+          {venta ? (
+            <Aviso tono="ok">
+              Avisaste la venta el {formatearFecha(venta.creadaEn.toISOString())}. La Administración va a dar de alta al nuevo propietario con
+              su usuario.
+            </Aviso>
+          ) : (
+            <>
+              <p className="max-w-prose text-pizarra-suave">
+                Si cambia el propietario, la Administración tiene que darle un usuario nuevo. Avisá acá y te van a pedir sus datos. Tu
+                saldo queda en la cuenta de la unidad.
+              </p>
+              <AvisarVenta accion={accionAvisarVenta.bind(null, unidadId)} />
+            </>
+          )}
         </Seccion>
       )}
     </div>
