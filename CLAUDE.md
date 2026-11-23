@@ -41,6 +41,8 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
   `src/proxy.ts` solo hace la redirección optimista al login; la validación real está
   en el servidor.
 - **Simple antes que complejo:** sin colas ni workers; mails por lotes al publicar.
+- **Mail:** los envíos masivos van por `EnvioMail` (con reintento); los avisos sueltos usan
+  `avisar()` (no hacen fallar la acción). Nunca se manda a `@example.com`.
 - **Liquidación publicada = inmutable:** toda escritura de la confección pasa por
   `enBorrador()` (bloquea la fila y exige estado BORRADOR). Para corregir, se anula.
 - **Dentro de una transacción**, consultas en serie (no `Promise.all` sobre `tx`).

@@ -76,6 +76,7 @@ alguien ve uno solo, entra directo).
 - **Portería** la hace por sí misma o a pedido de una unidad (código + quién lo pidió).
 - **Bandeja** (Administración; la Comisión, solo lectura): filtros por categoría y
   estado, respuestas (le llegan por mail al autor), cambio de estado y notas internas.
+- En los desperfectos se puede adjuntar una foto (se achica en el celular antes de subir).
 - Al crear, mail a la Administración y botón *Escribir por WhatsApp* (wa.me con el
   texto armado) si la Administración cargó su número en la bandeja.
 
@@ -133,7 +134,7 @@ La carpeta `docs/` puede contener liquidaciones y planillas reales del edificio.
 Están excluidas de git (`.gitignore`) y **no** se usan en el seed ni en los tests.
 
 ## Deploy
-Vercel + Neon Postgres + Resend. Paso a paso en [`docs/DEPLOY.md`](docs/DEPLOY.md)
+Vercel + Neon Postgres + Gmail (SMTP). Paso a paso en [`docs/DEPLOY.md`](docs/DEPLOY.md)
 (no se publica sin el OK de quien administra el proyecto; la ubicación de los datos
 queda a confirmar con el asesor por la Ley 18.331). El primer usuario de
 Administración se crea con `npm run admin:crear -- "Nombre" mail@dominio`.

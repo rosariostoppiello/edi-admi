@@ -9,7 +9,9 @@
   aplica las migraciones pendientes (`prisma migrate deploy`) y compila.
 - **Neon Postgres** desde el Marketplace de Vercel: carga `DATABASE_URL` (pooler) y la
   directa; poné la directa en `DIRECT_URL` para las migraciones.
-- **Resend** para el mail (decisión 73): hay que verificar el dominio del remitente.
+- **Gmail por SMTP** para el mail (decisión 77): la cuenta de la Administración y una
+  contraseña de aplicación de Google. Gmail permite unos 500 mails por día, suficiente
+  para el edificio. (Si más adelante hay un dominio propio, se puede pasar a Resend.)
 - **Archivos** (PDF de liquidaciones y comunicados): en la base, tabla `archivo`
   (decisión 28). Alcanza para ~12 liquidaciones y algunos comunicados por año. Si
   crece, se pasa a Vercel Blob detrás de la misma interfaz (no hace falta ahora).
@@ -21,9 +23,15 @@
    - `DATABASE_URL`, `DIRECT_URL` (de Neon)
    - `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `BETTER_AUTH_URL` (`https://dominio`)
    - `EDIFICIO_NOMBRE`
-   - `MAIL_DRIVER=resend`, `MAIL_FROM`, `RESEND_API_KEY`
+   - `MAIL_DRIVER=smtp`, `MAIL_FROM` (el nombre que se ve), `SMTP_USER` (la cuenta de
+     Gmail) y `SMTP_PASS` (contraseña de aplicación de Google, no la clave de la cuenta)
    - `CRON_SECRET` (cualquier texto largo y aleatorio)
    - **No** cargar `SEED_PASSWORD`: en producción no se corre el seed.
+
+### Demo con datos inventados
+Igual que arriba, pero se corre el seed contra la base de la demo
+(`DATABASE_URL=… SEED_PASSWORD=… npm run db:seed`) y se comparten los usuarios de prueba.
+Como todos los mails del seed son `@example.com`, no sale ningún mail real.
 4. Deploy. La primera vez crea todas las tablas (migraciones).
 5. Crear el primer usuario de Administración (con la `DATABASE_URL` de producción en el entorno):
    `npm run admin:crear -- "Nombre Apellido" mail@dominio`. Esa persona entra a

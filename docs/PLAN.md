@@ -263,6 +263,14 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 75. **Producción:** `vercel-build` aplica las migraciones antes de compilar; `DIRECT_URL` opcional para migrar sin el pooler de Neon; `vercel.json` con región `gru1` (a confirmar con el asesor) y el cron diario del seguro; `scripts/crear-admin.ts` crea el primer usuario de Administración sin seed (crea su clave con "Me olvidé la contraseña"). Archivos en la base (decisión 28): Vercel Blob no hace falta con el volumen actual. Guía: `docs/DEPLOY.md`.
 76. **Seed completo:** liquidación de setiembre publicada, espacios y reservas, solicitudes con respuesta y nota, comunicados con PDF, teléfonos, Comisión con y sin consentimiento y una póliza que vence en 20 días. Todo inventado (`@example.com`).
 
+### Decisiones después de la Fase 9
+
+77. **Mail desde Gmail:** Resend no puede mandar desde `gmail.com` (pide un dominio propio verificado), así que el driver de producción es **SMTP de Gmail** con contraseña de aplicación (`SMTP_USER`, `SMTP_PASS`). Gmail pone siempre la cuenta como remitente; `MAIL_FROM` da el nombre. Resend queda disponible para un dominio propio. **Cambia** la decisión 73.
+78. **Mails ficticios:** a `example.com` (dominio reservado, RFC 2606) nunca se manda nada, con ningún driver real: la demo no rebota mails ni perjudica la cuenta de Gmail.
+79. **Avisos que no fallan:** los mails sueltos (solicitud nueva, respuesta, aviso de venta, seguro, invitación) no hacen fallar la acción si el mail no sale: queda en el log. Los envíos masivos (liquidación, comunicados) siguen en `EnvioMail` con reintento.
+80. **Foto en desperfectos:** opcional, una por solicitud. El navegador la achica (lado mayor 1600 px, JPEG) antes de subir; el servidor acepta JPG, PNG o WebP de hasta 3 MB, por contenido. Se guarda en `Archivo` y se ve en el detalle con el mismo acceso que la solicitud (`/api/solicitudes/{id}/foto`). Resuelve la decisión 60.
+81. **Demo:** Vercel + Neon con el seed ficticio, región São Paulo (`gru1` / `sa-east-1`), acceso con el enlace (sin la protección de Vercel) y los usuarios de prueba.
+
 ## 8. Manejo de los documentos sensibles
 
 - `.gitignore` excluye los PDF/planillas de `docs/` y la spec (tiene una imagen embebida); nada de eso se commitea salvo que lo indiques.
