@@ -157,7 +157,7 @@ Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gr
 | 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | Hecha |
 | 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | Hecha |
 | 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | Hecha |
-| 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | |
+| 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | Hecha |
 | 9. Pulido y producción | Accesibilidad AA, estados vacío/carga/error, e2e por rol, seed completo, docs, deploy (Vercel + Neon + Blob), mail real, rama `main` | |
 | 10. Pagos en línea (posterior) | Mercado Pago con webhook, archivos de cobranza de Abitab/Redpagos (decisión 11) | No arrancar sin pedido |
 
@@ -245,6 +245,15 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 63. **Qué lleva cada tipo:** aviso y acta, texto, PDF o las dos cosas; reglamento, PDF obligatorio. Avisos y actas por fecha (lo último arriba); reglamentos en el orden que elige Administración (subir/bajar).
 64. **Mail:** casilla "Enviar por mail a todos", marcada por defecto en avisos y desmarcada en actas; los reglamentos no se mandan. Mismos destinatarios que la liquidación (sin repetir), por la bandeja `EnvioMail` (tipo `comunicado`), de a 10, con el PDF adjunto y un enlace. Si alguno falla, se reintenta desde el comunicado.
 65. **Reglamento de barbacoas:** el reglamento cuyo título dice "barbacoa" se enlaza desde la pantalla de Barbacoas.
+
+### Decisiones de la Fase 8 (teléfonos y datos de interés)
+
+66. **Modelo:** `FichaContacto` (una fila por Administración y Portería, JSON validado con Zod), `Contacto` (Comisión, empresas y servicios públicos) y `Poliza` (seguro de incendio). Todo lo carga Administración (`telefonos.editar`), con auditoría; los demás ven (`telefonos.ver`).
+67. **Comisión y consentimiento (Ley 18.331):** Administración carga a cada integrante y marca "Dio su consentimiento"; se guarda la fecha y quién lo registró. Sin consentimiento, el integrante solo lo ve Administración. Si se quita, deja de mostrarse.
+68. **Llamar:** cada teléfono es un botón `tel:` de 48 px. Si hay varios en un campo (separados con `/`, `,` u `o`), sale un botón por cada uno.
+69. **Servicios públicos:** servicio, dirección, número de cuenta y titular (datos del recibo), sin montos.
+70. **Seguro de incendio:** se muestra la póliza con la vigencia más reciente. Con 30 días o menos para el vencimiento (o vencida), aviso en la pantalla del seguro (para todos) y en el inicio de Administración, y un mail a Administración una sola vez por vigencia (`Poliza.avisoVencimientoEn`). Sin colas ni workers: la revisión corre cuando Administración entra al inicio o al seguro, y también está `/api/cron/seguro` (con `CRON_SECRET`) para programarla en el hosting. "Cargar la renovación" crea una póliza nueva; "Corregir los datos" edita la actual. El seed deja una póliza que vence en 20 días para ver el aviso.
+71. **Rutas genéricas:** con todos los módulos hechos, se quitó `/[modulo]/[sub]` ("en construcción").
 
 ## 8. Manejo de los documentos sensibles
 

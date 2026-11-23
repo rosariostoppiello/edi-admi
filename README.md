@@ -52,8 +52,7 @@ Confección de la liquidación mensual → Crear borrador*.
 ## Pantallas
 La estructura de pantallas y botones sigue [`docs/PROYECTO-EN-GRAFICO.md`](docs/PROYECTO-EN-GRAFICO.md):
 seis teclas en el inicio y, en cada una, sus sub-botones (filtrados por permiso; si
-alguien ve uno solo, entra directo). Teléfonos muestra sus sub-botones con el aviso
-"en construcción" hasta su fase.
+alguien ve uno solo, entra directo).
 
 ## Reserva de espacios comunes
 - **Barbacoas:** calendario por semana (3 barbacoas × 2 turnos: mediodía 11–17 h y
@@ -84,6 +83,12 @@ alguien ve uno solo, entra directo). Teléfonos muestra sus sub-botones con el a
 - Solo la Administración publica, edita y da de baja (queda auditado). Cada
   comunicado lleva texto y/o un PDF de hasta 3 MB; al publicar un aviso o un acta se
   puede mandar por mail a todos (con el PDF adjunto).
+
+## Teléfonos y datos de interés
+Administración, Comisión administradora (solo quienes dieron su consentimiento),
+Portería, Empresas, Servicios públicos (datos de los recibos) y Seguro de incendio,
+con un botón para llamar en cada teléfono. Todo lo carga la Administración. Si el
+seguro vence en 30 días o menos, se avisa en pantalla y por mail a la Administración.
 
 ## Liquidación mensual
 - **Liquidación mensual** (todos): *Última liquidación* (recibo de la unidad, PDF y,

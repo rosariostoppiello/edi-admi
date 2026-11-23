@@ -58,7 +58,8 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
 - `src/servidor/` db, auth, sesión/permisos, auditoría, mail; `servidor/liquidacion/` confección,
   importación, publicación (PDF + envío) y consulta; `servidor/reservas.ts` reservas y espacios;
   `servidor/solicitudes.ts` solicitudes, respuestas y WhatsApp; `servidor/comunicados.ts` avisos,
-  reglamentos y actas (PDF en `Archivo`, mails por `EnvioMail`)
+  reglamentos y actas (PDF en `Archivo`, mails por `EnvioMail`); `servidor/telefonos.ts` fichas,
+  contactos (consentimiento de la Comisión) y seguro
 - `src/app/(publico)/` login y recuperación · `src/app/(app)/` pantallas con sesión
 - `src/componentes/ui/` sistema de diseño
 - `prisma/` esquema, migraciones y seed · `tests/unit`, `tests/e2e`
