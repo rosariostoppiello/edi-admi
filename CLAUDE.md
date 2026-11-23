@@ -42,15 +42,20 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
 - **Liquidación publicada = inmutable:** toda escritura de la confección pasa por
   `enBorrador()` (bloquea la fila y exige estado BORRADOR). Para corregir, se anula.
 - **Dentro de una transacción**, consultas en serie (no `Promise.all` sobre `tx`).
+- **Fechas y horas:** las fechas de calendario son texto `AAAA-MM-DD`; los horarios
+  (turnos, plazos) se calculan en hora de Uruguay con `dominio/reservas.ts`.
+- **Módulos `"use client"`:** exportan solo componentes. Las constantes que use una
+  página de servidor van en un archivo común (ej. `confeccion/tipos-cargo.ts`).
 - **Pantallas y botones:** la fuente de verdad es `docs/PROYECTO-EN-GRAFICO.md`. Los
   módulos y sub-botones viven en `src/app/(app)/modulos.ts` (orden del gráfico, filtro por
   permiso) y se muestran con `PantallaTeclas` (`componentes/ui/pantalla-teclas.tsx`).
 
 ## Estructura
 - `src/dominio/` lógica pura y testeable (sin DB ni Next); `dominio/liquidacion/` tiene el cálculo,
-  el resumen por rubro, las disponibilidades y la validación de planillas
+  el resumen por rubro, las disponibilidades y la validación de planillas; `dominio/reservas.ts` las
+  reglas de reserva (turnos, 48 h, anticipación, máximo por unidad, solarium)
 - `src/servidor/` db, auth, sesión/permisos, auditoría, mail; `servidor/liquidacion/` confección,
-  importación, publicación (PDF + envío) y consulta
+  importación, publicación (PDF + envío) y consulta; `servidor/reservas.ts` reservas y espacios
 - `src/app/(publico)/` login y recuperación · `src/app/(app)/` pantallas con sesión
 - `src/componentes/ui/` sistema de diseño
 - `prisma/` esquema, migraciones y seed · `tests/unit`, `tests/e2e`

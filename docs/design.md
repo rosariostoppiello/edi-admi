@@ -75,6 +75,13 @@ Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué tor
   la barra de pasos numerados de la Fase 3.)
 - **Tabla de la liquidación:** encabezado de dos niveles, "Estado de cuenta" y
   "Cargos del mes", sin fondos de color (en pantalla y en el PDF).
+- **Calendario de reservas:** una tarjeta por día (columna en el celular, 2 por fila
+  desde 1024 px); adentro, una fila por espacio y una columna por turno. Cada celda
+  mide al menos 48 px: *Libre / Reservar* con borde bronce (es un enlace a la
+  confirmación), *Tu reserva* en verde, *Ocupada* en granito y *—* punteado cuando
+  ya pasó o está fuera de plazo. El estado se dice en texto (y en un texto para
+  lectores de pantalla con espacio, día y turno), nunca solo con color. Se navega de
+  a semanas. "Tus reservas" va arriba del calendario.
 - **Avisos de una sección:** el mensaje de éxito queda arriba de la sección aunque el
   formulario que lo generó desaparezca (ej. al confirmar una planilla).
 

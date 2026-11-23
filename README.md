@@ -52,8 +52,22 @@ Confección de la liquidación mensual → Crear borrador*.
 ## Pantallas
 La estructura de pantallas y botones sigue [`docs/PROYECTO-EN-GRAFICO.md`](docs/PROYECTO-EN-GRAFICO.md):
 seis teclas en el inicio y, en cada una, sus sub-botones (filtrados por permiso; si
-alguien ve uno solo, entra directo). Reservas, Solicitudes, Comunicados y Teléfonos
+alguien ve uno solo, entra directo). Solicitudes, Comunicados y Teléfonos
 muestran sus sub-botones con el aviso "en construcción" hasta su fase.
+
+## Reserva de espacios comunes
+- **Barbacoas:** calendario por semana (3 barbacoas × 2 turnos: mediodía 11–17 h y
+  noche 19–2 h). Cada unidad ve libre/ocupado y sus reservas; Administración y
+  Portería ven qué unidad reservó. Hasta 60 días de anticipación, 2 reservas activas
+  por unidad, cancelación hasta 48 h antes (después, solo Administración).
+- **Portería** reserva a pedido de una unidad: elige el código de la línea que paga y
+  anota quién lo pidió.
+- **Solarium:** no se reserva; está disponible si su barbacoa no está reservada.
+- **Laundry:** informativo (tarjeta prepaga).
+- **Configurar los espacios** (Administración, desde *Reserva de espacios comunes*):
+  tarifa, reglas, texto del laundry, alta y baja.
+- **Cobro:** en la confección, *Cargos del mes → Traer las reservas de barbacoa del
+  mes* carga un cargo por reserva con la tarifa de la barbacoa, sin duplicar.
 
 ## Liquidación mensual
 - **Liquidación mensual** (todos): *Última liquidación* (recibo de la unidad, PDF y,

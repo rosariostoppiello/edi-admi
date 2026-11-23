@@ -110,7 +110,10 @@ Notas:
 | Ver consolidado de todas las unidades | ✔ | ✔ (lectura) | — | — | — |
 | Confeccionar / publicar / anular liquidación | ✔ | — | — | — | — |
 | Reservar / cancelar para su unidad | ✔ | — | — | ✔ | ✔ |
-| Reservar / cancelar en nombre de cualquier unidad | ✔ | — | ✔ | — | — |
+| Reservar / cancelar en nombre de cualquier unidad | ✔ | — | ✔ (cancelar, dentro de las 48 h) | — | — |
+| Cancelar fuera de plazo (menos de 48 h) | ✔ | — | — | — | — |
+| Ver qué unidad reservó cada turno | ✔ | — | ✔ | solo las propias | solo las propias |
+| Configurar espacios, tarifas y reglas | ✔ | — | — | — | — |
 | Ver datos personales de su unidad | ✔ | solo de su unidad (decisión 36) | — | ✔ | solo los propios |
 | Ver código + nombre del ocupante de todas | ✔ | ✔ | ✔ | — | — |
 | Avisar venta de la unidad | — | — | — | ✔ (propietario o promitente) | — |
@@ -151,7 +154,7 @@ Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gr
 | 2. Unidades y datos | ABM de torres/unidades, flujo propietario → ¿arrendado? → inquilino + invitación, baja de inquilino (A ↔ P+I), mails extra | Hecha |
 | 3. Liquidación | Rubros, egresos fijos/variables, ingresos manuales + planilla con vista previa, cálculo, revisión, publicación (PDF + envío), anulación y rectificación, recibo por unidad | Hecha |
 | 4. Estructura según "Proyecto en gráfico" | Home en el orden de C.0, sub-botones por módulo, Liquidación mensual (última / anteriores), Confección con Egresos e Ingresos, egresos por planilla, columnas del gráfico (Barbacoas, Otros, Cuota extra F.R.), Datos con "Editar" y "Avisar venta", Comisión sin datos personales ajenos | Hecha |
-| 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | |
+| 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | Hecha |
 | 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | |
 | 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | |
 | 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | |
@@ -212,6 +215,18 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 42. **Al publicar** se redirige a Última liquidación. Los mails siguen enlazando al mes (`/liquidaciones/AAAA-MM`), que es una dirección que no cambia.
 43. **Liquidaciones ya publicadas:** guardan su foto. Al migrar, Tag y Barbacoa/otros pasaron a Otros; sus intereses quedan como estaban (incluían los ajustes de "Intereses y otros"). Los PDF ya guardados no se regeneran.
 44. **PDF:** sin cortar palabras con guion en los encabezados angostos.
+
+### Decisiones de la Fase 5 (reservas)
+
+45. **Solarium (F.4):** uno por barbacoa (`Espacio.barbacoaId`), no se reserva. La pantalla muestra, por día y turno, si está disponible (su barbacoa sin reserva activa) o no.
+46. **Tarifa y a quién se cobra (F.5):** tarifa fija por barbacoa (por turno), editable por Administración en *Configurar los espacios* (seed: $U 800, inventado). Se cobra a la línea de quien reservó (I si fue el inquilino; A o P si fue el dueño); si reservó Portería o Administración, a la línea que eligieron por código. Si la unidad cambió de situación, se ajusta: sin alquilar → A; alquilada y reservó A → P.
+47. **Qué ven las demás unidades:** solo libre u ocupado. Administración y Portería ven el código de la unidad que reservó y quién lo pidió (`reserva.verQuien`).
+48. **Turnos y plazos:** hora de Uruguay (UTC−3, sin horario de verano). Mediodía 11–17, noche 19–2 del día siguiente. Las 48 h se cuentan desde el inicio del turno. Una reserva cuenta para el máximo por unidad hasta que termina su turno. Se puede reservar el mismo día si el turno no empezó.
+49. **Cancelar:** la unidad y Portería, hasta 48 h antes; Administración, siempre (`reserva.cancelarFueraDePlazo`). Una reserva ya cobrada en una liquidación no se cancela: primero se quita el cargo en la confección.
+50. **Reglas por espacio:** JSON validado con Zod (`anticipacionDias`, `maxActivasPorUnidad`, `horasCancelacion`); si falta o está mal, valen las de la decisión 15. El máximo de reservas activas es por unidad, sumando todas las barbacoas.
+51. **Doble reserva:** índice único parcial `(espacioId, fecha, turno) WHERE estado = 'ACTIVA'` en la base; la unidad se bloquea (`FOR UPDATE`) al reservar para que dos pedidos simultáneos no salteen el máximo.
+52. **Cobro en la liquidación:** botón "Traer las reservas de barbacoa del mes" en *Cargos del mes*. Cada cargo BARBACOAS guarda su reserva (`CargoExtra.reservaId`, en lugar de `Reserva.liquidacionId`): así repetir no duplica, quitar el cargo libera la reserva para volver a traerla, y al anular la copia conserva el vínculo. Si un espacio no tiene tarifa, se avisa y no se cobra.
+53. **Laundry:** espacio informativo con un texto que edita Administración. El reglamento de barbacoas se enlaza en la Fase 7.
 
 ## 8. Manejo de los documentos sensibles
 
