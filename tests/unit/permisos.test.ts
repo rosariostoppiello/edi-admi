@@ -44,6 +44,8 @@ const MATRIZ: Record<Accion, { recurso?: { unidadId?: string; personaId?: string
   "reserva.ver": { pueden: NOMBRES },
   "reserva.crearParaUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "porteria", "propietario", "inquilino"] },
   "reserva.cancelarDeUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "porteria", "propietario", "inquilino"] },
+  "reserva.cancelarFueraDePlazo": { pueden: ["admin"] },
+  "reserva.verQuien": { pueden: ["admin", "porteria"] },
   "reserva.configurarEspacios": { pueden: ["admin"] },
   // La Comisión no ve datos personales de otras unidades (decisión 36): ve ocupantes como Portería.
   "datos.verUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "propietario", "inquilino"] },

@@ -11,6 +11,7 @@ import { indexarUnidades, resolverUnidad } from "@/dominio/liquidacion/importaci
 import { esPeriodo, periodoEnFrase, rangoPeriodo, siguientePeriodo } from "@/dominio/liquidacion/periodo";
 import { formatearPesos, type Centesimos } from "@/dominio/dinero";
 import { armarLiquidacion, configuracion, esPrimera } from "./armado";
+import { DATOS_TURNO, fechaCorta, sufijoParaCobrar } from "@/dominio/reservas";
 
 type Tx = Prisma.TransactionClient;
 
@@ -390,6 +391,68 @@ export async function eliminarCargo(liquidacionId: string, cargoId: string): Pro
     await tx.cargoExtra.delete({ where: { id: c.id } });
     await auditar(tx, actor, "cargo.baja", liq.id, { cargoId, monto: c.monto });
     return ok("Quitaste el cargo.");
+  });
+}
+
+/** Reservas de barbacoa del período que todavía no se cobraron en ninguna liquidación vigente. */
+async function reservasSinCobrar(tx: Tx | typeof db, periodo: string) {
+  const { desde, hasta } = rangoPeriodo(periodo);
+  return tx.reserva.findMany({
+    where: {
+      estado: "ACTIVA",
+      espacio: { tipo: "BARBACOA" },
+      fecha: { gte: new Date(`${desde}T00:00:00Z`), lte: new Date(`${hasta}T00:00:00Z`) },
+      cargos: { none: { liquidacion: { estado: { not: "ANULADA" } } } },
+    },
+    include: { espacio: { select: { nombre: true, tarifa: true } }, unidad: { select: { numero: true, torreId: true, arrendada: true } } },
+    orderBy: [{ fecha: "asc" }, { turno: "asc" }],
+  });
+}
+
+export async function contarReservasSinCobrar(liquidacionId: string) {
+  await exigirPermiso("liquidacion.confeccionar");
+  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId }, select: { periodo: true } });
+  return liq ? (await reservasSinCobrar(db, liq.periodo)).length : 0;
+}
+
+/**
+ * "Traer las reservas de barbacoa del mes": un cargo BARBACOAS por reserva activa
+ * del período, con la tarifa del espacio, a la línea de quien reservó. El cargo
+ * guarda la reserva, así que repetir no duplica; si se quita el cargo, se puede volver a traer.
+ */
+export async function traerReservasBarbacoa(liquidacionId: string): Promise<Resultado> {
+  const actor = await exigirPermiso("liquidacion.confeccionar");
+  return enBorrador(liquidacionId, async (tx, liq) => {
+    const reservas = await reservasSinCobrar(tx, liq.periodo);
+    if (reservas.length === 0) return ok("No hay reservas nuevas para cobrar este mes.");
+    let total = 0;
+    let cobradas = 0;
+    const sinTarifa: string[] = [];
+    for (const r of reservas) {
+      const fecha = r.fecha.toISOString().slice(0, 10);
+      if (r.espacio.tarifa <= 0) {
+        sinTarifa.push(r.espacio.nombre);
+        continue;
+      }
+      const sufijo = sufijoParaCobrar(r.sufijo, r.unidad.arrendada);
+      await tx.cargoExtra.create({
+        data: {
+          liquidacionId: liq.id,
+          unidadId: r.unidadId,
+          sufijo,
+          tipo: "BARBACOAS",
+          concepto: `${r.espacio.nombre} ${fechaCorta(fecha)} ${DATOS_TURNO[r.turno].nombre.toLowerCase()}`,
+          monto: r.espacio.tarifa,
+          reservaId: r.id,
+        },
+      });
+      total += r.espacio.tarifa;
+      cobradas++;
+    }
+    await auditar(tx, actor, "cargo.reservas", liq.id, { cobradas, total });
+    const aviso = sinTarifa.length ? ` ${[...new Set(sinTarifa)].join(", ")} no tiene tarifa: cargala en Reservas → Configurar espacios.` : "";
+    if (cobradas === 0) return error(`No se cargó ninguna reserva.${aviso}`);
+    return ok(`Cargaste ${cobradas} ${cobradas === 1 ? "reserva" : "reservas"} de barbacoa por ${formatearPesos(total as Centesimos)}.${aviso}`);
   });
 }
 

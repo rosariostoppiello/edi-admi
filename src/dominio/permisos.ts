@@ -35,7 +35,9 @@ export const ACCIONES = [
   // Reservas
   "reserva.ver",
   "reserva.crearParaUnidad", // requiere unidadId
-  "reserva.cancelarDeUnidad", // requiere unidadId
+  "reserva.cancelarDeUnidad", // requiere unidadId (dentro del plazo de cancelación)
+  "reserva.cancelarFueraDePlazo", // cancelar cuando faltan menos de 48 h (solo Administración)
+  "reserva.verQuien", // qué unidad reservó cada turno (las demás unidades ven solo libre/ocupado)
   "reserva.configurarEspacios",
   // Datos de propietarios / inquilinos
   "datos.verUnidad", // requiere unidadId
@@ -81,6 +83,8 @@ const POR_ROL: Partial<Record<Accion, Rol[]>> = {
   "liquidacion.publicar": ["ADMINISTRACION"],
   "liquidacion.anular": ["ADMINISTRACION"],
   "reserva.ver": TODOS,
+  "reserva.cancelarFueraDePlazo": ["ADMINISTRACION"],
+  "reserva.verQuien": ["ADMINISTRACION", "PORTERIA"],
   "reserva.configurarEspacios": ["ADMINISTRACION"],
   "datos.verTodos": ["ADMINISTRACION"],
   "datos.verOcupantes": ["ADMINISTRACION", "COMISION", "PORTERIA"],

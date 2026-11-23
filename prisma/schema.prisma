@@ -37,6 +37,8 @@ model User {
   personas      Persona[]
   auditorias    Auditoria[]
   solicitudes   Solicitud[]
+  reservas      Reserva[]   @relation("ReservaCreadaPor")
+  cancelaciones Reserva[]   @relation("ReservaCanceladaPor")
 
   @@map("user")
 }
@@ -117,6 +119,7 @@ model Torre {
   tipo     TipoTorre @default(TORRE)
   orden    Int       @default(0)
   unidades Unidad[]
+  espacios Espacio[]
 
   @@map("torre")
 }
@@ -144,6 +147,7 @@ model Unidad {
   cargos          CargoExtra[]
   saldosIniciales SaldoInicial[]
   solicitudes     Solicitud[]
+  reservas        Reserva[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -459,9 +463,13 @@ model CargoExtra {
   tipo          TipoCargo
   concepto      String
   monto         Int
+  /// Reserva de barbacoa que originó el cargo (se copia al anular, como el resto del cargo).
+  reservaId     String?
+  reserva       Reserva?    @relation(fields: [reservaId], references: [id])
   createdAt     DateTime    @default(now())
 
   @@index([liquidacionId])
+  @@index([reservaId])
   @@map("cargo_extra")
 }
 
@@ -553,4 +561,82 @@ model Solicitud {
   @@index([unidadId, categoria, estado])
   @@index([estado, creadaEn])
   @@map("solicitud")
+}
+
+// ---------------------------------------------------------------------------
+// Reserva de espacios comunes
+// ---------------------------------------------------------------------------
+
+enum TipoEspacio {
+  BARBACOA
+  SOLARIUM // atado a su barbacoa: no se reserva, está disponible si la barbacoa no está reservada
+  LAUNDRY // informativo (funciona con tarjeta prepaga)
+  OTRO
+}
+
+enum Turno {
+  MEDIODIA // 11 a 17
+  NOCHE // 19 a 02 del día siguiente
+}
+
+enum OrigenReserva {
+  UNIDAD
+  PORTERIA_A_PEDIDO
+  ADMINISTRACION
+}
+
+enum EstadoReserva {
+  ACTIVA
+  CANCELADA
+}
+
+model Espacio {
+  id          String      @id @default(cuid())
+  nombre      String      @unique
+  tipo        TipoEspacio
+  torreId     Int?
+  torre       Torre?      @relation(fields: [torreId], references: [codigo])
+  activo      Boolean     @default(true)
+  orden       Int         @default(0)
+  tarifa      Int         @default(0) // centésimos, por turno
+  /// Reglas de reserva, validadas con Zod (dominio/reservas.ts): anticipación, máximo por unidad, horas para cancelar.
+  reglas      Json?
+  /// Texto informativo (ej. cómo funciona el laundry).
+  descripcion String      @default("")
+  barbacoaId  String?     @unique
+  barbacoa    Espacio?    @relation("SolariumDeBarbacoa", fields: [barbacoaId], references: [id])
+  solarium    Espacio?    @relation("SolariumDeBarbacoa")
+  reservas    Reserva[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("espacio")
+}
+
+model Reserva {
+  id             String        @id @default(cuid())
+  espacioId      String
+  espacio        Espacio       @relation(fields: [espacioId], references: [id])
+  fecha          DateTime      @db.Date
+  turno          Turno
+  unidadId       String
+  unidad         Unidad        @relation(fields: [unidadId], references: [id])
+  /// Línea de la liquidación a la que se cobra (A, P o I: la de quien reservó o la que eligió Portería).
+  sufijo         Sufijo
+  creadaPorId    String
+  creadaPor      User          @relation("ReservaCreadaPor", fields: [creadaPorId], references: [id])
+  origen         OrigenReserva
+  /// Quién la pidió, cuando la carga Portería o Administración.
+  pedidaPor      String?
+  estado         EstadoReserva @default(ACTIVA)
+  canceladaPorId String?
+  canceladaPor   User?         @relation("ReservaCanceladaPor", fields: [canceladaPorId], references: [id])
+  canceladaEn    DateTime?
+  creadaEn       DateTime      @default(now())
+  cargos         CargoExtra[]
+
+  // Índice único parcial (en la migración): un solo turno ACTIVO por espacio y fecha.
+  @@index([espacioId, fecha])
+  @@index([unidadId, estado])
+  @@map("reserva")
 }

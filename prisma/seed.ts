@@ -11,6 +11,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import { PrismaClient, type Calidad, type Rol } from "../src/generated/prisma/client";
 import { limpiarLiquidacion, sembrarLiquidacion } from "./seed-liquidacion";
+import { limpiarReservas, sembrarReservas } from "./seed-reservas";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -72,6 +73,7 @@ async function main() {
   await db.auditoria.deleteMany();
   await db.solicitud.deleteMany();
   await limpiarLiquidacion(db);
+  await limpiarReservas(db);
   await db.destinatarioExtra.deleteMany();
   await db.persona.deleteMany();
   await db.unidad.deleteMany();
@@ -156,6 +158,8 @@ async function main() {
 
   const lineas = await sembrarLiquidacion(db);
   console.log(`Liquidación de setiembre 2026 publicada con ${lineas} líneas (octubre queda para preparar).`);
+  const reservas = await sembrarReservas(db);
+  console.log(`Espacios comunes: 3 barbacoas con su solarium y el laundry; ${reservas} reservas de ejemplo.`);
 
   const [unidades, personas, usuarios] = await Promise.all([
     db.unidad.count(),
