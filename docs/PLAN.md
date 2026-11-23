@@ -156,7 +156,7 @@ Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gr
 | 4. Estructura según "Proyecto en gráfico" | Home en el orden de C.0, sub-botones por módulo, Liquidación mensual (última / anteriores), Confección con Egresos e Ingresos, egresos por planilla, columnas del gráfico (Barbacoas, Otros, Cuota extra F.R.), Datos con "Editar" y "Avisar venta", Comisión sin datos personales ajenos | Hecha |
 | 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | Hecha |
 | 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | Hecha |
-| 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | |
+| 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | Hecha |
 | 8. Teléfonos y datos de interés | Administración, Comisión (con consentimiento), Portería, empresas, servicios públicos, seguro de incendio con alerta de vencimiento | |
 | 9. Pulido y producción | Accesibilidad AA, estados vacío/carga/error, e2e por rol, seed completo, docs, deploy (Vercel + Neon + Blob), mail real, rama `main` | |
 | 10. Pagos en línea (posterior) | Mercado Pago con webhook, archivos de cobranza de Abitab/Redpagos (decisión 11) | No arrancar sin pedido |
@@ -237,6 +237,14 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 58. **Mail y WhatsApp:** al crear, mail a los usuarios de Administración. El número de WhatsApp (decisión 19) se guarda en `Configuracion.whatsapp` y se edita en la bandeja; con número cargado, la unidad ve "Escribir por WhatsApp" (enlace wa.me con categoría + unidad + asunto) al enviar y en el detalle. Sin API de WhatsApp.
 59. **Aviso de venta:** es una solicitud VENTA_UNIDAD (Fase 4); aparece en la bandeja con un enlace a la ficha de la unidad y se resuelve al cambiar de propietario.
 60. **Foto en desperfectos:** no se hizo (era opcional). Queda como pendiente si se quiere: usaría la tabla `Archivo` con límite de tamaño.
+
+### Decisiones de la Fase 7 (comunicados)
+
+61. **Modelo:** `Comunicado(tipo, titulo, fecha, cuerpo, archivoId, publicadoPorId, enviadoPorMail, orden, activo)`. La baja es lógica (`activo = false`): deja de verse y queda la historia. Publicar, editar y dar de baja se auditan.
+62. **PDF:** en la tabla `Archivo` (como la liquidación), hasta 3 MB (límite de las server actions y de una función de Vercel), validado por contenido (`%PDF-`), no por extensión. Se baja por `/api/comunicados/{id}/pdf` con sesión (`comunicado.ver`). Si se reemplaza en una edición, el anterior se borra. Archivos más grandes: pasar a subida directa a Vercel Blob en la Fase 9.
+63. **Qué lleva cada tipo:** aviso y acta, texto, PDF o las dos cosas; reglamento, PDF obligatorio. Avisos y actas por fecha (lo último arriba); reglamentos en el orden que elige Administración (subir/bajar).
+64. **Mail:** casilla "Enviar por mail a todos", marcada por defecto en avisos y desmarcada en actas; los reglamentos no se mandan. Mismos destinatarios que la liquidación (sin repetir), por la bandeja `EnvioMail` (tipo `comunicado`), de a 10, con el PDF adjunto y un enlace. Si alguno falla, se reintenta desde el comunicado.
+65. **Reglamento de barbacoas:** el reglamento cuyo título dice "barbacoa" se enlaza desde la pantalla de Barbacoas.
 
 ## 8. Manejo de los documentos sensibles
 

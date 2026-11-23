@@ -44,7 +44,8 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
 - **Dentro de una transacción**, consultas en serie (no `Promise.all` sobre `tx`).
 - **Fechas y horas:** las fechas de calendario son texto `AAAA-MM-DD`; los horarios
   (turnos, plazos) se calculan en hora de Uruguay con `dominio/reservas.ts`.
-- **Módulos `"use client"`:** exportan solo componentes. Las constantes que use una
+- **Módulos `"use client"`:** exportan solo componentes, y un componente de servidor no les
+  pasa funciones como hijos (ej. `Desplegable`): se arma un envoltorio de cliente. Las constantes que use una
   página de servidor van en un archivo común (ej. `confeccion/tipos-cargo.ts`).
 - **Pantallas y botones:** la fuente de verdad es `docs/PROYECTO-EN-GRAFICO.md`. Los
   módulos y sub-botones viven en `src/app/(app)/modulos.ts` (orden del gráfico, filtro por
@@ -56,7 +57,8 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
   reglas de reserva (turnos, 48 h, anticipación, máximo por unidad, solarium)
 - `src/servidor/` db, auth, sesión/permisos, auditoría, mail; `servidor/liquidacion/` confección,
   importación, publicación (PDF + envío) y consulta; `servidor/reservas.ts` reservas y espacios;
-  `servidor/solicitudes.ts` solicitudes, respuestas y WhatsApp
+  `servidor/solicitudes.ts` solicitudes, respuestas y WhatsApp; `servidor/comunicados.ts` avisos,
+  reglamentos y actas (PDF en `Archivo`, mails por `EnvioMail`)
 - `src/app/(publico)/` login y recuperación · `src/app/(app)/` pantallas con sesión
 - `src/componentes/ui/` sistema de diseño
 - `prisma/` esquema, migraciones y seed · `tests/unit`, `tests/e2e`
