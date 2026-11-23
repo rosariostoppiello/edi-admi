@@ -93,6 +93,7 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     // Egresos: los fijos vienen precargados; se importa una planilla y se carga uno a mano.
     await aLaConfeccion(page);
     await main(page).getByRole("link", { name: /^Egresos/ }).click();
+    await expect(page.getByRole("heading", { name: "Egresos", exact: true })).toBeVisible();
     await expect(main(page).getByRole("heading", { name: /Egresos del mes \(6\)/ })).toBeVisible();
     const encEgresos = ["Fecha", "Rubro", "Proveedor", "Período", "Monto"];
     await subir(page, "egresos-con-error.xlsx", await planilla([["08/10/2026", "3", "Mantenimiento SA", "Setiembre 2026", 100]], encEgresos));
@@ -193,7 +194,8 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     await main(page).getByLabel("Motivo de la anulación").fill("Faltó cargar un pago de la planilla del banco");
     await main(page).getByRole("button", { name: "Sí, anular y corregir" }).click();
     await expect(page).toHaveURL(/\/revision\?rectificacion=1$/);
-    await expect(page.getByRole("heading", { name: "Corrección de la liquidación de octubre 2026" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Revisar y publicar" })).toBeVisible();
+    await expect(main(page)).toContainText("Corrección de la liquidación de octubre 2026");
 
     // La copia trae los pagos de la anulada.
     await aLaConfeccion(page);

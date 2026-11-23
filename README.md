@@ -46,15 +46,30 @@ Todos usan la clave de `SEED_PASSWORD`:
 - Un usuario por cada propietario/inquilino del seed (ver `prisma/seed.ts`)
 
 El seed deja publicada la liquidación de **setiembre 2026** (ficticia), así que
-Administración puede preparar octubre desde *Liquidación → Preparar octubre*.
+Administración puede preparar octubre desde *Liquidación de gastos comunes →
+Confección de la liquidación mensual → Crear borrador*.
+
+## Pantallas
+La estructura de pantallas y botones sigue [`docs/PROYECTO-EN-GRAFICO.md`](docs/PROYECTO-EN-GRAFICO.md):
+seis teclas en el inicio y, en cada una, sus sub-botones (filtrados por permiso; si
+alguien ve uno solo, entra directo). Reservas, Solicitudes, Comunicados y Teléfonos
+muestran sus sub-botones con el aviso "en construcción" hasta su fase.
 
 ## Liquidación mensual
-- **Confección** (Administración), en 6 pasos: ingresos, egresos, cargos extra,
-  cuotas, fondos y textos, revisar y publicar. Todo queda en borrador hasta publicar.
+- **Liquidación mensual** (todos): *Última liquidación* (recibo de la unidad, PDF y,
+  para Administración y Comisión, el detalle por unidad) y *Liquidaciones anteriores*
+  (las anuladas, marcadas).
+- **Confección** (Administración): pantalla del borrador con las teclas **Egresos** e
+  **Ingresos**, y además Cargos del mes, Cuotas por unidad, Fondos y textos y
+  *Revisar y publicar*. Todo queda en borrador hasta publicar.
+- **Columnas:** Saldo anterior, Pagos, Saldo, Intereses | G.C. unidad, G.C. garaje,
+  Fondo de reserva, Cuota extra F.R., Barbacoas, Otros, Multas | Total a pagar.
 - **Planilla de pagos** (.xlsx o .csv): una fila de encabezados con `Fecha`,
   `Unidad` y `Monto` (y opcional `Referencia`), en cualquier orden. Unidad con
   código completo (`2-201-A`, `2-301-P`, `2-301-I`); fecha `dd/mm/aaaa`; montos
   `1.234,50`. Si una fila tiene errores no se carga ninguna.
+- **Planilla de egresos** (.xlsx o .csv): `Fecha | Rubro | Proveedor | Período | Monto`.
+  Rubro es el código del subrubro (`3.3`); Período, a qué mes corresponde (`Agosto 2026`).
 - **Primera liquidación:** los saldos anteriores se cargan con una planilla
   `Unidad | Saldo` (negativo = saldo a favor).
 - **Publicar** genera el PDF y manda un mail a cada destinatario con su saldo y el

@@ -65,8 +65,16 @@ Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué tor
   vencimiento; debajo, la cuenta renglón por renglón como en una libreta (saldo
   anterior − pagos = saldo; cada cargo; doble raya y saldo a pagar). Solo aparecen
   los cargos que existen. Saldo a favor en verde.
-- **Pasos de la confección:** píldoras numeradas (es una secuencia real); en el
-  celular la barra se desliza y muestra el paso actual.
+- **Sub-botones (tecla chica):** la misma tecla, sin ícono ni descripción, mínimo
+  64 px de alto. En el celular van en columna (como en el gráfico); desde 640 px, en
+  grilla de 2 y desde 1024 px, de 3. Si el usuario ve un solo sub-botón, se salta
+  ese nivel.
+- **Confección:** pantalla del borrador con dos teclas grandes (Egresos e Ingresos),
+  las demás partes como teclas chicas y *Revisar y publicar* como botón primario.
+  En cada sección, el título es el nombre de la sección y arriba va el mes. (Reemplaza
+  la barra de pasos numerados de la Fase 3.)
+- **Tabla de la liquidación:** encabezado de dos niveles, "Estado de cuenta" y
+  "Cargos del mes", sin fondos de color (en pantalla y en el PDF).
 - **Avisos de una sección:** el mensaje de éxito queda arriba de la sección aunque el
   formulario que lo generó desaparezca (ej. al confirmar una planilla).
 
@@ -78,6 +86,8 @@ Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué tor
 - Escritorio (Administración, Portería): contenido hasta 1200 px; Portería tiene un
   acceso directo "Reservar para una unidad" en la cabecera.
 
+Home en el orden de "Proyecto en gráfico" (C.0):
+
 ```
 Móvil 390 px                      Escritorio 1280 px
 ┌──────────────────────────┐      ┌────────────────────────────────────────────┐
@@ -85,15 +95,29 @@ Móvil 390 px                      Escritorio 1280 px
 ├──────────────────────────┤      ├────────────────────────────────────────────┤
 │ Hola, Laura              │      │ Hola, Laura                                │
 │ ┌──────────┐┌──────────┐ │      │ ┌────────────┐┌────────────┐┌────────────┐ │
-│ │Liquidac. ││ Reservas │ │      │ │Liquidación ││ Reservas   ││ Datos      │ │
+│ │Liquidac. ││Reserva de│ │      │ │Liquidación ││ Reserva de ││Solicitudes │ │
+│ │gastos c. ││espacios  │ │      │ │gastos com. ││ espacios   ││ varias     │ │
 │ └──────────┘└──────────┘ │      │ └────────────┘└────────────┘└────────────┘ │
 │ ┌──────────┐┌──────────┐ │      │ ┌────────────┐┌────────────┐┌────────────┐ │
-│ │ Datos    ││Teléfonos │ │      │ │ Teléfonos  ││Solicitudes ││Comunicados │ │
+│ │Solicitud.││Comunicad.│ │      │ │Comunicados ││ Teléfonos  ││ Datos de   │ │
+│ │varias    ││de la Adm.│ │      │ │de la Adm.  ││ y datos    ││ propiet.   │ │
 │ └──────────┘└──────────┘ │      │ └────────────┘└────────────┘└────────────┘ │
 │ ┌──────────┐┌──────────┐ │      └────────────────────────────────────────────┘
-│ │Solicitud.││Comunicad.│ │
-│ └──────────┘└──────────┘ │
-└──────────────────────────┘
+│ │Teléfonos ││Datos de  │ │
+│ │y datos   ││propiet.  │ │      Sub-botones de un módulo (móvil):
+│ └──────────┘└──────────┘ │      ┌──────────────────────────┐
+└──────────────────────────┘      │ < Inicio                 │
+                                  │ Reserva de espacios ...  │
+                                  │ ┌──────────────────────┐ │
+                                  │ │ Barbacoas            │ │
+                                  │ └──────────────────────┘ │
+                                  │ ┌──────────────────────┐ │
+                                  │ │ Solarium             │ │
+                                  │ └──────────────────────┘ │
+                                  │ ┌──────────────────────┐ │
+                                  │ │ Laundry              │ │
+                                  │ └──────────────────────┘ │
+                                  └──────────────────────────┘
 ```
 
 ## Accesibilidad (piso de calidad)

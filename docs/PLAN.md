@@ -111,7 +111,9 @@ Notas:
 | Confeccionar / publicar / anular liquidación | ✔ | — | — | — | — |
 | Reservar / cancelar para su unidad | ✔ | — | — | ✔ | ✔ |
 | Reservar / cancelar en nombre de cualquier unidad | ✔ | — | ✔ | — | — |
-| Ver datos personales de su unidad | ✔ | ✔ | — | ✔ | solo los propios |
+| Ver datos personales de su unidad | ✔ | solo de su unidad (decisión 36) | — | ✔ | solo los propios |
+| Ver código + nombre del ocupante de todas | ✔ | ✔ | ✔ | — | — |
+| Avisar venta de la unidad | — | — | — | ✔ (propietario o promitente) | — |
 | Alta / baja de inquilino | ✔ | — | — | ✔ | baja propia |
 | Teléfonos: ver / editar | ✔ / ✔ | ✔ / — | ✔ / — | ✔ / — | ✔ / — |
 | Solicitudes: crear / ver propias / gestionar todas | — / — / ✔ | ✔ / ✔ / ver | ✔ / ✔ / — | ✔ / ✔ / — | ✔ / ✔ / — |
@@ -148,7 +150,7 @@ Las fases 0 a 3 se hicieron con "Proyecto 1". Desde la 4, siguen "Proyecto en gr
 | 1. Base | Proyecto, Postgres + Prisma, auth (login, sesión, reset, invitación), roles + matriz de permisos con tests, auditoría, layout, `docs/design.md` + componentes base, home con 6 botones | Hecha |
 | 2. Unidades y datos | ABM de torres/unidades, flujo propietario → ¿arrendado? → inquilino + invitación, baja de inquilino (A ↔ P+I), mails extra | Hecha |
 | 3. Liquidación | Rubros, egresos fijos/variables, ingresos manuales + planilla con vista previa, cálculo, revisión, publicación (PDF + envío), anulación y rectificación, recibo por unidad | Hecha |
-| 4. Estructura según "Proyecto en gráfico" | Home en el orden de C.0, sub-botones por módulo, Liquidación mensual (última / anteriores), Confección con Egresos e Ingresos, egresos por planilla, columnas del gráfico (Barbacoas, Otros, Cuota extra F.R.), Datos con "Editar" y "Avisar venta", Comisión sin datos personales ajenos | En curso |
+| 4. Estructura según "Proyecto en gráfico" | Home en el orden de C.0, sub-botones por módulo, Liquidación mensual (última / anteriores), Confección con Egresos e Ingresos, egresos por planilla, columnas del gráfico (Barbacoas, Otros, Cuota extra F.R.), Datos con "Editar" y "Avisar venta", Comisión sin datos personales ajenos | Hecha |
 | 5. Reserva de espacios comunes | Barbacoas (3, 2 turnos, 48 h, Portería a pedido), Solarium atado a su barbacoa, Laundry informativo, cargo de barbacoas en la liquidación, configuración de espacios | |
 | 6. Solicitudes varias | Desperfectos, consultas de GC, inquietudes; Portería propia o a pedido; bandeja de Administración con respuestas y notas internas; mail y wa.me; aviso de venta como solicitud | |
 | 7. Comunicados de la Administración | Avisos, reglamentos y actas con PDF, orden por fecha, envío por mail opcional | |
@@ -206,6 +208,10 @@ Cierre de cada fase: lint, typecheck, unitarios, build + e2e, revisión con Play
 38. **Datos:** la pantalla de la unidad muestra los datos propios y la tecla Editar, que abre el flujo existente (responsable → ¿alquilada? → inquilino). Los mails extra quedan dentro de Editar.
 39. **Avisar venta de la unidad** (propietario o promitente): crea una `Solicitud` de categoría VENTA_UNIDAD (tabla mínima que la Fase 6 completa) y manda mail a los usuarios de Administración. Administración ve el aviso pendiente en la ficha de la unidad y lo cierra al hacer el cambio de propietario (que ya existía: baja del anterior, alta del nuevo con invitación, saldo en la línea de la unidad, auditado).
 40. **Estilo:** se mantiene "El hall del edificio" (no el gris azulado del gráfico).
+41. **Rutas:** `/liquidaciones` → `/liquidaciones/mensual` → `/liquidaciones/ultima` y `/liquidaciones/anteriores`; el detalle de un mes sigue en `/liquidaciones/AAAA-MM`. Los sub-botones de módulos sin hacer van a `/{modulo}/{sub}` con el aviso "en construcción". Datos: `/datos` (ver) y `/datos/editar`.
+42. **Al publicar** se redirige a Última liquidación. Los mails siguen enlazando al mes (`/liquidaciones/AAAA-MM`), que es una dirección que no cambia.
+43. **Liquidaciones ya publicadas:** guardan su foto. Al migrar, Tag y Barbacoa/otros pasaron a Otros; sus intereses quedan como estaban (incluían los ajustes de "Intereses y otros"). Los PDF ya guardados no se regeneran.
+44. **PDF:** sin cortar palabras con guion en los encabezados angostos.
 
 ## 8. Manejo de los documentos sensibles
 
