@@ -316,10 +316,9 @@ export function AgregarRubro({ accion }: { accion: AccionForm }) {
 }
 
 export const TIPOS_CARGO = {
-  BARBACOA_OTROS: "Barbacoa / otros",
-  TAG: "Tag de garaje",
+  BARBACOAS: "Barbacoas",
+  OTROS: "Otros (tag de garaje, ajustes, bonificaciones)",
   MULTA: "Multa",
-  INTERES_OTRO: "Intereses y otros (ajuste)",
 } as const;
 
 export function FormCargo({ accion, codigos }: { accion: AccionForm; codigos: string[] }) {
@@ -357,7 +356,7 @@ export function FilaCuotas({
   accion: AccionForm;
   codigo: string;
   descripcion: string;
-  valores: { gcUnidad: number; gcPropietario: number; gcGaraje: number; garajeACargoDe: string; arrendada: boolean };
+  valores: { gcUnidad: number; gcPropietario: number; gcGaraje: number; cuotaExtraFr: number; garajeACargoDe: string; arrendada: boolean };
 }) {
   return (
     <FormAccion accion={accion} limpiar={false} className="flex flex-col gap-3 py-4">
@@ -366,10 +365,11 @@ export function FilaCuotas({
           <p>
             <span className="font-mono font-bold">{codigo}</span> <span className="text-pizarra-suave">{descripcion}</span>
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto] lg:items-end">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
             <Campo etiqueta="Gasto común" name="gcUnidad" inputMode="decimal" defaultValue={montoTexto(valores.gcUnidad)} error={err.gcUnidad} />
             <Campo etiqueta="Parte del propietario" name="gcPropietario" inputMode="decimal" defaultValue={montoTexto(valores.gcPropietario)} error={err.gcPropietario} />
             <Campo etiqueta="Garaje" name="gcGaraje" inputMode="decimal" defaultValue={montoTexto(valores.gcGaraje)} error={err.gcGaraje} />
+            <Campo etiqueta="Cuota extra F.R." name="cuotaExtraFr" inputMode="decimal" defaultValue={montoTexto(valores.cuotaExtraFr)} error={err.cuotaExtraFr} />
             <Selector etiqueta="Garaje lo paga" name="garajeACargoDe" defaultValue={valores.garajeACargoDe} disabled={!valores.arrendada}>
               <option value="INQUILINO">El inquilino</option>
               <option value="PROPIETARIO">El propietario</option>

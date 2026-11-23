@@ -86,7 +86,7 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     // Le llega el mail con su saldo y el PDF adjunto.
     const mail = await ultimoMailPara(u.duenoEmail);
     expect(mail.asunto).toBe("Liquidación de gastos comunes de octubre 2026");
-    expect(mail.texto).toContain(`${codigo}: saldo a pagar $U`);
+    expect(mail.texto).toContain(`${codigo}: total a pagar $U`);
     expect(mail.adjuntos?.[0].nombre).toBe("liquidacion-gastos-comunes-2026-10.pdf");
 
     // La unidad ve su recibo con los pagos y descarga el PDF.

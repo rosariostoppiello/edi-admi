@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Placa } from "@/componentes/ui/placa";
 import { ZonaAvisos } from "@/componentes/ui/formularios";
 import { Monto } from "@/componentes/ui/monto";
-import { COLUMNAS_MONTO, type ColumnaMonto, type Linea, type Totales } from "@/dominio/liquidacion/calculo";
+import { COLUMNAS_MONTO, GRUPOS_COLUMNAS, TITULOS_COLUMNAS, type ColumnaMonto, type Linea, type Totales } from "@/dominio/liquidacion/calculo";
 import { formatearPorcentaje, type ResumenEgresos } from "@/dominio/liquidacion/egresos";
 import { formatearFecha } from "@/dominio/liquidacion/periodo";
 
@@ -41,12 +41,13 @@ type LineaRecibo = Record<ColumnaMonto, number> & { codigo: string };
 export function Recibo({ linea, vence }: { linea: LineaRecibo; vence: string }) {
   const aFavor = linea.saldoAPagar < 0;
   const cargos: [string, number][] = [
-    ["Intereses y otros", linea.intereses],
+    ["Intereses", linea.intereses],
     ["Gasto común", linea.gcUnidad],
     ["Garaje", linea.gcGaraje],
     ["Fondo de reserva", linea.fondoReserva],
-    ["Tag de garaje", linea.tag],
-    ["Barbacoa y otros", linea.barbacoaOtros],
+    ["Cuota extra del fondo de reserva", linea.cuotaExtraFr],
+    ["Barbacoas", linea.barbacoas],
+    ["Otros", linea.otros],
     ["Multas", linea.multas],
   ];
   return (
@@ -54,7 +55,7 @@ export function Recibo({ linea, vence }: { linea: LineaRecibo; vence: string }) 
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-junta p-4 md:p-6">
         <Placa codigo={linea.codigo} tamano="grande" />
         <div className="sm:text-right">
-          <p className="text-pizarra-suave">{aFavor ? "Saldo a favor" : "Saldo a pagar"}</p>
+          <p className="text-pizarra-suave">{aFavor ? "Saldo a favor" : "Total a pagar"}</p>
           <p className={`text-enorme font-bold leading-none ${aFavor ? "text-ok" : ""}`}>
             <Monto valor={aFavor ? -linea.saldoAPagar : linea.saldoAPagar} conSimbolo />
           </p>
@@ -70,7 +71,7 @@ export function Recibo({ linea, vence }: { linea: LineaRecibo; vence: string }) 
           .map(([etiqueta, v]) => (
             <Renglon key={etiqueta} etiqueta={etiqueta} valor={v} />
           ))}
-        <Renglon etiqueta={aFavor ? "Saldo a favor" : "Saldo a pagar"} valor={linea.saldoAPagar} total />
+        <Renglon etiqueta={aFavor ? "Saldo a favor" : "Total a pagar"} valor={linea.saldoAPagar} total />
       </dl>
     </article>
   );
@@ -91,19 +92,6 @@ function Renglon({ etiqueta, valor, subtotal, total }: { etiqueta: string; valor
   );
 }
 
-const TITULOS: Record<ColumnaMonto, string> = {
-  saldoAnterior: "Saldo ant.",
-  pagos: "Pagos",
-  saldo: "Saldo",
-  intereses: "Intereses y otros",
-  gcUnidad: "G.C. unidad",
-  gcGaraje: "G.C. garaje",
-  fondoReserva: "F.R.",
-  tag: "Tag",
-  barbacoaOtros: "Barbacoa / otros",
-  multas: "Multas",
-  saldoAPagar: "Saldo a pagar",
-};
 
 /**
  * Tabla consolidada (todas las líneas). El código queda fijo a la izquierda y el
@@ -115,15 +103,37 @@ export function TablaLineas({ lineas, totales, titulo }: { lineas: Linea[]; tota
       <table className="w-full border-separate border-spacing-0 text-chico tabular-nums">
         <caption className="sr-only">{titulo}</caption>
         <thead>
+          {/* Dos niveles: "Estado de cuenta" y "Cargos del mes" (decisión 35). Alto fijo por fila para el sticky. */}
           <tr>
-            <th scope="col" className="sticky left-0 top-0 z-20 border-b-2 border-pizarra bg-granito px-3 py-2 text-left">
+            <th rowSpan={2} scope="col" className="sticky left-0 top-0 z-30 border-b-2 border-pizarra bg-granito px-3 py-2 text-left align-bottom">
               Unidad
             </th>
-            {COLUMNAS_MONTO.map((c) => (
-              <th key={c} scope="col" className="sticky top-0 z-10 border-b-2 border-pizarra bg-granito px-3 py-2 text-right whitespace-nowrap">
-                {TITULOS[c]}
+            {GRUPOS_COLUMNAS.map((g) => (
+              <th
+                key={g.titulo}
+                colSpan={g.columnas.length}
+                scope="colgroup"
+                className="sticky top-0 z-10 h-9 border-b border-l border-junta-fuerte bg-granito px-3 text-left whitespace-nowrap"
+              >
+                {g.titulo}
               </th>
             ))}
+            <th rowSpan={2} scope="col" className="sticky top-0 z-10 border-b-2 border-l border-pizarra border-l-junta-fuerte bg-granito px-3 py-2 text-right align-bottom whitespace-nowrap">
+              {TITULOS_COLUMNAS.saldoAPagar}
+            </th>
+          </tr>
+          <tr>
+            {GRUPOS_COLUMNAS.flatMap((g) =>
+              g.columnas.map((c, i) => (
+                <th
+                  key={c}
+                  scope="col"
+                  className={`sticky top-9 z-10 border-b-2 border-pizarra bg-granito px-3 py-2 text-right whitespace-nowrap ${i === 0 ? "border-l border-l-junta-fuerte" : ""}`}
+                >
+                  {TITULOS_COLUMNAS[c]}
+                </th>
+              )),
+            )}
           </tr>
         </thead>
         <tbody>

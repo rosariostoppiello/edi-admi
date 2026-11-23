@@ -90,7 +90,7 @@ export async function accionEliminarCargo(id: string, cargoId: string, _: Estado
 
 // Cuotas
 export async function accionGuardarCuotas(unidadId: string, _: Estado, fd: FormData) {
-  return ejecutar(() => conf.guardarCuotas(unidadId, campos(fd, ["gcUnidad", "gcPropietario", "gcGaraje", "garajeACargoDe"])));
+  return ejecutar(() => conf.guardarCuotas(unidadId, campos(fd, ["gcUnidad", "gcPropietario", "gcGaraje", "cuotaExtraFr", "garajeACargoDe"])));
 }
 
 // Fondos y parámetros

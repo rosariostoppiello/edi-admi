@@ -1,7 +1,7 @@
 import "server-only";
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { formatearNumero, type Centesimos } from "@/dominio/dinero";
-import { COLUMNAS_MONTO, type ColumnaMonto } from "@/dominio/liquidacion/calculo";
+import { COLUMNAS_MONTO, GRUPOS_COLUMNAS, TITULOS_COLUMNAS, type ColumnaMonto } from "@/dominio/liquidacion/calculo";
 import { formatearPorcentaje } from "@/dominio/liquidacion/egresos";
 import { formatearFecha, nombrePeriodo, periodoEnFrase, rangoPeriodo, vencimiento } from "@/dominio/liquidacion/periodo";
 import type { LiquidacionArmada } from "./armado";
@@ -71,19 +71,8 @@ function Sello({ l }: { l: LiquidacionArmada }) {
   return null;
 }
 
-const COLUMNAS: { clave: ColumnaMonto; titulo: string }[] = [
-  { clave: "saldoAnterior", titulo: "Saldo Ant." },
-  { clave: "pagos", titulo: "Pagos" },
-  { clave: "saldo", titulo: "Saldo" },
-  { clave: "intereses", titulo: "Intereses y otros" },
-  { clave: "gcUnidad", titulo: "G.C. Unidad" },
-  { clave: "gcGaraje", titulo: "G.C. Garaje" },
-  { clave: "fondoReserva", titulo: "F.R." },
-  { clave: "tag", titulo: "Tag Gge" },
-  { clave: "barbacoaOtros", titulo: "Barbacoa / Otros" },
-  { clave: "multas", titulo: "Multas" },
-  { clave: "saldoAPagar", titulo: "Saldo a pagar" },
-];
+// Columnas de "Proyecto en gráfico" (decisión 33). La cuota extra F.R. sale siempre.
+const COLUMNAS: { clave: ColumnaMonto; titulo: string }[] = COLUMNAS_MONTO.map((clave) => ({ clave, titulo: TITULOS_COLUMNAS[clave] }));
 
 export function DocumentoLiquidacion({ l, nombre, direccion }: { l: LiquidacionArmada; nombre: string; direccion: string }) {
   const marco = { nombre, direccion, periodo: l.periodo };
@@ -240,12 +229,25 @@ export function DocumentoLiquidacion({ l, nombre, direccion }: { l: LiquidacionA
         <Text style={s.titulo}>
           Detalle de gastos comunes a pagar por unidad, período {formatearFecha(rango.desde)} al {formatearFecha(rango.hasta)}
         </Text>
+        <View style={{ flexDirection: "row", fontSize: 7, paddingTop: 2 }} fixed>
+          <Text style={{ width: 144 }} />
+          {GRUPOS_COLUMNAS.map((g) => (
+            <Text
+              key={g.titulo}
+              style={{ flex: g.columnas.length, ...s.negrita, textAlign: "center", borderBottomWidth: 0.5, borderBottomColor: SUAVE, marginHorizontal: 2 }}
+            >
+              {g.titulo}
+            </Text>
+          ))}
+          <Text style={{ flex: 1 }} />
+          <Text style={{ width: 52 }} />
+        </View>
         <View style={{ ...s.filaCabecera, fontSize: 7 }} fixed>
           <Text style={{ width: 52, ...s.negrita }}>Nro. Apto.</Text>
           <Text style={{ width: 92, ...s.negrita }}>Id.</Text>
           {COLUMNAS.map((col) => (
             <Text key={col.clave} style={{ flex: 1, ...s.num, ...s.negrita }}>
-              {col.clave === "fondoReserva" ? `F.R. (${tasaFr})` : col.titulo}
+              {col.clave === "fondoReserva" ? `${col.titulo} (${tasaFr})` : col.titulo}
             </Text>
           ))}
           <Text style={{ width: 52, ...s.num, ...s.negrita }}>Nro. Apto.</Text>

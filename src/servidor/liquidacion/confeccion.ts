@@ -357,7 +357,7 @@ export async function agregarRubro(input: unknown): Promise<Resultado> {
 
 const cargoSchema = z.object({
   codigo: textoSchema("la unidad", 20),
-  tipo: z.enum(["INTERES_OTRO", "TAG", "BARBACOA_OTROS", "MULTA"], { error: "Elegí el tipo de cargo." }),
+  tipo: z.enum(["BARBACOAS", "OTROS", "MULTA"], { error: "Elegí el tipo de cargo." }),
   concepto: textoSchema("el concepto", 120),
   monto: montoSchema(),
 });
@@ -367,8 +367,8 @@ export async function agregarCargo(liquidacionId: string, input: unknown): Promi
   const p = cargoSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
   if (p.data.monto === 0) return error("Revisá los datos marcados.", { monto: "El monto no puede ser cero." });
-  if (p.data.monto < 0 && p.data.tipo !== "INTERES_OTRO") {
-    return error("Revisá los datos marcados.", { monto: "Solo los ajustes de \"Intereses y otros\" pueden ser negativos (una bonificación)." });
+  if (p.data.monto < 0 && p.data.tipo !== "OTROS") {
+    return error("Revisá los datos marcados.", { monto: "Solo un cargo de \"Otros\" puede ser negativo (un ajuste o una bonificación)." });
   }
   return conCampos(() =>
     enBorrador(liquidacionId, async (tx, liq) => {
@@ -401,6 +401,7 @@ const cuotasSchema = z.object({
   gcUnidad: montoSchema({ campo: "el gasto común" }),
   gcPropietario: montoSchema({ campo: "la parte del propietario" }),
   gcGaraje: montoSchema({ campo: "el garaje" }),
+  cuotaExtraFr: montoSchema({ campo: "la cuota extra del fondo de reserva" }),
   garajeACargoDe: z.enum(["PROPIETARIO", "INQUILINO"]),
 });
 
@@ -422,7 +423,13 @@ export async function guardarCuotas(unidadId: string, input: unknown): Promise<R
         entidad: "unidad",
         entidadId: unidadId,
         detalle: {
-          antes: { gcUnidad: u.gcUnidad, gcPropietario: u.gcPropietario, gcGaraje: u.gcGaraje, garajeACargoDe: u.garajeACargoDe },
+          antes: {
+            gcUnidad: u.gcUnidad,
+            gcPropietario: u.gcPropietario,
+            gcGaraje: u.gcGaraje,
+            cuotaExtraFr: u.cuotaExtraFr,
+            garajeACargoDe: u.garajeACargoDe,
+          },
           despues: p.data,
         },
       },

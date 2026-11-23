@@ -15,7 +15,7 @@ export default async function PaginaCargos({ params }: PageProps<"/liquidaciones
     <>
       <Seccion titulo="Cargar un cargo extra">
         <p className="max-w-prose text-pizarra-suave">
-          Cargos puntuales de una unidad este mes: uso de la barbacoa, un tag de garaje, una multa, o un ajuste en “Intereses y otros”
+          Cargos puntuales de una unidad este mes: uso de la barbacoa, una multa, o en “Otros” un tag de garaje o un ajuste
           (negativo para bonificar).
         </p>
         <FormCargo accion={accionAgregarCargo.bind(null, id)} codigos={codigos} />

@@ -32,6 +32,7 @@ function unidad(p: Partial<UnidadALiquidar> & { unidadId: string; numero: string
     gcUnidad: 0,
     gcPropietario: 0,
     gcGaraje: 0,
+    cuotaExtraFr: 0,
     garajeACargoDe: "INQUILINO",
     ...p,
   };
@@ -132,22 +133,34 @@ describe("reglas de la liquidación (las del PDF modelo, con números ficticios)
     expect(c.A!.fondoReserva).toBe($(228));
   });
 
-  it("cargos extra van a su columna; 'otros' se suma a intereses", () => {
+  it("cargos extra van a su columna; los ajustes van a Otros e Intereses es solo el interés", () => {
     const r = calcularLiquidacion(
       base({
         unidades: [unidad({ unidadId: "u1", numero: "201" })],
         cargos: [
-          { unidadId: "u1", sufijo: "A", tipo: "TAG", monto: $(450) },
-          { unidadId: "u1", sufijo: "A", tipo: "BARBACOA_OTROS", monto: $(800) },
-          { unidadId: "u1", sufijo: "A", tipo: "BARBACOA_OTROS", monto: $(200) },
+          { unidadId: "u1", sufijo: "A", tipo: "OTROS", monto: $(450) },
+          { unidadId: "u1", sufijo: "A", tipo: "BARBACOAS", monto: $(800) },
+          { unidadId: "u1", sufijo: "A", tipo: "BARBACOAS", monto: $(200) },
           { unidadId: "u1", sufijo: "A", tipo: "MULTA", monto: $(1_000) },
-          { unidadId: "u1", sufijo: "A", tipo: "INTERES_OTRO", monto: $(-50) },
+          { unidadId: "u1", sufijo: "A", tipo: "OTROS", monto: $(-50) },
         ],
       }),
     );
     const [l] = r.lineas;
-    expect([l.tag, l.barbacoaOtros, l.multas, l.intereses]).toEqual([$(450), $(1_000), $(1_000), $(-50)]);
+    expect([l.barbacoas, l.otros, l.multas, l.intereses]).toEqual([$(1_000), $(400), $(1_000), 0]);
     expect(l.saldoAPagar).toBe($(2_400));
+  });
+
+  it("cuota extra FR: la paga A, o P si está alquilada; no lleva el 5 %", () => {
+    const sola = cuotasPorLinea(unidad({ unidadId: "u1", numero: "1", gcUnidad: $(4_000), cuotaExtraFr: $(1_000) }), 500);
+    expect(sola.A!.cuotaExtraFr).toBe($(1_000));
+    expect(sola.A!.fondoReserva).toBe($(200));
+    const alquilada = cuotasPorLinea(unidad({ unidadId: "u1", numero: "1", arrendada: true, gcUnidad: $(4_000), cuotaExtraFr: $(1_000) }), 500);
+    expect(alquilada.P!.cuotaExtraFr).toBe($(1_000));
+    expect(alquilada.I!.cuotaExtraFr).toBe(0);
+    const r = calcularLiquidacion(base({ unidades: [unidad({ unidadId: "u1", numero: "1", gcUnidad: $(4_000), cuotaExtraFr: $(1_000) })] }));
+    expect(r.lineas[0].saldoAPagar).toBe($(4_000 + 200 + 1_000));
+    expect(r.totales.cuotaExtraFr).toBe($(1_000));
   });
 
   it("totales: suma exacta de cada columna (sin errores de redondeo)", () => {

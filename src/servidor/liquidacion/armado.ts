@@ -38,6 +38,7 @@ export async function unidadesALiquidar(tx: Cliente = db): Promise<UnidadALiquid
     gcUnidad: u.gcUnidad,
     gcPropietario: u.gcPropietario,
     gcGaraje: u.gcGaraje,
+    cuotaExtraFr: u.cuotaExtraFr,
     garajeACargoDe: u.garajeACargoDe,
   }));
 }
@@ -165,8 +166,9 @@ export async function armarLiquidacion(id: string, tx: Cliente = db): Promise<Li
       gcUnidad: centesimos(l.gcUnidad),
       gcGaraje: centesimos(l.gcGaraje),
       fondoReserva: centesimos(l.fondoReserva),
-      tag: centesimos(l.tag),
-      barbacoaOtros: centesimos(l.barbacoaOtros),
+      cuotaExtraFr: centesimos(l.cuotaExtraFr),
+      barbacoas: centesimos(l.barbacoas),
+      otros: centesimos(l.otros),
       multas: centesimos(l.multas),
       saldoAPagar: centesimos(l.saldoAPagar),
     }));

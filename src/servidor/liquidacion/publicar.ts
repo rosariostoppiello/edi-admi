@@ -55,7 +55,7 @@ function textoMail(periodo: string, dia: number, destino: Destino, rectificada: 
     .map((l) =>
       l.saldoAPagar < 0
         ? `${l.codigo}: saldo a favor de ${formatearPesos((-l.saldoAPagar) as Centesimos)}`
-        : `${l.codigo}: saldo a pagar ${formatearPesos(l.saldoAPagar as Centesimos)}`,
+        : `${l.codigo}: total a pagar ${formatearPesos(l.saldoAPagar as Centesimos)}`,
     )
     .join("\n");
   return [

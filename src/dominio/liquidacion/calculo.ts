@@ -7,8 +7,10 @@
  * - Intereses = 1 % × Saldo, al peso, solo si el saldo es positivo (tasa configurable)
  * - FR = 5 % × (GC unidad + GC garaje) de la unidad completa, al peso (tasa configurable).
  *   Lo paga el responsable (A o P).
- * - Saldo a pagar = Saldo + Intereses y otros + GC unidad + GC garaje + FR + Tag
- *   + Barbacoa/Otros + Multas
+ * - Cuota extra FR: monto fijo por unidad, la paga el responsable (A o P); no lleva el 5 %.
+ * - Total a pagar = Saldo + Intereses + GC unidad + GC garaje + FR + Cuota extra FR
+ *   + Barbacoas + Otros + Multas (columnas de "Proyecto en gráfico", decisión 33).
+ *   Los ajustes y bonificaciones manuales van en Otros (admite negativos).
  * - Unidad sin alquilar (A): paga todo.
  * - Unidad alquilada: I paga el GC ordinario; P paga la parte de cargo del
  *   propietario y el FR; el garaje lo paga quien diga la unidad.
@@ -20,7 +22,7 @@ import { centesimos, porcentajeAlPeso, sumar, type Centesimos } from "../dinero"
 import { formatearCodigo, sufijosDeUnidad, type Sufijo } from "../codigos";
 
 export type ACargoDe = "PROPIETARIO" | "INQUILINO";
-export type TipoCargo = "INTERES_OTRO" | "TAG" | "BARBACOA_OTROS" | "MULTA";
+export type TipoCargo = "BARBACOAS" | "OTROS" | "MULTA";
 
 export interface UnidadALiquidar {
   unidadId: string;
@@ -33,6 +35,7 @@ export interface UnidadALiquidar {
   gcUnidad: number;
   gcPropietario: number;
   gcGaraje: number;
+  cuotaExtraFr: number;
   garajeACargoDe: ACargoDe;
 }
 
@@ -69,8 +72,9 @@ export interface Linea {
   gcUnidad: Centesimos;
   gcGaraje: Centesimos;
   fondoReserva: Centesimos;
-  tag: Centesimos;
-  barbacoaOtros: Centesimos;
+  cuotaExtraFr: Centesimos;
+  barbacoas: Centesimos;
+  otros: Centesimos;
   multas: Centesimos;
   saldoAPagar: Centesimos;
 }
@@ -83,8 +87,9 @@ export const COLUMNAS_MONTO = [
   "gcUnidad",
   "gcGaraje",
   "fondoReserva",
-  "tag",
-  "barbacoaOtros",
+  "cuotaExtraFr",
+  "barbacoas",
+  "otros",
   "multas",
   "saldoAPagar",
 ] as const;
@@ -130,15 +135,16 @@ function compararUnidades(a: UnidadALiquidar, b: UnidadALiquidar): number {
 export function cuotasPorLinea(u: UnidadALiquidar, tasaFondoReservaPb: number) {
   const gcTotal = centesimos(u.gcUnidad + u.gcPropietario);
   const fr = porcentajeAlPeso(centesimos(gcTotal + u.gcGaraje), tasaFondoReservaPb);
+  const extra = centesimos(u.cuotaExtraFr);
   const cero = centesimos(0);
   if (!u.arrendada) {
-    return { A: { gcUnidad: gcTotal, gcGaraje: centesimos(u.gcGaraje), fondoReserva: fr } };
+    return { A: { gcUnidad: gcTotal, gcGaraje: centesimos(u.gcGaraje), fondoReserva: fr, cuotaExtraFr: extra } };
   }
   const garajeP = u.garajeACargoDe === "PROPIETARIO";
   return {
-    P: { gcUnidad: centesimos(u.gcPropietario), gcGaraje: garajeP ? centesimos(u.gcGaraje) : cero, fondoReserva: fr },
-    I: { gcUnidad: centesimos(u.gcUnidad), gcGaraje: garajeP ? cero : centesimos(u.gcGaraje), fondoReserva: cero },
-  } as Partial<Record<Sufijo, { gcUnidad: Centesimos; gcGaraje: Centesimos; fondoReserva: Centesimos }>>;
+    P: { gcUnidad: centesimos(u.gcPropietario), gcGaraje: garajeP ? centesimos(u.gcGaraje) : cero, fondoReserva: fr, cuotaExtraFr: extra },
+    I: { gcUnidad: centesimos(u.gcUnidad), gcGaraje: garajeP ? cero : centesimos(u.gcGaraje), fondoReserva: cero, cuotaExtraFr: cero },
+  } as Partial<Record<Sufijo, { gcUnidad: Centesimos; gcGaraje: Centesimos; fondoReserva: Centesimos; cuotaExtraFr: Centesimos }>>;
 }
 
 export function calcularLiquidacion(e: EntradaLiquidacion): ResultadoLiquidacion {
@@ -164,9 +170,8 @@ export function calcularLiquidacion(e: EntradaLiquidacion): ResultadoLiquidacion
   acumular(e.saldosAnteriores, "saldo", saldos);
   acumular(e.pagos, "pago", pagos);
   const cargos: Record<TipoCargo, Map<string, number>> = {
-    INTERES_OTRO: new Map(),
-    TAG: new Map(),
-    BARBACOA_OTROS: new Map(),
+    BARBACOAS: new Map(),
+    OTROS: new Map(),
     MULTA: new Map(),
   };
   for (const tipo of Object.keys(cargos) as TipoCargo[]) {
@@ -187,10 +192,9 @@ export function calcularLiquidacion(e: EntradaLiquidacion): ResultadoLiquidacion
       const saldoAnterior = centesimos(saldos.get(k) ?? 0);
       const pagado = centesimos(pagos.get(k) ?? 0);
       const saldo = centesimos(saldoAnterior - pagado);
-      const interes = saldo > 0 ? porcentajeAlPeso(saldo, e.tasaInteresPb) : centesimos(0);
-      const intereses = sumar(interes, centesimos(cargos.INTERES_OTRO.get(k) ?? 0));
-      const tag = centesimos(cargos.TAG.get(k) ?? 0);
-      const barbacoaOtros = centesimos(cargos.BARBACOA_OTROS.get(k) ?? 0);
+      const intereses = saldo > 0 ? porcentajeAlPeso(saldo, e.tasaInteresPb) : centesimos(0);
+      const barbacoas = centesimos(cargos.BARBACOAS.get(k) ?? 0);
+      const otros = centesimos(cargos.OTROS.get(k) ?? 0);
       const multas = centesimos(cargos.MULTA.get(k) ?? 0);
       lineas.push({
         unidadId: u.unidadId,
@@ -205,10 +209,11 @@ export function calcularLiquidacion(e: EntradaLiquidacion): ResultadoLiquidacion
         gcUnidad: c.gcUnidad,
         gcGaraje: c.gcGaraje,
         fondoReserva: c.fondoReserva,
-        tag,
-        barbacoaOtros,
+        cuotaExtraFr: c.cuotaExtraFr,
+        barbacoas,
+        otros,
         multas,
-        saldoAPagar: sumar(saldo, intereses, c.gcUnidad, c.gcGaraje, c.fondoReserva, tag, barbacoaOtros, multas),
+        saldoAPagar: sumar(saldo, intereses, c.gcUnidad, c.gcGaraje, c.fondoReserva, c.cuotaExtraFr, barbacoas, otros, multas),
       });
     }
   }
@@ -221,3 +226,25 @@ export function totalizar(lineas: Pick<Linea, ColumnaMonto>[]): Totales {
   for (const l of lineas) for (const c of COLUMNAS_MONTO) t[c] = sumar(t[c], centesimos(l[c]));
   return t;
 }
+
+/** Títulos de las columnas (tabla en pantalla y PDF), en el orden de "Proyecto en gráfico". */
+export const TITULOS_COLUMNAS: Record<ColumnaMonto, string> = {
+  saldoAnterior: "Saldo anterior",
+  pagos: "Pagos",
+  saldo: "Saldo",
+  intereses: "Intereses",
+  gcUnidad: "G.C. unidad",
+  gcGaraje: "G.C. garaje",
+  fondoReserva: "Fondo de reserva",
+  cuotaExtraFr: "Cuota extra F.R.",
+  barbacoas: "Barbacoas",
+  otros: "Otros",
+  multas: "Multas",
+  saldoAPagar: "Total a pagar",
+};
+
+/** Encabezado de dos niveles (decisión 35). El total va aparte. */
+export const GRUPOS_COLUMNAS: { titulo: string; columnas: ColumnaMonto[] }[] = [
+  { titulo: "Estado de cuenta", columnas: ["saldoAnterior", "pagos", "saldo", "intereses"] },
+  { titulo: "Cargos del mes", columnas: ["gcUnidad", "gcGaraje", "fondoReserva", "cuotaExtraFr", "barbacoas", "otros", "multas"] },
+];

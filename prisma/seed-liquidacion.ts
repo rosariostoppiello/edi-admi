@@ -98,6 +98,7 @@ export async function sembrarLiquidacion(db: PrismaClient) {
     etiqueta: u.tipo === "GARAJE" ? u.etiqueta : null,
     arrendada: u.arrendada,
     gcUnidad: u.gcUnidad,
+    cuotaExtraFr: u.cuotaExtraFr,
     gcPropietario: u.gcPropietario,
     gcGaraje: u.gcGaraje,
     garajeACargoDe: u.garajeACargoDe,
@@ -167,8 +168,8 @@ export async function sembrarLiquidacion(db: PrismaClient) {
   const conCargo = lineasBase.filter((l) => l.sufijo !== "P").slice(2, 4);
   await db.cargoExtra.createMany({
     data: [
-      { liquidacionId: liq.id, unidadId: conCargo[0].unidadId, sufijo: conCargo[0].sufijo, tipo: "BARBACOA_OTROS", concepto: "Barbacoa 14/09", monto: $(800) },
-      { liquidacionId: liq.id, unidadId: conCargo[1].unidadId, sufijo: conCargo[1].sufijo, tipo: "TAG", concepto: "Tag de garaje nuevo", monto: $(450) },
+      { liquidacionId: liq.id, unidadId: conCargo[0].unidadId, sufijo: conCargo[0].sufijo, tipo: "BARBACOAS", concepto: "Barbacoa 14/09", monto: $(800) },
+      { liquidacionId: liq.id, unidadId: conCargo[1].unidadId, sufijo: conCargo[1].sufijo, tipo: "OTROS", concepto: "Tag de garaje nuevo", monto: $(450) },
     ],
   });
 
