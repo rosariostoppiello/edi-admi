@@ -59,7 +59,9 @@ const MATRIZ: Record<Accion, { recurso?: { unidadId?: string; personaId?: string
   "datos.verOcupantes": { pueden: ["admin", "comision", "porteria"] },
   "telefonos.ver": { pueden: NOMBRES },
   "telefonos.editar": { pueden: ["admin"] },
-  "solicitud.crear": { recurso: { unidadId: U1 }, pueden: ["propietario", "inquilino"] },
+  // Portería crea a pedido de cualquier unidad (y por sí misma, sin unidad).
+  "solicitud.crear": { recurso: { unidadId: U1 }, pueden: ["porteria", "propietario", "inquilino"] },
+  "solicitud.crearPorteria": { pueden: ["porteria"] },
   "solicitud.verDeUnidad": { recurso: { unidadId: U1 }, pueden: ["admin", "comision", "propietario", "inquilino"] },
   "solicitud.verTodas": { pueden: ["admin", "comision"] },
   "solicitud.gestionar": { pueden: ["admin"] },

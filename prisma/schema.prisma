@@ -37,6 +37,7 @@ model User {
   personas      Persona[]
   auditorias    Auditoria[]
   solicitudes   Solicitud[]
+  eventos       SolicitudEvento[]
   reservas      Reserva[]   @relation("ReservaCreadaPor")
   cancelaciones Reserva[]   @relation("ReservaCanceladaPor")
 
@@ -275,6 +276,8 @@ model Configuracion {
   tasaFondoReservaPb Int    @default(500) // 500 = 5 %
   diaVencimiento     Int    @default(25)
   procedimientoPago  String @default("")
+  /// Número de WhatsApp de la Administración (decisión 19), solo dígitos con código de país: 598…
+  whatsapp           String @default("")
 
   @@map("configuracion")
 }
@@ -522,7 +525,7 @@ model EnvioMail {
 }
 
 // ---------------------------------------------------------------------------
-// Solicitudes (la Fase 4 usa solo VENTA_UNIDAD; la Fase 6 completa el módulo)
+// Solicitudes varias (y el aviso de venta de la Fase 4)
 // ---------------------------------------------------------------------------
 
 enum CategoriaSolicitud {
@@ -552,11 +555,14 @@ model Solicitud {
   autor      User               @relation(fields: [autorId], references: [id])
   categoria  CategoriaSolicitud
   origen     OrigenSolicitud    @default(UNIDAD)
+  /// Quién la pidió, cuando la carga Portería a pedido de una unidad.
+  pedidaPor  String?
   asunto     String
   texto      String
   estado     EstadoSolicitud    @default(NUEVA)
   creadaEn   DateTime           @default(now())
   resueltaEn DateTime?
+  eventos    SolicitudEvento[]
 
   @@index([unidadId, categoria, estado])
   @@index([estado, creadaEn])
@@ -639,4 +645,24 @@ model Reserva {
   @@index([espacioId, fecha])
   @@index([unidadId, estado])
   @@map("reserva")
+}
+
+enum TipoEventoSolicitud {
+  RESPUESTA // la ve quien hizo la solicitud y le llega por mail
+  CAMBIO_ESTADO
+  NOTA_INTERNA // solo Administración
+}
+
+model SolicitudEvento {
+  id          String              @id @default(cuid())
+  solicitudId String
+  solicitud   Solicitud           @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
+  autorId     String
+  autor       User                @relation(fields: [autorId], references: [id])
+  tipo        TipoEventoSolicitud
+  texto       String
+  fecha       DateTime            @default(now())
+
+  @@index([solicitudId, fecha])
+  @@map("solicitud_evento")
 }

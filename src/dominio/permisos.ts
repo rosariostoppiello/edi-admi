@@ -52,7 +52,8 @@ export const ACCIONES = [
   "telefonos.ver",
   "telefonos.editar",
   // Solicitudes
-  "solicitud.crear", // requiere unidadId
+  "solicitud.crear", // requiere unidadId (la unidad, o Portería a pedido de la unidad)
+  "solicitud.crearPorteria", // Portería por sí misma (sin unidad)
   "solicitud.verDeUnidad", // requiere unidadId
   "solicitud.verTodas",
   "solicitud.gestionar",
@@ -90,6 +91,7 @@ const POR_ROL: Partial<Record<Accion, Rol[]>> = {
   "datos.verOcupantes": ["ADMINISTRACION", "COMISION", "PORTERIA"],
   "telefonos.ver": TODOS,
   "telefonos.editar": ["ADMINISTRACION"],
+  "solicitud.crearPorteria": ["PORTERIA"],
   "solicitud.verTodas": ["ADMINISTRACION", "COMISION"],
   "solicitud.gestionar": ["ADMINISTRACION"],
   "comunicado.ver": TODOS,
@@ -109,6 +111,7 @@ const SOBRE_CUALQUIER_UNIDAD: Partial<Record<Accion, Rol[]>> = {
   "datos.altaInquilino": ["ADMINISTRACION"],
   "datos.bajaInquilino": ["ADMINISTRACION"],
   "datos.gestionarDestinatarios": ["ADMINISTRACION"],
+  "solicitud.crear": ["PORTERIA"],
   "solicitud.verDeUnidad": ["ADMINISTRACION", "COMISION"],
 };
 

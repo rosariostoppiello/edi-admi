@@ -12,6 +12,7 @@ import { hashPassword } from "better-auth/crypto";
 import { PrismaClient, type Calidad, type Rol } from "../src/generated/prisma/client";
 import { limpiarLiquidacion, sembrarLiquidacion } from "./seed-liquidacion";
 import { limpiarReservas, sembrarReservas } from "./seed-reservas";
+import { sembrarSolicitudes } from "./seed-solicitudes";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -160,6 +161,7 @@ async function main() {
   console.log(`Liquidación de setiembre 2026 publicada con ${lineas} líneas (octubre queda para preparar).`);
   const reservas = await sembrarReservas(db);
   console.log(`Espacios comunes: 3 barbacoas con su solarium y el laundry; ${reservas} reservas de ejemplo.`);
+  console.log(`${await sembrarSolicitudes(db)} solicitudes de ejemplo.`);
 
   const [unidades, personas, usuarios] = await Promise.all([
     db.unidad.count(),
