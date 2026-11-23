@@ -76,6 +76,9 @@ export async function accionEliminarEgreso(id: string, egresoId: string, _: Esta
 export async function accionDesactivarFijo(fijoId: string, _: Estado) {
   return ejecutar(() => conf.desactivarEgresoFijo(fijoId));
 }
+export async function accionTraerReservas(id: string, _: Estado) {
+  return ejecutar(() => conf.traerReservasBarbacoa(id));
+}
 export async function accionAgregarRubro(_: Estado, fd: FormData) {
   return ejecutar(() => conf.agregarRubro(campos(fd, ["codigo", "nombre", "cargoPropietario"])));
 }

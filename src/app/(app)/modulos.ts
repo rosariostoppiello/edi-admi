@@ -51,9 +51,9 @@ export const MODULOS: Modulo[] = [
     descripcion: "Barbacoas, solarium y laundry",
     Icono: IconoReservas,
     subteclas: [
-      { ruta: "/reservas/barbacoas", nombre: "Barbacoas", fase: 5 },
-      { ruta: "/reservas/solarium", nombre: "Solarium", fase: 5 },
-      { ruta: "/reservas/laundry", nombre: "Laundry", fase: 5 },
+      { ruta: "/reservas/barbacoas", nombre: "Barbacoas" },
+      { ruta: "/reservas/solarium", nombre: "Solarium" },
+      { ruta: "/reservas/laundry", nombre: "Laundry" },
     ],
   },
   {

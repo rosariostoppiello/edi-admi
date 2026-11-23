@@ -5,10 +5,11 @@
  */
 import { startTransition, useActionState, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Boton } from "@/componentes/ui/boton";
-import { AreaTexto, Campo, Casilla, Selector } from "@/componentes/ui/campo";
+import { AreaTexto, Campo, CampoCodigo, Casilla, Selector } from "@/componentes/ui/campo";
 import { AccionConfirmada, Desplegable, MensajeEstado, useAvisar, type Estado } from "@/componentes/ui/formularios";
 import { formatearNumero, parsearMonto, type Centesimos } from "@/dominio/dinero";
 import type { Disponibilidades } from "@/dominio/liquidacion/disponibilidades";
+import { TIPOS_CARGO } from "./tipos-cargo";
 
 type AccionForm = (estado: Estado, fd: FormData) => Promise<Estado>;
 type AccionSimple = (estado: Estado) => Promise<Estado>;
@@ -62,37 +63,6 @@ function Enviar({ pendiente, texto, enviando = "Guardando…" }: { pendiente: bo
     <Boton type="submit" disabled={pendiente} className="self-start">
       {pendiente ? enviando : texto}
     </Boton>
-  );
-}
-
-/** Lista de códigos para autocompletar (2-201-A…). */
-function ListaCodigos({ id, codigos }: { id: string; codigos: string[] }) {
-  return (
-    <datalist id={id}>
-      {codigos.map((c) => (
-        <option key={c} value={c} />
-      ))}
-    </datalist>
-  );
-}
-
-function CampoCodigo({ codigos, error, etiqueta = "Unidad" }: { codigos: string[]; error?: string; etiqueta?: string }) {
-  const id = useId();
-  return (
-    <>
-      <Campo
-        etiqueta={etiqueta}
-        name="codigo"
-        list={id}
-        autoComplete="off"
-        autoCapitalize="characters"
-        placeholder="2-201-A"
-        ayuda="Código completo, con A, P o I"
-        error={error}
-        required
-      />
-      <ListaCodigos id={id} codigos={codigos} />
-    </>
   );
 }
 
@@ -315,11 +285,6 @@ export function AgregarRubro({ accion }: { accion: AccionForm }) {
   return <Desplegable textoBoton="Agregar un rubro">{() => <FormRubro accion={accion} />}</Desplegable>;
 }
 
-export const TIPOS_CARGO = {
-  BARBACOAS: "Barbacoas",
-  OTROS: "Otros (tag de garaje, ajustes, bonificaciones)",
-  MULTA: "Multa",
-} as const;
 
 export function FormCargo({ accion, codigos }: { accion: AccionForm; codigos: string[] }) {
   return (
@@ -328,7 +293,7 @@ export function FormCargo({ accion, codigos }: { accion: AccionForm; codigos: st
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <CampoCodigo codigos={codigos} error={err.codigo} />
-            <Selector etiqueta="Tipo de cargo" name="tipo" defaultValue="BARBACOA_OTROS" error={err.tipo}>
+            <Selector etiqueta="Tipo de cargo" name="tipo" defaultValue="OTROS" error={err.tipo}>
               {Object.entries(TIPOS_CARGO).map(([v, t]) => (
                 <option key={v} value={v}>
                   {t}

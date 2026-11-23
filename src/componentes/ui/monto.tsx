@@ -21,4 +21,5 @@ export function Monto({
 }
 
 /** Texto plano para el monto (atributos, mensajes). */
-export const pesos = (valor: number) => formatearPesos(valor as Centesimos);
+// Con espacio duro: "$U" y el número no se separan en dos renglones.
+export const pesos = (valor: number) => formatearPesos(valor as Centesimos).replace(/\s/g, "\u00a0");

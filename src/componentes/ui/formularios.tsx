@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useActionState, useContext, useState, type ReactNode } from "react";
+import { createContext, startTransition, useActionState, useContext, useState, type FormEvent, type ReactNode } from "react";
 import { Aviso } from "./aviso";
 import { Boton } from "./boton";
 import { Campo } from "./campo";
@@ -32,6 +32,21 @@ export function ZonaAvisos({ children }: { children: ReactNode }) {
       {children}
     </ContextoAvisos.Provider>
   );
+}
+
+/**
+ * Envío de formulario que conserva lo escrito si hay un error (con `action={...}`
+ * React limpia el formulario siempre, aun cuando el servidor devuelve errores).
+ */
+export function useEnvioConservado(accion: Accion) {
+  const [estado, enviar, pendiente] = useActionState(accion, null);
+  const alEnviar = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => enviar(fd));
+  };
+  const errores: Partial<Record<string, string>> = estado && !estado.ok ? (estado.campos ?? {}) : {};
+  return { estado, alEnviar, pendiente, errores };
 }
 
 /** Resultado de una acción: aviso de éxito o de error. */

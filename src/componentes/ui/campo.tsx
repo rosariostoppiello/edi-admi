@@ -129,3 +129,35 @@ export function Casilla({ etiqueta, ayuda, ...props }: ComponentProps<"input"> &
     </div>
   );
 }
+
+/** Lista de códigos para autocompletar (2-201-A…). */
+function ListaCodigos({ id, codigos }: { id: string; codigos: string[] }) {
+  return (
+    <datalist id={id}>
+      {codigos.map((c) => (
+        <option key={c} value={c} />
+      ))}
+    </datalist>
+  );
+}
+
+export function CampoCodigo({ codigos, error, etiqueta = "Unidad", ayuda = "Código completo, con A, P o I" }: { codigos: string[]; error?: string; etiqueta?: string; ayuda?: string }) {
+  const id = useId();
+  return (
+    <>
+      <Campo
+        etiqueta={etiqueta}
+        name="codigo"
+        list={id}
+        autoComplete="off"
+        autoCapitalize="characters"
+        placeholder="2-201-A"
+        ayuda={ayuda}
+        error={error}
+        required
+      />
+      <ListaCodigos id={id} codigos={codigos} />
+    </>
+  );
+}
+
