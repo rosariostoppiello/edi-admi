@@ -42,7 +42,6 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
 - **Liquidación publicada = inmutable:** toda escritura de la confección pasa por
   `enBorrador()` (bloquea la fila y exige estado BORRADOR). Para corregir, se anula.
 - **Dentro de una transacción**, consultas en serie (no `Promise.all` sobre `tx`).
-
 - **Pantallas y botones:** la fuente de verdad es `docs/PROYECTO-EN-GRAFICO.md`. Los
   módulos y sub-botones viven en `src/app/(app)/modulos.ts` (orden del gráfico, filtro por
   permiso) y se muestran con `PantallaTeclas` (`componentes/ui/pantalla-teclas.tsx`).
