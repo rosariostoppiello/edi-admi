@@ -13,6 +13,7 @@ import { PrismaClient, type Calidad, type Rol } from "../src/generated/prisma/cl
 import { limpiarLiquidacion, sembrarLiquidacion } from "./seed-liquidacion";
 import { limpiarReservas, sembrarReservas } from "./seed-reservas";
 import { sembrarSolicitudes } from "./seed-solicitudes";
+import { limpiarComunicados, sembrarComunicados } from "./seed-comunicados";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -73,6 +74,7 @@ async function main() {
   // Limpieza (solo desarrollo)
   await db.auditoria.deleteMany();
   await db.solicitud.deleteMany();
+  await limpiarComunicados(db);
   await limpiarLiquidacion(db);
   await limpiarReservas(db);
   await db.destinatarioExtra.deleteMany();
@@ -162,6 +164,7 @@ async function main() {
   const reservas = await sembrarReservas(db);
   console.log(`Espacios comunes: 3 barbacoas con su solarium y el laundry; ${reservas} reservas de ejemplo.`);
   console.log(`${await sembrarSolicitudes(db)} solicitudes de ejemplo.`);
+  console.log(`${await sembrarComunicados(db)} comunicados de ejemplo (avisos, reglamentos y un acta).`);
 
   const [unidades, personas, usuarios] = await Promise.all([
     db.unidad.count(),

@@ -38,6 +38,7 @@ model User {
   auditorias    Auditoria[]
   solicitudes   Solicitud[]
   eventos       SolicitudEvento[]
+  comunicados   Comunicado[]
   reservas      Reserva[]   @relation("ReservaCreadaPor")
   cancelaciones Reserva[]   @relation("ReservaCanceladaPor")
 
@@ -501,6 +502,7 @@ model Archivo {
   datos       Bytes
   createdAt   DateTime     @default(now())
   liquidacion Liquidacion?
+  comunicado  Comunicado?
 
   @@map("archivo")
 }
@@ -665,4 +667,36 @@ model SolicitudEvento {
 
   @@index([solicitudId, fecha])
   @@map("solicitud_evento")
+}
+
+// ---------------------------------------------------------------------------
+// Comunicados de la Administración
+// ---------------------------------------------------------------------------
+
+enum TipoComunicado {
+  AVISO
+  REGLAMENTO
+  ACTA
+}
+
+model Comunicado {
+  id             String         @id @default(cuid())
+  tipo           TipoComunicado
+  titulo         String
+  fecha          DateTime       @db.Date
+  cuerpo         String         @default("")
+  archivoId      String?        @unique
+  archivo        Archivo?       @relation(fields: [archivoId], references: [id])
+  publicadoPorId String
+  publicadoPor   User           @relation(fields: [publicadoPorId], references: [id])
+  enviadoPorMail Boolean        @default(false)
+  /// Orden de los reglamentos (los avisos y actas van por fecha).
+  orden          Int            @default(0)
+  /// Baja lógica: deja de verse, pero queda la historia.
+  activo         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([tipo, activo, fecha])
+  @@map("comunicado")
 }
