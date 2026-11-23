@@ -18,7 +18,7 @@ import {
 } from "@/dominio/personas";
 
 import { erroresDeZod, type Resultado } from "./resultado";
-import { enviarMail } from "./mail";
+import { avisar } from "./mail";
 import { codigoBase } from "@/dominio/codigos";
 import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 
@@ -480,7 +480,7 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
   const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
   const base = process.env.BETTER_AUTH_URL ?? "";
   for (const a of admins) {
-    await enviarMail({
+    await avisar({
       para: a.email,
       asunto: `Aviso de venta de la unidad ${r.codigo}`,
       texto: [

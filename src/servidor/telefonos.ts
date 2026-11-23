@@ -4,7 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
 import { registrarAuditoria } from "./auditoria";
 import { exigirPermiso, exigirUsuario } from "./sesion";
-import { enviarMail } from "./mail";
+import { avisar } from "./mail";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { puede } from "@/dominio/permisos";
 import { estadoPoliza, fraseVencimiento } from "@/dominio/telefonos";
@@ -198,7 +198,7 @@ export async function revisarVencimientoSeguro(): Promise<boolean> {
   const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
   const [a, m, d] = hasta.split("-");
   for (const admin of admins) {
-    await enviarMail({
+    await avisar({
       para: admin.email,
       asunto: `El seguro de incendio ${fraseVencimiento(hoy, hasta)}`,
       texto: [

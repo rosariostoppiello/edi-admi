@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
-import { enviarMail } from "./mail";
+import { avisar } from "./mail";
 import { registrarAuditoria } from "./auditoria";
 
 export const auth = betterAuth({
@@ -24,7 +24,7 @@ export const auth = betterAuth({
           where: { identifier: `reset-password:${token}` },
           data: { expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
         });
-        void enviarMail({
+        void avisar({
           para: user.email,
           asunto: "Tu acceso al sistema de gastos comunes",
           texto: `Hola ${user.name}:\n\nTe dieron acceso al sistema de gastos comunes del edificio. Ahí vas a ver tus liquidaciones, reservar la barbacoa y mandar solicitudes a la administración.\n\nPara entrar, creá tu contraseña en este enlace (vence en 7 días):\n${url}\n\nTu usuario es este mail: ${user.email}`,
@@ -32,7 +32,7 @@ export const auth = betterAuth({
         return;
       }
       // Sin await para no revelar por tiempos si el mail existe.
-      void enviarMail({
+      void avisar({
         para: user.email,
         asunto: "Cambiá tu contraseña",
         texto: `Hola ${user.name}:\n\nPara elegir una contraseña nueva entrá a este enlace (vence en 1 hora):\n${url}\n\nSi no lo pediste, ignorá este mensaje.`,
