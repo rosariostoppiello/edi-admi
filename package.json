@@ -14,7 +14,9 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "admin:crear": "tsx scripts/crear-admin.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -30,6 +32,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@playwright/test": "1.65.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "22.20.5",
