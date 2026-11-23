@@ -7,6 +7,8 @@ import { resumenBorrador } from "@/servidor/liquidacion/confeccion";
 export const metadata: Metadata = { title: "Confección de la liquidación" };
 
 const cantidad = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+// "$U" y el número no se separan en dos renglones.
+const pesos = (n: number) => formatearPesos(centesimos(n)).replace(/\s/g, "\u00a0");
 
 /**
  * Pantalla de la confección (decisión 32): Egresos e Ingresos como teclas
@@ -25,14 +27,14 @@ export default async function PaginaConfeccionBorrador({ params }: PageProps<"/l
             <Tecla
               href={`${base}/egresos`}
               nombre="Egresos"
-              descripcion={`${cantidad(r.egresos.cantidad, "egreso", "egresos")} por ${formatearPesos(centesimos(r.egresos.total))}`}
+              descripcion={`${cantidad(r.egresos.cantidad, "egreso", "egresos")} por ${pesos(r.egresos.total)}`}
             />
           </li>
           <li>
             <Tecla
               href={`${base}/ingresos`}
               nombre="Ingresos"
-              descripcion={`${cantidad(r.ingresos.cantidad, "pago", "pagos")} por ${formatearPesos(centesimos(r.ingresos.total))}`}
+              descripcion={`${cantidad(r.ingresos.cantidad, "pago", "pagos")} por ${pesos(r.ingresos.total)}`}
             />
           </li>
         </ul>

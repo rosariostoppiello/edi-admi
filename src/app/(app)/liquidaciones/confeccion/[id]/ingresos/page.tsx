@@ -66,7 +66,7 @@ export default async function PaginaIngresos({ params }: PageProps<"/liquidacion
         <ul className="max-w-prose list-disc pl-6 text-pizarra-suave">
           <li>
             La referencia de cada pago es el <strong className="text-pizarra">código de la unidad</strong>, con la torre, el número y la
-            letra: por ejemplo <span className="font-mono font-bold text-pizarra">2-201-P</span>. A si no está alquilada, P el propietario,
+            letra: por ejemplo <span className="font-mono font-bold whitespace-nowrap text-pizarra">2-201-P</span>. A si no está alquilada, P el propietario,
             I el inquilino.
           </li>
           <li>
