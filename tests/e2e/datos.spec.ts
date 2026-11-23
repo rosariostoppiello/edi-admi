@@ -12,7 +12,7 @@ test("alta y baja de inquilino: A → P+I → A, con invitación por mail", asyn
 
   // 1. El propietario carga al inquilino.
   await ingresar(page, u.duenoEmail);
-  await page.goto("/datos");
+  await page.goto("/datos/editar");
   await expect(main(page)).toContainText(`figura como ${codigo}-A`);
   await main(page).getByRole("button", { name: /cargar al inquilino|Cargar inquilino/ }).click();
   const form = main(page).locator("form").filter({ has: page.getByRole("button", { name: "Cargar inquilino" }) });
@@ -64,7 +64,7 @@ test("el inquilino se da de baja solo y pierde el acceso", async ({ page }, info
   // n ≥ 1: la primera unidad alquilada la usan los tests de contraseña.
   const u = await unidad(true, 1 + proyecto(info.project.name));
   await ingresar(page, u.inquilinoEmail!);
-  await page.goto("/datos");
+  await page.goto("/datos/editar");
   await main(page).getByRole("button", { name: "Darme de baja como inquilino" }).click();
   await main(page).getByRole("button", { name: "Sí, darme de baja" }).click();
   await expect(page).toHaveURL(/\/ingresar$/);
@@ -78,7 +78,7 @@ test("el inquilino se da de baja solo y pierde el acceso", async ({ page }, info
 test("los datos del responsable no pueden quedar vacíos", async ({ page }, info) => {
   const u = await unidad(false, 2 + proyecto(info.project.name));
   await ingresar(page, u.duenoEmail);
-  await page.goto("/datos");
+  await page.goto("/datos/editar");
   await main(page).getByRole("button", { name: "Editar mis datos" }).click();
   await main(page).getByLabel("Teléfono").fill("");
   await main(page).getByLabel("Nombre y apellido").fill("   ");
@@ -102,17 +102,51 @@ test("una unidad no puede ver la ficha de otra", async ({ page }, info) => {
   await expect(page).toHaveURL(/\/datos$/);
 });
 
-test("Portería ve código y ocupante, sin mails ni teléfonos", async ({ page }) => {
-  await ingresar(page, "porteria@example.com");
-  await page.goto("/datos");
-  await expect(page).toHaveURL(/\/datos\/unidades$/);
-  await expect(main(page).getByRole("listitem").first()).toBeVisible();
-  await expect(main(page)).not.toContainText("@example.com");
-  await expect(main(page)).not.toContainText(/09\d{7}/);
-  // No tiene enlaces a las fichas ni puede abrirlas.
-  const u = await unidad(false, 0);
+for (const [rol, email] of [
+  ["Portería", "porteria@example.com"],
+  ["La Comisión sin unidad", "comision@example.com"],
+] as const) {
+  test(`${rol} ve código y ocupante, sin mails ni teléfonos`, async ({ page }) => {
+    await ingresar(page, email);
+    await page.goto("/datos");
+    await expect(page).toHaveURL(/\/datos\/unidades$/);
+    await expect(main(page).getByRole("listitem").first()).toBeVisible();
+    await expect(main(page)).not.toContainText("@example.com");
+    await expect(main(page)).not.toContainText(/09\d{7}/);
+    // No tiene enlaces a las fichas ni puede abrirlas.
+    const u = await unidad(false, 0);
+    await page.goto(`/datos/${u.unidadId}`);
+    await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
+  });
+}
+
+test("la unidad ve sus datos, entra a Editar y avisa la venta a la Administración", async ({ page }, info) => {
+  const u = await unidad(false, 8 + proyecto(info.project.name));
+  const codigo = `${u.torre}-${u.numero}`;
+  await ingresar(page, u.duenoEmail);
+  await page.getByRole("link", { name: /Datos de propietarios e inquilinos/ }).click();
+  await expect(page).toHaveURL(/\/datos$/);
+  // Solo lectura: los formularios están detrás de la tecla Editar.
+  await expect(main(page)).toContainText(u.duenoEmail);
+  await expect(main(page).getByRole("button", { name: "Editar mis datos" })).toHaveCount(0);
+  await main(page).getByRole("link", { name: "Editar", exact: true }).click();
+  await expect(page).toHaveURL(/\/datos\/editar$/);
+  await expect(main(page).getByRole("button", { name: "Editar mis datos" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Mis datos" }).click();
+  await main(page).getByRole("button", { name: "Avisar venta de la unidad" }).click();
+  await main(page).getByLabel(/Comentario para la Administración/).fill("Firmamos la compraventa la semana pasada");
+  await main(page).getByRole("button", { name: "Avisar a la Administración" }).click();
+  await expect(main(page)).toContainText("Avisaste la venta");
+  const mail = await ultimoMailPara(ADMIN, `Aviso de venta de la unidad ${codigo}`);
+  expect(mail.texto).toContain("Firmamos la compraventa");
+
+  // Administración lo ve en la ficha de la unidad.
+  await page.getByRole("button", { name: "Salir" }).click();
+  await ingresar(page, ADMIN);
   await page.goto(`/datos/${u.unidadId}`);
-  await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
+  await expect(main(page)).toContainText("avisó el");
+  await expect(main(page)).toContainText("Firmamos la compraventa");
 });
 
 test("Administración crea una unidad con su responsable y le llega la invitación", async ({ page }, info) => {

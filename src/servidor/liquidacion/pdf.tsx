@@ -1,5 +1,5 @@
 import "server-only";
-import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { formatearNumero, type Centesimos } from "@/dominio/dinero";
 import { COLUMNAS_MONTO, GRUPOS_COLUMNAS, TITULOS_COLUMNAS, type ColumnaMonto } from "@/dominio/liquidacion/calculo";
 import { formatearPorcentaje } from "@/dominio/liquidacion/egresos";
@@ -15,6 +15,9 @@ import type { LiquidacionArmada } from "./armado";
 
 const PIZARRA = "#1D2830";
 const SUAVE = "#4A5761";
+
+// Sin cortar palabras con guion: los encabezados angostos parten en renglones enteros.
+Font.registerHyphenationCallback((palabra) => [palabra]);
 const JUNTA = "#C9CEC8";
 const GRANITO = "#EDEFEB";
 const ALERTA = "#A1261B";

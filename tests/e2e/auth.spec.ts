@@ -20,16 +20,16 @@ test("la unidad ingresa, ve su placa y los 6 botones, y sale", async ({ page }) 
 
   const secciones = page.getByRole("navigation", { name: "Secciones" }).getByRole("link");
   await expect(secciones).toHaveCount(6);
-  for (const nombre of [
+  // En el orden de "Proyecto en gráfico" (C.0).
+  const nombres = [
     "Liquidación de gastos comunes",
-    "Reservas",
-    "Propietarios e inquilinos",
-    "Teléfonos y servicios",
-    "Solicitudes",
-    "Comunicados",
-  ]) {
-    await expect(page.getByRole("link", { name: new RegExp(nombre) })).toBeVisible();
-  }
+    "Reserva de espacios comunes",
+    "Solicitudes varias",
+    "Comunicados de la Administración",
+    "Teléfonos y datos de interés",
+    "Datos de propietarios e inquilinos",
+  ];
+  for (const [i, nombre] of nombres.entries()) await expect(secciones.nth(i)).toContainText(nombre);
 
   // Cada tecla tiene al menos 44 px de alto (área táctil).
   for (const caja of await secciones.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) {

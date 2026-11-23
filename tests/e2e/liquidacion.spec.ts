@@ -1,15 +1,18 @@
 import ExcelJS from "exceljs";
 import { expect, test, type Page } from "@playwright/test";
 import { unidad } from "./db";
-import { ADMIN, ingresar, ultimoMailPara } from "./utiles";
+import { ADMIN, ingresar, sinEspacios, textoPdf, ultimoMailPara } from "./utiles";
 
 const main = (page: Page) => page.getByRole("main");
 const exito = (page: Page, texto: string | RegExp) => main(page).getByRole("status").filter({ hasText: texto });
 
-async function planilla(filas: (string | number | Date)[][]): Promise<Buffer> {
+async function planilla(
+  filas: (string | number | Date)[][],
+  encabezados: string[] = ["Fecha", "Unidad", "Monto", "Referencia"],
+): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
-  const hoja = libro.addWorksheet("Pagos");
-  hoja.addRow(["Fecha", "Unidad", "Monto", "Referencia"]);
+  const hoja = libro.addWorksheet("Hoja 1");
+  hoja.addRow(encabezados);
   for (const f of filas) hoja.addRow(f);
   return Buffer.from(await libro.xlsx.writeBuffer());
 }
@@ -22,12 +25,20 @@ async function subir(page: Page, nombre: string, contenido: Buffer) {
   await main(page).getByRole("button", { name: "Ver vista previa" }).first().click();
 }
 
+/** Desde una sección de la confección, vuelve a la pantalla con las teclas. */
+async function aLaConfeccion(page: Page) {
+  await page.getByRole("link", { name: "Confección de la liquidación" }).click();
+  await expect(main(page).getByRole("link", { name: "Revisar y publicar" })).toBeVisible();
+}
+
 async function publicar(page: Page) {
-  await page.getByRole("link", { name: /Revisar y publicar/ }).click();
+  await aLaConfeccion(page);
+  await main(page).getByRole("link", { name: "Revisar y publicar" }).click();
   await main(page).getByRole("button", { name: "Publicar liquidación" }).click();
   await expect(main(page)).toContainText("mandarla por mail a");
   await main(page).getByRole("button", { name: "Sí, publicar y enviar" }).click();
-  await expect(page).toHaveURL(/\/liquidaciones\/2026-10\?publicada=1$/);
+  await expect(page).toHaveURL(/\/liquidaciones\/ultima\?publicada=1$/);
+  await expect(page.getByRole("heading", { name: "Liquidación de octubre 2026" })).toBeVisible();
 }
 
 // La confección es de Administración (escritorio). Los dos tests van en orden:
@@ -39,11 +50,20 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     const codigo = `${u.torre}-${u.numero}-A`;
 
     await ingresar(page, ADMIN);
-    await page.goto("/liquidaciones");
-    await main(page).getByRole("link", { name: "Preparar octubre" }).click();
+    await page.getByRole("link", { name: /Liquidación de gastos comunes/ }).click();
+    // Administración ve los dos sub-botones, en el orden del gráfico.
+    await expect(main(page).getByRole("navigation").getByRole("link")).toHaveText([
+      "Liquidación mensual",
+      "Confección de la liquidación mensual",
+    ]);
+    await main(page).getByRole("link", { name: "Confección de la liquidación mensual" }).click();
     await main(page).getByRole("button", { name: "Crear borrador" }).click();
-    await expect(page).toHaveURL(/\/confeccion\/[^/]+\/ingresos$/);
+    await expect(page).toHaveURL(/\/confeccion\/[^/]+$/);
     await expect(page.getByRole("heading", { name: "Liquidación de octubre 2026" })).toBeVisible();
+    // Dos teclas principales: Egresos e Ingresos, en ese orden.
+    await expect(main(page).getByRole("navigation", { name: "Egresos e ingresos" }).getByRole("link")).toHaveText([/^Egresos/, /^Ingresos/]);
+    await main(page).getByRole("link", { name: /^Ingresos/ }).click();
+    await expect(main(page)).toContainText("La referencia de cada pago es el código de la unidad");
 
     // Planilla con un error: se ve en la vista previa y no se puede confirmar.
     await subir(page, "con-error.xlsx", await planilla([["05/10/2026", "2-999-A", 100, "x"], ["05/10/2026", codigo, 1500, "T1"]]));
@@ -70,9 +90,31 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     await pago.getByRole("button", { name: "Cargar pago" }).click();
     await expect(exito(page, `Cargaste $U 250,50 a ${codigo}`)).toBeVisible();
 
-    // Egreso variable (los fijos ya vienen precargados).
-    await page.getByRole("link", { name: /Egresos/ }).click();
+    // Egresos: los fijos vienen precargados; se importa una planilla y se carga uno a mano.
+    await aLaConfeccion(page);
+    await main(page).getByRole("link", { name: /^Egresos/ }).click();
     await expect(main(page).getByRole("heading", { name: /Egresos del mes \(6\)/ })).toBeVisible();
+    const encEgresos = ["Fecha", "Rubro", "Proveedor", "Período", "Monto"];
+    await subir(page, "egresos-con-error.xlsx", await planilla([["08/10/2026", "3", "Mantenimiento SA", "Setiembre 2026", 100]], encEgresos));
+    await expect(main(page)).toContainText("agrupa otros rubros");
+    await expect(main(page).getByRole("button", { name: /^Cargar \d+ egresos?$/ })).toHaveCount(0);
+    await main(page).getByRole("button", { name: "Descartar planilla" }).click();
+    await expect(exito(page, "Descartaste la planilla")).toBeVisible();
+    await subir(
+      page,
+      "egresos.xlsx",
+      await planilla(
+        [
+          ["08/10/2026", "3.4", "Jardines de Prueba", "Setiembre 2026", 2500],
+          [new Date(Date.UTC(2026, 9, 9)), 3.5, "Ferretería de Prueba", "Octubre 2026", "1.234,50"],
+        ],
+        encEgresos,
+      ),
+    );
+    await expect(main(page)).toContainText("Todas las filas están bien");
+    await main(page).getByRole("button", { name: "Cargar 2 egresos" }).click();
+    await expect(exito(page, "Cargaste 2 egresos por $U 3.734,50")).toBeVisible();
+    await expect(main(page).getByRole("heading", { name: /Egresos del mes \(8\)/ })).toBeVisible();
     const egreso = main(page).locator("form").filter({ has: page.getByRole("button", { name: "Cargar egreso" }) });
     await egreso.getByLabel("Rubro").selectOption({ label: "3.3 Sanitaria" });
     await egreso.getByLabel("Proveedor o ente").fill("Sanitaria de Prueba");
@@ -82,6 +124,28 @@ test.describe.serial("confección, publicación y anulación (Administración)",
 
     await publicar(page);
     await expect(main(page)).toContainText(/\d+ enviados/);
+
+    // El PDF tiene las columnas de "Proyecto en gráfico", con el encabezado de dos niveles.
+    const hrefAdmin = await main(page).getByRole("link", { name: /Ver la liquidación completa/ }).getAttribute("href");
+    const texto = textoPdf(await (await page.request.get(hrefAdmin!)).body());
+    for (const titulo of [
+      "Estado de cuenta",
+      "Cargos del mes",
+      "Saldo anterior",
+      "Pagos",
+      "Intereses",
+      "G.C. unidad",
+      "G.C. garaje",
+      "Fondo de reserva",
+      "Cuota extra F.R.",
+      "Barbacoas",
+      "Otros",
+      "Multas",
+      "Total a pagar",
+    ]) {
+      expect(texto, titulo).toContain(sinEspacios(titulo));
+    }
+    expect(texto).not.toContain("TagGge");
 
     // Le llega el mail con su saldo y el PDF adjunto.
     const mail = await ultimoMailPara(u.duenoEmail);
@@ -93,8 +157,11 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     const ctx = await browser.newContext();
     const vecino = await ctx.newPage();
     await ingresar(vecino, u.duenoEmail);
+    // La unidad ve un solo sub-botón en Liquidación: salta directo a Liquidación mensual.
     await vecino.goto("/liquidaciones");
-    await vecino.getByRole("link", { name: "Ver tu liquidación de octubre" }).click();
+    await expect(vecino).toHaveURL(/\/liquidaciones\/mensual$/);
+    await vecino.getByRole("link", { name: "Última liquidación" }).click();
+    await expect(vecino.getByRole("heading", { name: "Liquidación de octubre 2026" })).toBeVisible();
     const recibo = vecino.getByRole("article", { name: `Cuenta de ${codigo}` });
     await expect(recibo).toContainText("Pagos recibidos");
     await expect(recibo).toContainText("-1.750,50");
@@ -105,6 +172,12 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     expect(pdf.status()).toBe(200);
     expect(pdf.headers()["content-type"]).toBe("application/pdf");
     expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+
+    // Setiembre pasó sola a "Liquidaciones anteriores".
+    await vecino.getByRole("link", { name: "Liquidación mensual" }).click();
+    await vecino.getByRole("link", { name: "Liquidaciones anteriores" }).click();
+    await expect(main(vecino).getByRole("link", { name: "Setiembre 2026", exact: true })).toBeVisible();
+    await expect(main(vecino).getByRole("link", { name: "Octubre 2026", exact: true })).toHaveCount(0);
     await ctx.close();
   });
 
@@ -112,7 +185,7 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     test.skip(info.project.name !== "escritorio", "Administración trabaja desde escritorio");
     const u = await unidad(false, 6);
     await ingresar(page, ADMIN);
-    await page.goto("/liquidaciones/2026-10");
+    await page.goto("/liquidaciones/ultima");
     await main(page).getByRole("button", { name: "Anular y corregir" }).click();
     await main(page).getByLabel("Motivo de la anulación").fill("error");
     await main(page).getByRole("button", { name: "Sí, anular y corregir" }).click();
@@ -123,16 +196,18 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     await expect(page.getByRole("heading", { name: "Corrección de la liquidación de octubre 2026" })).toBeVisible();
 
     // La copia trae los pagos de la anulada.
-    await page.getByRole("link", { name: /Ingresos/ }).click();
+    await aLaConfeccion(page);
+    await main(page).getByRole("link", { name: /^Ingresos/ }).click();
     await expect(main(page).getByRole("heading", { name: "Pagos cargados (2)" })).toBeVisible();
 
     await publicar(page);
     expect((await ultimoMailPara(u.duenoEmail)).asunto).toBe("Liquidación rectificada de gastos comunes de octubre 2026");
 
-    // Administración ve la anulada en el historial, con su motivo.
-    await page.goto("/liquidaciones");
+    // La rectificada es la última; la anulada queda en las anteriores, marcada y con su motivo.
+    await expect(main(page)).toContainText("Es la versión corregida");
+    await page.goto("/liquidaciones/anteriores");
     await expect(main(page).getByText("Anulada")).toBeVisible();
-    await main(page).getByRole("link", { name: "Octubre 2026" }).last().click();
+    await main(page).getByRole("link", { name: "Octubre 2026", exact: true }).click();
     await expect(main(page)).toContainText("Motivo: Faltó cargar un pago");
   });
 });
@@ -163,6 +238,7 @@ test("la confección es solo de Administración; Portería y Comisión ven lo su
   await page.goto("/liquidaciones/confeccion");
   await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
   await page.goto("/liquidaciones");
+  await expect(page).toHaveURL(/\/liquidaciones\/mensual$/);
   await expect(main(page).getByText("Confección")).toHaveCount(0);
   await page.getByRole("button", { name: "Salir" }).click();
 

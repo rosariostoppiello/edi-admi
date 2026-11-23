@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { inflateSync } from "node:zlib";
 import { expect, type Page } from "@playwright/test";
 import "dotenv/config";
 
@@ -22,8 +23,8 @@ export async function ingresar(page: Page, email: string, clave = CLAVE) {
   if (respuesta.ok()) await page.waitForURL((u) => u.pathname === "/");
 }
 
-/** Último mail "enviado" (driver archivo) a un destinatario. */
-export async function ultimoMailPara(destinatario: string) {
+/** Último mail "enviado" (driver archivo) a un destinatario (y con ese asunto, si se indica). */
+export async function ultimoMailPara(destinatario: string, asunto?: string) {
   const dir = path.join(process.cwd(), "storage", "mails-e2e");
   let encontrado: { para: string; asunto: string; texto: string; adjuntos?: { nombre: string; archivo: string }[] } | undefined;
   await expect
@@ -38,10 +39,34 @@ export async function ultimoMailPara(destinatario: string) {
       }
       encontrado = archivos
         .map((a) => JSON.parse(readFileSync(path.join(dir, a), "utf8")))
-        .filter((m) => m.para === destinatario)
+        .filter((m) => m.para === destinatario && (!asunto || m.asunto === asunto))
         .at(-1);
       return Boolean(encontrado);
     })
     .toBe(true);
   return encontrado!;
 }
+
+/**
+ * Texto de un PDF de @react-pdf (fuentes estándar): descomprime cada stream y
+ * junta las cadenas de los operadores Tj/TJ. Alcanza para buscar encabezados.
+ * Devuelve el texto sin espacios ni saltos (una palabra puede partirse en renglones).
+ */
+export function textoPdf(pdf: Buffer): string {
+  const crudo = pdf.toString("latin1");
+  let texto = "";
+  for (const m of crudo.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+    let contenido: string;
+    try {
+      contenido = inflateSync(Buffer.from(m[1], "latin1")).toString("latin1");
+    } catch {
+      continue;
+    }
+    for (const op of contenido.matchAll(/\[(.*?)\]\s*TJ|<([0-9a-fA-F]+)>\s*Tj/g)) {
+      for (const hex of (op[1] ?? `<${op[2]}>`).matchAll(/<([0-9a-fA-F]+)>/g)) texto += Buffer.from(hex[1], "hex").toString("latin1");
+    }
+  }
+  return texto.replace(/\s+/g, "");
+}
+
+export const sinEspacios = (s: string) => s.replace(/\s+/g, "");
