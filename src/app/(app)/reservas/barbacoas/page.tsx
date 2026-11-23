@@ -5,6 +5,7 @@ import { pesos } from "@/componentes/ui/monto";
 import { puede } from "@/dominio/permisos";
 import { DATOS_TURNO, REGLAS_POR_DEFECTO, fechaEnFrase, fechaUy, inicioTurno, leerReglas, sumarDias } from "@/dominio/reservas";
 import { listarEspacios, ocupacion, proximasReservas } from "@/servidor/reservas";
+import { reglamentoDeBarbacoas } from "@/servidor/comunicados";
 import { exigirPermiso } from "@/servidor/sesion";
 import { accionCancelar } from "../acciones";
 import { Calendario, Celda, DIAS_POR_PAGINA, NavegarSemanas, desdeValido } from "../calendario";
@@ -25,7 +26,7 @@ export default async function PaginaBarbacoas({ searchParams }: PageProps<"/rese
   const limite = sumarDias(hoy, anticipacion);
   const desde = desdeValido(typeof sp.desde === "string" ? sp.desde : undefined, hoy, limite);
   const hasta = sumarDias(desde, DIAS_POR_PAGINA - 1);
-  const [ocupados, proximas] = await Promise.all([ocupacion(desde, hasta), proximasReservas()]);
+  const [ocupados, proximas, reglamento] = await Promise.all([ocupacion(desde, hasta), proximasReservas(), reglamentoDeBarbacoas()]);
   const veQuien = puede(usuario, "reserva.verQuien");
   const puedeReservar = veQuien || usuario.unidades.length > 0;
   const tarifas = [...new Set(barbacoas.map((b) => b.tarifa))];
@@ -40,6 +41,13 @@ export default async function PaginaBarbacoas({ searchParams }: PageProps<"/rese
           tener hasta {reglas.maxActivasPorUnidad} reservas a la vez y cancelar hasta {reglas.horasCancelacion} horas antes del turno.
         </p>
         {tarifas.length === 1 && tarifas[0] > 0 && <p>El uso se cobra en la liquidación del mes: {pesos(tarifas[0])} por turno.</p>}
+        {reglamento?.archivoId && (
+          <p>
+            <a href={`/api/comunicados/${reglamento.id}/pdf`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-bold text-pizarra underline underline-offset-4 hover:text-bronce">
+              Leer el {reglamento.titulo.toLowerCase().startsWith("reglamento") ? reglamento.titulo.toLowerCase() : `reglamento: ${reglamento.titulo}`}
+            </a>
+          </p>
+        )}
       </div>
 
       {sp.reservada && (

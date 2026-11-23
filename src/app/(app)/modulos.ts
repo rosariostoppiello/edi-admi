@@ -73,9 +73,9 @@ export const MODULOS: Modulo[] = [
     descripcion: "Avisos, reglamentos y actas de asambleas",
     Icono: IconoComunicados,
     subteclas: [
-      { ruta: "/comunicados/avisos", nombre: "Avisos importantes", fase: 7 },
-      { ruta: "/comunicados/reglamentos", nombre: "Reglamentos", fase: 7 },
-      { ruta: "/comunicados/actas", nombre: "Actas de asambleas", fase: 7 },
+      { ruta: "/comunicados/avisos", nombre: "Avisos importantes" },
+      { ruta: "/comunicados/reglamentos", nombre: "Reglamentos" },
+      { ruta: "/comunicados/actas", nombre: "Actas de asambleas" },
     ],
   },
   {
