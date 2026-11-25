@@ -22,7 +22,7 @@ export async function vincularUsuario(
     return { userId: existente.id, necesitaInvitacion: existente.accounts.length === 0 };
   }
   const userId = randomUUID();
-  await tx.user.create({ data: { id: userId, email, name: nombre, rol: "UNIDAD", emailVerified: false } });
+  await tx.user.create({ data: { id: userId, email, name: nombre, emailVerified: false } });
   return { userId, necesitaInvitacion: true };
 }
 
@@ -39,13 +39,13 @@ export async function enviarInvitacion(email: string): Promise<void> {
 }
 
 /**
- * Si un usuario de rol UNIDAD se queda sin unidades activas, se desactiva y se
+ * Si un usuario sin rol de gestión se queda sin unidades activas, se desactiva y se
  * cierran sus sesiones (ya no tiene nada que ver en el sistema).
  */
 export async function desactivarSiNoTieneUnidades(tx: Prisma.TransactionClient, userId: string | null) {
   if (!userId) return;
-  const user = await tx.user.findUnique({ where: { id: userId }, select: { rol: true } });
-  if (!user || user.rol !== "UNIDAD") return;
+  // Quien tiene un rol de gestión en algún edificio sigue activo aunque no tenga unidades.
+  if (await tx.membresia.count({ where: { userId } })) return;
   const activas = await tx.persona.count({ where: { userId, activa: true } });
   if (activas > 0) return;
   await tx.user.update({ where: { id: userId }, data: { activo: false } });

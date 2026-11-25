@@ -21,7 +21,7 @@ import {
   type Categoria,
   type EstadoSolicitud,
 } from "@/dominio/solicitudes";
-import { SELECCION_CODIGO, unidadPorCodigo } from "./edificios";
+import { equipoDelEdificio, SELECCION_CODIGO, unidadPorCodigo } from "./edificios";
 
 const urlBase = () => process.env.BETTER_AUTH_URL ?? "";
 
@@ -101,7 +101,7 @@ export async function crearSolicitud(slug: string, input: unknown): Promise<Resu
   });
 
   // Mail a Administración (fuera de la transacción: si falla, la solicitud igual queda).
-  const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
+  const admins = await equipoDelEdificio(usuario.edificio.id, ["ADMINISTRACION"]);
   const edificio = usuario.edificio.nombre;
   const quien =
     origen === "PORTERIA_A_PEDIDO" ? `Portería, a pedido de ${pedidaPor} (unidad ${codigo})` : origen === "PORTERIA_PROPIA" ? "Portería" : `${usuario.nombre} (unidad ${codigo})`;

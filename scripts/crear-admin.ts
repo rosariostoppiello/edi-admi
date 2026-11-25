@@ -22,14 +22,20 @@ async function main() {
   const correo = email.toLowerCase();
   const u = await db.user.upsert({
     where: { email: correo },
-    create: { id: randomUUID(), name: nombre, email: correo, rol: "ADMINISTRACION", emailVerified: true },
-    update: { rol: "ADMINISTRACION", activo: true },
+    create: { id: randomUUID(), name: nombre, email: correo, emailVerified: true },
+    update: { activo: true },
   });
   // Base vacía: crea el primer edificio (decisión 85).
   const edificio =
     (await db.edificio.findFirst({ orderBy: { creadoEn: "asc" } })) ??
     (await db.edificio.create({ data: { id: "edificio-principal", nombre: process.env.EDIFICIO_NOMBRE || "Complejo" } }));
   await db.configuracion.upsert({ where: { edificioId: edificio.id }, create: { edificioId: edificio.id }, update: {} });
+  // Administración de ese edificio (decisión 86).
+  await db.membresia.upsert({
+    where: { userId_edificioId: { userId: u.id, edificioId: edificio.id } },
+    create: { userId: u.id, edificioId: edificio.id, rol: "ADMINISTRACION" },
+    update: { rol: "ADMINISTRACION" },
+  });
   await db.auditoria.create({ data: { accion: "usuario.admin_creado", entidad: "user", entidadId: u.id, detalle: { origen: "scripts/crear-admin.ts" } } });
   console.log(`Listo: ${correo} es Administración. Para crear su contraseña: /ingresar → "Me olvidé la contraseña".`);
 }

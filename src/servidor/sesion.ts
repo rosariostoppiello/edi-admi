@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { db } from "./db";
 import { ErrorPermiso, puede, type Accion, type Actor, type Recurso, type Rol } from "@/dominio/permisos";
+import { edificiosDelUsuario, resolverEdificioActivo, rolEnEdificio } from "@/dominio/edificios";
 
 /** Edificio con el que está trabajando el usuario (decisión 85). */
 export interface EdificioActivo {
@@ -23,6 +24,10 @@ export interface UsuarioActual extends Actor {
   edificio: EdificioActivo;
   /** Todos los edificios del usuario (para elegir o cambiar). */
   edificios: { id: string; nombre: string }[];
+  /** false si tiene varios edificios y todavía no eligió con cuál trabajar. */
+  edificioElegido: boolean;
+  /** Dueño del sistema: aprueba los edificios nuevos (no es un rol de edificio). */
+  duenoSistema: boolean;
   /** Unidades vinculadas, con datos para mostrar (código, torre). */
   unidadesDetalle: {
     unidadId: string;
@@ -51,8 +56,9 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioActual | null> => {
       id: true,
       name: true,
       email: true,
-      rol: true,
+      duenoSistema: true,
       activo: true,
+      membresias: { select: { edificioId: true, rol: true } },
       personas: {
         where: { activa: true, unidad: { activa: true } },
         select: {
@@ -76,22 +82,23 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioActual | null> => {
   });
   if (!user || !user.activo) return null;
 
-  // Edificios del usuario: los de sus unidades y, para Administración, Comisión y
-  // Portería, los edificios activos (en la etapa 2 pasa a ser por membresía).
-  const ids = new Set(user.personas.map((p) => p.unidad.edificioId));
+  // Edificios del usuario: los de sus membresías (Administración, Comisión, Portería)
+  // y los de sus unidades. Solo los edificios activos.
+  const ids = edificiosDelUsuario(user.membresias, user.personas.map((p) => p.unidad));
   const edificios = await db.edificio.findMany({
-    where: user.rol === "UNIDAD" ? { id: { in: [...ids] }, estado: "ACTIVO" } : { estado: "ACTIVO" },
+    where: { id: { in: ids }, estado: "ACTIVO" },
     select: { id: true, nombre: true, direccion: true, modulos: true },
     orderBy: { creadoEn: "asc" },
   });
-  if (edificios.length === 0) return null;
-  const elegido = (await cookies()).get(COOKIE_EDIFICIO)?.value;
-  const edificio = edificios.find((e) => e.id === elegido) ?? edificios[0];
+  const { edificio, elegido } = resolverEdificioActivo(edificios, (await cookies()).get(COOKIE_EDIFICIO)?.value);
+  if (!edificio) return null;
   const personas = user.personas.filter((p) => p.unidad.edificioId === edificio.id);
 
   return {
     userId: user.id,
-    rol: user.rol as Rol,
+    rol: rolEnEdificio(user.membresias as { edificioId: string; rol: Rol }[], edificio.id),
+    duenoSistema: user.duenoSistema,
+    edificioElegido: elegido,
     nombre: user.name,
     email: user.email,
     edificio,

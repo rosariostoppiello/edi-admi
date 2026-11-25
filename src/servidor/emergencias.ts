@@ -6,6 +6,8 @@ import { exigirPermiso, type UsuarioActual } from "./sesion";
 import { unidadActiva } from "./unidad-activa";
 import { avisar, enviarMail } from "./mail";
 import { destinatariosPorUnidad } from "./datos";
+import { equipoDelEdificio } from "./edificios";
+import { rolEnEdificio } from "@/dominio/edificios";
 import { obtenerFicha } from "./telefonos";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { puede } from "@/dominio/permisos";
@@ -112,13 +114,7 @@ export async function avisarEmergencia(input: unknown): Promise<Resultado> {
   });
 
   // Mail inmediato a quienes pueden actuar (fuera de la transacción: el aviso ya quedó).
-  const equipo = await db.user.findMany({
-    where: {
-      rol: { in: ["PORTERIA", "ADMINISTRACION", "COMISION"] },
-      activo: true,
-    },
-    select: { email: true },
-  });
+  const equipo = await equipoDelEdificio(usuario.edificio.id, ["PORTERIA", "ADMINISTRACION", "COMISION"]);
   const quien = codigo
     ? `${usuario.nombre} (unidad ${codigo})`
     : `${usuario.nombre} (${NOMBRE_ROL[usuario.rol]})`;
@@ -165,7 +161,8 @@ const seleccion = {
   mensajeGeneral: true,
   cerradaEn: true,
   nota: true,
-  autor: { select: { name: true, rol: true } },
+  edificioId: true,
+  autor: { select: { name: true, membresias: { select: { edificioId: true, rol: true } } } },
   unidad: { select: { numero: true, torre: { select: { numero: true } } } },
   difundidaPor: { select: { name: true } },
   cerradaPor: { select: { name: true } },
@@ -185,7 +182,7 @@ function mostrar(f: Fila) {
     ...f,
     codigo: f.unidad ? codigoBase(f.unidad.torre.numero, f.unidad.numero) : null,
     quien: f.autor.name,
-    rolAutor: NOMBRE_ROL[f.autor.rol],
+    rolAutor: NOMBRE_ROL[rolEnEdificio(f.autor.membresias, f.edificioId)],
     nombreTipo: NOMBRE_TIPO[f.tipo as TipoEmergencia],
     corto: CORTO_TIPO[f.tipo as TipoEmergencia],
     nombreEstado: NOMBRE_ESTADO[f.estado],

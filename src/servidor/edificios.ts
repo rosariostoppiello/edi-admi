@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import type { Rol } from "@/dominio/permisos";
 
 /** Edificios activos, para los formularios públicos (sin sesión). Solo nombre: no son datos personales. */
 export async function edificiosActivos() {
@@ -17,4 +18,13 @@ export async function unidadPorCodigo(edificioId: string, texto: string) {
     where: { edificioId, numero: m[2].toUpperCase(), activa: true, torre: { numero: Number(m[1]) } },
     select: { id: true, ...SELECCION_CODIGO },
   });
+}
+
+/** Mails del equipo de un edificio (Administración, Comisión o Portería) para avisos. */
+export async function equipoDelEdificio(edificioId: string, roles: Exclude<Rol, "UNIDAD">[]) {
+  const m = await db.membresia.findMany({
+    where: { edificioId, rol: { in: roles }, user: { activo: true } },
+    select: { user: { select: { email: true } } },
+  });
+  return m.map((x) => ({ email: x.user.email }));
 }

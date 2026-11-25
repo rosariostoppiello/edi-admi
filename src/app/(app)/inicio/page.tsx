@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { exigirUsuario } from "@/servidor/sesion";
 import { Aviso } from "@/componentes/ui/aviso";
 import { Tecla } from "@/componentes/ui/teclas";
@@ -12,6 +13,8 @@ export const metadata: Metadata = { title: "Inicio" };
 
 export default async function Inicio() {
   const usuario = await exigirUsuario();
+  // En varios edificios y sin elegir todavía: primero se elige el edificio.
+  if (!usuario.edificioElegido) redirect("/edificios");
   // Para Administración revisa el vencimiento del seguro y le manda el mail (una vez por
   // vigencia); el aviso ya no se muestra acá: queda en Teléfonos → Seguro de incendio.
   await alertaSeguro();

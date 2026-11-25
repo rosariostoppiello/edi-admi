@@ -33,9 +33,10 @@ export async function unidad(arrendada: boolean, n: number): Promise<UnidadDePru
             d.email AS "duenoEmail", i.email AS "inquilinoEmail"
        FROM unidad u
        JOIN persona d ON d."unidadId" = u.id AND d.activa AND d.calidad <> 'INQUILINO'
-       JOIN "user" du ON du.id = d."userId" AND du.rol = 'UNIDAD'
+       JOIN "user" du ON du.id = d."userId"
+        AND NOT EXISTS (SELECT 1 FROM membresia m WHERE m."userId" = du.id)
        LEFT JOIN persona i ON i."unidadId" = u.id AND i.activa AND i.calidad = 'INQUILINO'
-      WHERE u.arrendada = $1 AND u.tipo = 'APTO'
+      WHERE u.arrendada = $1 AND u.tipo = 'APTO' AND u."edificioId" = 'edificio-principal'
         AND (SELECT count(*) FROM persona x WHERE x."userId" = d."userId" AND x.activa) = 1
         AND d.email <> ALL($3) AND (i.email IS NULL OR i.email <> ALL($3))
         -- Solo usuarios del seed (con contraseña), no los que crean otros tests.

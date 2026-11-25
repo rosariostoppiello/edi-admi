@@ -19,6 +19,7 @@ import {
 
 import { erroresDeZod, type Resultado } from "./resultado";
 import { avisar } from "./mail";
+import { equipoDelEdificio } from "./edificios";
 import { codigoBase } from "@/dominio/codigos";
 
 export type { Resultado };
@@ -478,7 +479,7 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
   if (!r.ok) return r;
 
   // Mail a Administración (fuera de la transacción: si falla, el aviso igual queda registrado).
-  const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
+  const admins = await equipoDelEdificio(actor.edificio.id, ["ADMINISTRACION"]);
   const base = process.env.BETTER_AUTH_URL ?? "";
   for (const a of admins) {
     await avisar({

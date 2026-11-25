@@ -49,7 +49,6 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      rol: { type: "string", required: false, defaultValue: "UNIDAD", input: false },
       activo: { type: "boolean", required: false, defaultValue: true, input: false },
     },
   },

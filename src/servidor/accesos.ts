@@ -7,7 +7,7 @@ import { avisar } from "./mail";
 import { altaInquilino, cambiarPropietario } from "./datos";
 import { enviarInvitacion, tieneContrasena } from "./invitaciones";
 import { whatsappAdministracion } from "./solicitudes";
-import { edificiosActivos, SELECCION_CODIGO, unidadPorCodigo } from "./edificios";
+import { edificiosActivos, equipoDelEdificio, SELECCION_CODIGO, unidadPorCodigo } from "./edificios";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { codigoBase } from "@/dominio/codigos";
 import { datosPersonaSchema, NOMBRE_CALIDAD, esDueno } from "@/dominio/personas";
@@ -66,7 +66,7 @@ export async function pedirAcceso(input: unknown): Promise<Resultado> {
     data: { nombre: d.nombre, email, telefono: d.telefono, codigo: d.codigo, unidadId: unidad.id, edificioId: edificio.id, calidad: d.calidad, mensaje: d.mensaje },
   });
 
-  const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
+  const admins = await equipoDelEdificio(edificio.id, ["ADMINISTRACION"]);
   const codigo = codigoBase(unidad.torre.numero, unidad.numero);
   await Promise.all(
     admins.map((a) =>

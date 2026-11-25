@@ -5,6 +5,7 @@ import { db } from "./db";
 import { registrarAuditoria } from "./auditoria";
 import { exigirPermiso, exigirUsuario } from "./sesion";
 import { avisar } from "./mail";
+import { equipoDelEdificio } from "./edificios";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { puede } from "@/dominio/permisos";
 import { estadoPoliza, fraseVencimiento } from "@/dominio/telefonos";
@@ -202,7 +203,7 @@ export async function revisarVencimientoSeguro(edificioId: string): Promise<bool
   // Marca primero (dentro de una condición) para no mandar dos veces si hay pedidos simultáneos.
   const marcado = await db.poliza.updateMany({ where: { id: p.id, avisoVencimientoEn: null }, data: { avisoVencimientoEn: new Date() } });
   if (marcado.count === 0) return false;
-  const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
+  const admins = await equipoDelEdificio(edificioId, ["ADMINISTRACION"]);
   const [a, m, d] = hasta.split("-");
   for (const admin of admins) {
     await avisar({

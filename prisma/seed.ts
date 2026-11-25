@@ -53,7 +53,7 @@ let hashClave: string;
 /** Los responsables del seed figuran desde antes de la primera liquidación de ejemplo. */
 const ALTA = new Date(Date.UTC(2025, 0, 1));
 
-async function crearUsuario(nombre: string, email: string, rol: Rol) {
+async function crearUsuario(nombre: string, email: string, rol: Rol, edificioId: string = EDIFICIO) {
   const id = randomUUID();
   await db.user.create({
     data: {
@@ -61,7 +61,8 @@ async function crearUsuario(nombre: string, email: string, rol: Rol) {
       name: nombre,
       email,
       emailVerified: true,
-      rol,
+      // Administración, Comisión y Portería: rol por edificio (decisión 86).
+      ...(rol !== "UNIDAD" ? { membresias: { create: { edificioId, rol } } } : {}),
       accounts: {
         create: { id: randomUUID(), accountId: id, providerId: "credential", password: hashClave },
       },
@@ -165,7 +166,7 @@ async function main() {
 
   // Un miembro de la Comisión que además vive en el edificio
   const primerDuenio = duenios[0];
-  await db.user.update({ where: { id: primerDuenio.userId! }, data: { rol: "COMISION" } });
+  await db.membresia.create({ data: { userId: primerDuenio.userId!, edificioId: EDIFICIO, rol: "COMISION" } });
 
   const lineas = await sembrarLiquidacion(db);
   console.log(`Liquidación de setiembre 2026 publicada con ${lineas} líneas (octubre queda para preparar).`);
@@ -202,6 +203,9 @@ async function sembrarRambla() {
     const userId = await crearUsuario(d.nombre, d.email, "UNIDAD");
     await db.persona.create({ data: { unidadId: u.id, calidad: "PROPIETARIO", ...d, userId, datosConfirmadosEn: new Date(), altaEn: ALTA } });
   }
+  // Administradora de los dos edificios (para elegir con cuál trabajar).
+  const admin2 = await crearUsuario("Administradora de Dos Edificios", "admin.dos@example.com", "ADMINISTRACION");
+  await db.membresia.create({ data: { userId: admin2, edificioId: EDIFICIO_RAMBLA, rol: "ADMINISTRACION" } });
   // Vecina con apartamento en los dos edificios.
   const ana = { nombre: "Ana Dos Edificios", email: "ana.dos.edificios@example.com", telefono: "099000123" };
   const anaId = await crearUsuario(ana.nombre, ana.email, "UNIDAD");
@@ -210,7 +214,7 @@ async function sembrarRambla() {
   for (const u of [enPrincipal, enRambla]) {
     await db.persona.create({ data: { unidadId: u.id, calidad: "PROPIETARIO", ...ana, userId: anaId, datosConfirmadosEn: new Date(), altaEn: ALTA } });
   }
-  return `Edificio Rambla: 5 unidades; ${ana.email} tiene apartamento en los dos edificios.`;
+  return `Edificio Rambla: 5 unidades; ${ana.email} tiene apartamento en los dos edificios y admin.dos@example.com administra los dos.`;
 }
 
 main()

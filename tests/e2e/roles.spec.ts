@@ -89,3 +89,12 @@ test("la pantalla de inicio, la de emergencia y los avisos no tienen errores de 
     await revisar(page, ruta);
   }
 });
+
+test("la pantalla para elegir edificio no tiene errores de accesibilidad", async ({ page }) => {
+  await page.goto("/ingresar");
+  await page.getByLabel("Mail").fill("admin.dos@example.com");
+  await page.getByLabel("Contraseña", { exact: true }).fill(process.env.SEED_PASSWORD!);
+  await page.getByRole("button", { name: "Ingresar" }).click();
+  await page.waitForURL((u) => u.pathname === "/edificios");
+  await revisar(page, "/edificios");
+});

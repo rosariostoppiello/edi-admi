@@ -28,7 +28,8 @@ model User {
   email                 String            @unique
   emailVerified         Boolean           @default(false)
   image                 String?
-  rol                   Rol               @default(UNIDAD)
+  /// Dueño del sistema: aprueba los edificios nuevos (decisión 86). No es un rol de edificio.
+  duenoSistema          Boolean           @default(false)
   activo                Boolean           @default(true)
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
@@ -46,6 +47,7 @@ model User {
   emergenciasCerradas   Emergencia[]      @relation("EmergenciaCerradaPor")
   emergenciasDifundidas Emergencia[]      @relation("EmergenciaDifundidaPor")
   pedidosResueltos      PedidoAcceso[]    @relation("PedidoAccesoResueltoPor")
+  membresias            Membresia[]
 
   @@map("user")
 }
@@ -924,6 +926,23 @@ model Edificio {
   solicitudes   Solicitud[]
   emergencias   Emergencia[]
   pedidosAcceso PedidoAcceso[]
+  membresias    Membresia[]
 
   @@map("edificio")
+}
+
+/// Rol de un usuario en un edificio (Administración, Comisión o Portería). Quien solo
+/// tiene unidades no necesita membresía: es "Unidad" por tener una Persona activa.
+model Membresia {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  edificioId String
+  edificio   Edificio @relation(fields: [edificioId], references: [id])
+  rol        Rol
+  creadaEn   DateTime @default(now())
+
+  @@unique([userId, edificioId])
+  @@index([edificioId, rol])
+  @@map("membresia")
 }
