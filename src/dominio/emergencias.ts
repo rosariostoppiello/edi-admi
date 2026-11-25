@@ -40,7 +40,6 @@ export const CONSEJO: Partial<Record<TipoEmergencia, string>> = {
 /** Números de emergencia de Uruguay. */
 export const NUMEROS_EMERGENCIA = [
   { nombre: "Emergencias", numero: "911" },
-  { nombre: "Bomberos", numero: "104" },
 ] as const;
 
 /** Minutos que tiene que esperar una misma persona para mandar otro aviso. */

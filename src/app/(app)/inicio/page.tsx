@@ -10,14 +10,16 @@ export const metadata: Metadata = { title: "Inicio" };
 
 export default async function Inicio() {
   const usuario = await exigirUsuario();
-  const seguro = await alertaSeguro();
+  // Para Administración revisa el vencimiento del seguro y le manda el mail (una vez por
+  // vigencia); el aviso ya no se muestra acá: queda en Teléfonos → Seguro de incendio.
+  await alertaSeguro();
 
   return (
     <>
-      <h1 className="text-grande font-bold md:text-enorme">¿Qué necesitás hacer?</h1>
+      <h1 className="sr-only">Inicio</h1>
 
       {usuario.unidadesDetalle.some((u) => !u.datosConfirmados) && (
-        <div className="mt-5 max-w-2xl">
+        <div className="mb-5 max-w-2xl">
           <Aviso tono="info">
             Revisá tus datos de contacto: a ese mail te llegan la liquidación y los comunicados.{" "}
             <Link href="/datos/editar" className="underline underline-offset-4 hover:text-bronce">
@@ -27,18 +29,8 @@ export default async function Inicio() {
         </div>
       )}
 
-      {seguro && (
-        <div className="mt-5 max-w-2xl">
-          <Aviso tono="error">
-            El seguro de incendio {seguro.frase}.{" "}
-            <Link href="/telefonos/seguro" className="underline underline-offset-4">
-              Ver la póliza
-            </Link>
-          </Aviso>
-        </div>
-      )}
 
-      <nav aria-label="Secciones" className="mt-6 md:mt-8">
+      <nav aria-label="Secciones">
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
           {MODULOS.map(({ ruta, nombre, descripcion, Icono }) => (
             <li key={ruta}>

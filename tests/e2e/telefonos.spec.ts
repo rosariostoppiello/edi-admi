@@ -48,8 +48,8 @@ test.describe.serial("teléfonos y datos de interés", () => {
   test("Administración edita, registra un consentimiento y renueva el seguro", async ({ page }, info) => {
     test.skip(info.project.name !== "escritorio", "Administración trabaja desde escritorio");
     await ingresar(page, ADMIN);
-    // Aviso en el inicio y mail a Administración (una vez por vigencia).
-    await expect(main(page).getByRole("alert")).toContainText("El seguro de incendio vence en 20 días");
+    // El inicio ya no muestra el aviso, pero igual le manda el mail a Administración (una vez por vigencia).
+    await expect(main(page).getByRole("alert")).toHaveCount(0);
     expect((await ultimoMailPara(ADMIN, "El seguro de incendio vence en 20 días")).texto).toContain("POL-000123");
 
     await page.goto("/telefonos/administracion");

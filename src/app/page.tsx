@@ -48,7 +48,7 @@ const ROLES: { titulo: string; texto: string; Icono: Icono }[] = [
     Icono: IconoDatos,
   },
   {
-    titulo: "Comisión administradora",
+    titulo: "Comisión Administradora",
     texto:
       "La liquidación de todas las unidades, las solicitudes y las actas de asamblea.",
     Icono: IconoComunicados,
@@ -77,13 +77,6 @@ const TECLAS: { nombre: string; Icono: Icono }[] = [
   { nombre: "Datos", Icono: IconoDatos },
 ];
 
-/** Usuarios de la demo (datos inventados). Solo se muestran con DEMO=1. */
-const USUARIOS_DEMO = [
-  { rol: "Administración", mail: "admin@example.com" },
-  { rol: "Propietario", mail: "martin.olivera.2@example.com" },
-  { rol: "Comisión", mail: "comision@example.com" },
-  { rol: "Portería", mail: "porteria@example.com" },
-];
 
 function Seccion({
   id,
@@ -121,8 +114,7 @@ function Celular() {
         </span>
       </div>
       <div className="px-3 pb-4 pt-3 text-pizarra">
-        <p className="font-bold">¿Qué necesitás hacer?</p>
-        <div className="mt-1 flex items-center gap-2 text-[0.75rem] text-pizarra-suave">
+        <div className="flex items-center gap-2 text-[0.75rem] text-pizarra-suave">
           Unidad <Placa codigo="2-101-A" tamano="chica" />
         </div>
         <ul className="mt-3 grid grid-cols-2 gap-2">
@@ -146,7 +138,6 @@ function Celular() {
 /** Pantalla de inicio pública. Con sesión, el botón de arriba lleva al panel. */
 export default async function PantallaDeInicio() {
   const conSesion = Boolean(await obtenerUsuario());
-  const demo = process.env.DEMO === "1";
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -162,7 +153,7 @@ export default async function PantallaDeInicio() {
             href={conSesion ? "/inicio" : "/ingresar"}
             className="inline-flex min-h-11 items-center rounded-[var(--radius-campo)] border-2 border-white px-4 font-bold hover:bg-white hover:text-pizarra"
           >
-            {conSesion ? "Ir a mi panel" : "Ingresar"}
+            Ingresar con usuario
           </Link>
         </div>
       </header>
@@ -177,11 +168,15 @@ export default async function PantallaDeInicio() {
               </h1>
               <p className="mt-4 max-w-prose text-medio text-white/85">
                 La liquidación de gastos comunes, las reservas, las solicitudes
-                y los comunicados del edificio, claros y en el celular. Para
-                propietarios, inquilinos, Comisión, Portería y Administración.
+                y los comunicados del edificio, claros y todo en línea, en la
+                web y en el celular.
+              </p>
+              <p className="mt-3 max-w-prose text-medio text-white/85">
+                Para propietarios, inquilinos, Comisión Administradora, Portería
+                y Administración.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>{conSesion ? "Ir a mi panel" : "Ingresar"}</BotonEnlace>
+                <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>Ingresar con usuario</BotonEnlace>
                 <a
                   href="#como-funciona"
                   className="inline-flex min-h-12 items-center rounded-[var(--radius-campo)] border-2 border-white/70 px-5 font-bold hover:bg-white/10"
@@ -194,35 +189,6 @@ export default async function PantallaDeInicio() {
           </div>
         </section>
 
-        {demo && (
-          <section
-            aria-labelledby="demo"
-            className="border-b border-junta bg-bronce-claro/50"
-          >
-            <div className="mx-auto max-w-6xl px-4 py-8">
-              <h2 id="demo" className="text-titulo font-bold">
-                Probá la demo
-              </h2>
-              <p className="mt-2 max-w-prose">
-                Los datos son inventados. La contraseña de todos es{" "}
-                <span className="font-mono font-bold">Demo-Edificio-2026</span>.
-              </p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                {USUARIOS_DEMO.map((u) => (
-                  <li
-                    key={u.mail}
-                    className="rounded-[var(--radius-campo)] border border-junta bg-losa px-4 py-3"
-                  >
-                    <span className="block font-bold">{u.rol}</span>
-                    <span className="block break-all font-mono text-chico">
-                      {u.mail}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
 
         <Seccion id="como-funciona" titulo="Cómo funciona">
           <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -283,7 +249,7 @@ export default async function PantallaDeInicio() {
             ))}
           </ul>
           <div className="mt-10">
-            <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>{conSesion ? "Ir a mi panel" : "Ingresar"}</BotonEnlace>
+            <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>Ingresar con usuario</BotonEnlace>
           </div>
         </Seccion>
       </main>
