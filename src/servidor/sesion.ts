@@ -90,7 +90,9 @@ export const obtenerUsuario = cache(async (): Promise<UsuarioActual | null> => {
     select: { id: true, nombre: true, direccion: true, modulos: true },
     orderBy: { creadoEn: "asc" },
   });
-  const { edificio, elegido } = resolverEdificioActivo(edificios, (await cookies()).get(COOKIE_EDIFICIO)?.value);
+  // La cookie es "usuario:edificio": la elección de otra persona en el mismo navegador no vale.
+  const [dueno, elegidoId] = ((await cookies()).get(COOKIE_EDIFICIO)?.value ?? "").split(":");
+  const { edificio, elegido } = resolverEdificioActivo(edificios, dueno === user.id ? elegidoId : undefined);
   if (!edificio) return null;
   const personas = user.personas.filter((p) => p.unidad.edificioId === edificio.id);
 

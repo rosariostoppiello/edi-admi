@@ -6,7 +6,8 @@ import { COOKIE_EDIFICIO, type UsuarioActual } from "./sesion";
 export async function elegirEdificioActivo(usuario: UsuarioActual, edificioId: string): Promise<boolean> {
   if (!usuario.edificios.some((e) => e.id === edificioId)) return false;
   const c = await cookies();
-  c.set(COOKIE_EDIFICIO, edificioId, {
+  // Va con el id del usuario: si en el mismo navegador entra otra persona, no hereda la elección.
+  c.set(COOKIE_EDIFICIO, `${usuario.userId}:${edificioId}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

@@ -153,7 +153,7 @@ export default async function PantallaDeInicio() {
             href={conSesion ? "/inicio" : "/ingresar"}
             className="inline-flex min-h-11 items-center rounded-[var(--radius-campo)] border-2 border-white px-4 font-bold hover:bg-white hover:text-pizarra"
           >
-            Ingresar con usuario
+            Ingresar
           </Link>
         </div>
       </header>
@@ -176,7 +176,7 @@ export default async function PantallaDeInicio() {
                 y Administración.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>Ingresar con usuario</BotonEnlace>
+                <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>Ingresar</BotonEnlace>
                 <a
                   href="#como-funciona"
                   className="inline-flex min-h-12 items-center rounded-[var(--radius-campo)] border-2 border-white/70 px-5 font-bold hover:bg-white/10"
@@ -249,7 +249,7 @@ export default async function PantallaDeInicio() {
             ))}
           </ul>
           <div className="mt-10">
-            <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>Ingresar con usuario</BotonEnlace>
+            <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>Ingresar</BotonEnlace>
           </div>
         </Seccion>
       </main>

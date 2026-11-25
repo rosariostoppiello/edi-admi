@@ -22,6 +22,9 @@ async function elegir(page: Page, nombre: RegExp) {
 test("una vecina con apartamento en dos edificios elige el edificio y cambia desde la cabecera", async ({ page }) => {
   await ingresarVarios(page, "ana.dos.edificios@example.com");
   await expect(page.getByRole("navigation", { name: "Edificios" }).getByRole("button")).toHaveCount(2);
+  // Antes de elegir, la cabecera no muestra edificio ni unidad.
+  await expect(page.getByRole("banner")).not.toContainText("2-301");
+  await expect(page.getByRole("banner")).not.toContainText("5-601");
 
   await elegir(page, /Edificio Rambla/);
   const cabecera = page.getByRole("banner");
@@ -33,6 +36,14 @@ test("una vecina con apartamento en dos edificios elige el edificio y cambia des
   await elegir(page, /^(?!Edificio (Rambla|Prueba))/);
   await expect(cabecera).toContainText("5-601-A");
   await expect(cabecera).not.toContainText("Edificio Rambla");
+});
+
+test("la elección de edificio de una persona no pasa a otra que entra en el mismo navegador", async ({ page }) => {
+  await ingresarVarios(page, "ana.dos.edificios@example.com");
+  await elegir(page, /Edificio Rambla/);
+  await page.getByRole("button", { name: "Salir" }).click();
+  // admin.dos también está en Rambla, pero tiene que elegir ella.
+  await ingresarVarios(page, "admin.dos@example.com");
 });
 
 test("una administradora de dos edificios ve solo las unidades del edificio activo", async ({ page }) => {

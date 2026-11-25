@@ -36,7 +36,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             <Link href="/" className="flex min-h-11 items-center hover:opacity-90">
               <Logo />
             </Link>
-            {usuario.edificios.length > 1 ? (
+            {!usuario.edificioElegido ? null : usuario.edificios.length > 1 ? (
               <Link
                 href="/edificios"
                 className="inline-flex min-h-11 items-center gap-1 text-chico text-white/85 underline-offset-4 hover:text-white hover:underline"
@@ -50,6 +50,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {/* Hasta elegir el edificio no se muestra nada de ninguno (ni unidad ni emergencia). */}
+            {usuario.edificioElegido && (
             <Link
               href="/emergencia"
               className="inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius-campo)] bg-alerta px-3 text-chico font-bold text-white ring-1 ring-white/40 hover:brightness-110"
@@ -57,7 +59,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
               <IconoEmergencia className="size-5" />
               Emergencia
             </Link>
-            {unidad ? (
+            )}
+            {!usuario.edificioElegido ? null : unidad ? (
               <SelectorUnidad activa={opciones.find((o) => o.unidadId === unidad.unidadId)!} opciones={opciones} />
             ) : (
               <span className="text-chico text-white/85">{NOMBRE_ROL[usuario.rol]}</span>
