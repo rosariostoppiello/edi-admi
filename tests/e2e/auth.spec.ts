@@ -15,7 +15,7 @@ test("contraseña incorrecta muestra un error claro", async ({ page }) => {
 
 test("la unidad ingresa, ve su placa y los 6 botones, y sale", async ({ page }) => {
   await ingresar(page, VECINA);
-  await expect(page.getByRole("heading", { name: /^Hola, Laura/ })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "¿Qué necesitás hacer?" })).toBeVisible();
   await expect(page.getByRole("banner").locator("summary")).toContainText("2-101-A");
 
   const secciones = page.getByRole("navigation", { name: "Secciones" }).getByRole("link");
@@ -73,7 +73,7 @@ test("recuperar contraseña por mail y entrar con la nueva", async ({ page }, in
   await expect(page.getByRole("heading", { name: "El enlace ya no sirve" })).toBeVisible();
 
   await ingresar(page, email, nueva);
-  await expect(page.getByRole("heading", { name: /^Hola,/ })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "¿Qué necesitás hacer?" })).toBeVisible();
 });
 
 test("pedir recuperación de un mail inexistente responde igual (no revela usuarios)", async ({ page }) => {

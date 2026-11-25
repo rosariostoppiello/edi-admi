@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { obtenerUsuario } from "@/servidor/sesion";
 import { BotonEnlace } from "@/componentes/ui/boton";
@@ -122,7 +121,7 @@ function Celular() {
         </span>
       </div>
       <div className="px-3 pb-4 pt-3 text-pizarra">
-        <p className="font-bold">Hola, Laura</p>
+        <p className="font-bold">¿Qué necesitás hacer?</p>
         <div className="mt-1 flex items-center gap-2 text-[0.75rem] text-pizarra-suave">
           Unidad <Placa codigo="2-101-A" tamano="chica" />
         </div>
@@ -144,9 +143,9 @@ function Celular() {
   );
 }
 
-/** Pantalla de inicio pública. Con sesión, va directo al panel. */
+/** Pantalla de inicio pública. Con sesión, el botón de arriba lleva al panel. */
 export default async function PantallaDeInicio() {
-  if (await obtenerUsuario()) redirect("/inicio");
+  const conSesion = Boolean(await obtenerUsuario());
   const demo = process.env.DEMO === "1";
 
   return (
@@ -160,10 +159,10 @@ export default async function PantallaDeInicio() {
             <Logo />
           </Link>
           <Link
-            href="/ingresar"
+            href={conSesion ? "/inicio" : "/ingresar"}
             className="inline-flex min-h-11 items-center rounded-[var(--radius-campo)] border-2 border-white px-4 font-bold hover:bg-white hover:text-pizarra"
           >
-            Ingresar
+            {conSesion ? "Ir a mi panel" : "Ingresar"}
           </Link>
         </div>
       </header>
@@ -182,7 +181,7 @@ export default async function PantallaDeInicio() {
                 propietarios, inquilinos, Comisión, Portería y Administración.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <BotonEnlace href="/ingresar">Ingresar</BotonEnlace>
+                <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>{conSesion ? "Ir a mi panel" : "Ingresar"}</BotonEnlace>
                 <a
                   href="#como-funciona"
                   className="inline-flex min-h-12 items-center rounded-[var(--radius-campo)] border-2 border-white/70 px-5 font-bold hover:bg-white/10"
@@ -284,7 +283,7 @@ export default async function PantallaDeInicio() {
             ))}
           </ul>
           <div className="mt-10">
-            <BotonEnlace href="/ingresar">Ingresar</BotonEnlace>
+            <BotonEnlace href={conSesion ? "/inicio" : "/ingresar"}>{conSesion ? "Ir a mi panel" : "Ingresar"}</BotonEnlace>
           </div>
         </Seccion>
       </main>

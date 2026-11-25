@@ -101,3 +101,13 @@ test("la pantalla de inicio es pública y lleva a ingresar", async ({ page }) =>
   await page.getByRole("banner").getByRole("link", { name: "Ingresar" }).click();
   await expect(page).toHaveURL(/\/ingresar$/);
 });
+
+test("con sesión, la pantalla principal se ve y lleva al panel", async ({ page }, info) => {
+  const u = await unidad(false, info.project.name === "movil" ? 12 : 13);
+  await ingresar(page, u.duenoEmail);
+  await page.getByRole("banner").getByRole("link", { name: "PropiedadH" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Administración de Edificios de Propiedad Horizontal" })).toBeVisible();
+  await page.getByRole("banner").getByRole("link", { name: "Ir a mi panel" }).click();
+  await expect(page).toHaveURL(/\/inicio$/);
+});

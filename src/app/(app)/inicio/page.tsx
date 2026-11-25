@@ -10,13 +10,11 @@ export const metadata: Metadata = { title: "Inicio" };
 
 export default async function Inicio() {
   const usuario = await exigirUsuario();
-  const nombre = usuario.nombre.split(" ")[0];
   const seguro = await alertaSeguro();
 
   return (
     <>
-      <h1 className="text-grande font-bold md:text-enorme">Hola, {nombre}</h1>
-      <p className="mt-1 text-pizarra-suave">¿Qué necesitás hacer?</p>
+      <h1 className="text-grande font-bold md:text-enorme">¿Qué necesitás hacer?</h1>
 
       {usuario.unidadesDetalle.some((u) => !u.datosConfirmados) && (
         <div className="mt-5 max-w-2xl">
