@@ -13,6 +13,7 @@ import {
   destinatariosDeUnidad,
   emailSchema,
   esDueno,
+  nombreCompleto,
   validarAltaInquilino,
   validarBajaInquilino,
 } from "@/dominio/personas";
@@ -83,7 +84,7 @@ export async function listarUnidades() {
     include: {
       torre: true,
       // Enum en orden PROPIETARIO, PROMITENTE, INQUILINO: el responsable aparece primero.
-      personas: { where: { activa: true }, orderBy: { calidad: "asc" }, select: { nombre: true, calidad: true, datosConfirmadosEn: true } },
+      personas: { where: { activa: true }, orderBy: { calidad: "asc" }, select: { nombre: true, apellido: true, calidad: true, datosConfirmadosEn: true } },
     },
     orderBy: [{ torre: { orden: "asc" } }, { numero: "asc" }],
   });
@@ -99,7 +100,7 @@ export async function listarOcupantes() {
       numero: true,
       arrendada: true,
       torre: { select: { numero: true, nombre: true, color: true, orden: true } },
-      personas: { where: { activa: true }, select: { nombre: true, calidad: true } },
+      personas: { where: { activa: true }, select: { nombre: true, apellido: true, calidad: true } },
     },
     orderBy: [{ torre: { orden: "asc" } }, { numero: "asc" }],
   });
@@ -107,7 +108,7 @@ export async function listarOcupantes() {
     const ocupante = u.arrendada
       ? u.personas.find((p) => p.calidad === "INQUILINO")
       : u.personas.find((p) => esDueno(p.calidad));
-    return { id: u.id, torre: u.torre.numero, torreColor: u.torre.color, torreNombre: u.torre.nombre, numero: u.numero, arrendada: u.arrendada, ocupante: ocupante?.nombre ?? "Sin datos" };
+    return { id: u.id, torre: u.torre.numero, torreColor: u.torre.color, torreNombre: u.torre.nombre, numero: u.numero, arrendada: u.arrendada, ocupante: ocupante ? nombreCompleto(ocupante) : "Sin datos" };
   });
 }
 
@@ -122,13 +123,13 @@ export async function destinatariosPorUnidad(edificioId: string) {
     select: {
       id: true,
       arrendada: true,
-      personas: { where: { activa: true }, select: { calidad: true, email: true, nombre: true } },
+      personas: { where: { activa: true }, select: { calidad: true, email: true, nombre: true, apellido: true } },
       destinatarios: { select: { email: true, nombre: true } },
     },
   });
   return unidades.map((u) => ({
     unidadId: u.id,
-    destinatarios: destinatariosDeUnidad({ arrendada: u.arrendada, personasActivas: u.personas, extras: u.destinatarios }),
+    destinatarios: destinatariosDeUnidad({ arrendada: u.arrendada, personasActivas: u.personas.map((p) => ({ ...p, nombre: nombreCompleto(p) })), extras: u.destinatarios }),
   }));
 }
 
@@ -168,9 +169,9 @@ export async function editarPersona(unidadId: string, personaId: string, input: 
       // Es la misma persona en todas sus unidades: se actualizan sus otras fichas y el usuario.
       await tx.persona.updateMany({
         where: { userId: persona.userId, activa: true, id: { not: personaId } },
-        data: { nombre: datos.nombre, telefono: datos.telefono, email: datos.email },
+        data: { nombre: datos.nombre, apellido: datos.apellido, telefono: datos.telefono, email: datos.email },
       });
-      await tx.user.update({ where: { id: persona.userId }, data: { name: datos.nombre, email: datos.email } });
+      await tx.user.update({ where: { id: persona.userId }, data: { name: nombreCompleto(datos), email: datos.email } });
       if (datos.email !== persona.email && !(await tieneContrasena(persona.userId))) reinvitar = datos.email;
     }
 
@@ -182,7 +183,7 @@ export async function editarPersona(unidadId: string, personaId: string, input: 
         entidadId: personaId,
         detalle: {
           unidadId,
-          antes: { nombre: persona.nombre, telefono: persona.telefono, email: persona.email, calidad: persona.calidad },
+          antes: { nombre: persona.nombre, apellido: persona.apellido, telefono: persona.telefono, email: persona.email, calidad: persona.calidad },
           despues: { ...datos, calidad },
         },
       },
@@ -227,7 +228,7 @@ export async function altaInquilino(unidadId: string, input: unknown): Promise<R
     const error = validarAltaInquilino(estado(unidad), datos.email);
     if (error) return { ok: false, error: MENSAJE_TRANSICION[error] };
 
-    const { userId, necesitaInvitacion } = await vincularUsuario(tx, datos.email, datos.nombre);
+    const { userId, necesitaInvitacion } = await vincularUsuario(tx, datos.email, nombreCompleto(datos));
     invitar = necesitaInvitacion;
     const persona = await tx.persona.create({
       data: { unidadId, calidad: "INQUILINO", ...datos, userId },
@@ -365,7 +366,7 @@ export async function crearUnidad(input: unknown): Promise<Resultado & { unidadI
   let invitar = false;
   const unidad = await db.$transaction(async (tx) => {
     const u = await tx.unidad.create({ data: { edificioId: actor.edificio.id, torreId, numero, tipo, etiqueta: etiqueta || null } });
-    const { userId, necesitaInvitacion } = await vincularUsuario(tx, persona.email, persona.nombre);
+    const { userId, necesitaInvitacion } = await vincularUsuario(tx, persona.email, nombreCompleto(persona));
     invitar = necesitaInvitacion;
     await tx.persona.create({ data: { unidadId: u.id, calidad, ...persona, userId } });
     await registrarAuditoria(
@@ -383,11 +384,23 @@ export async function cambiarPropietario(unidadId: string, input: unknown): Prom
   const actor = await exigirPermiso("unidades.administrar");
   const parse = datosPersonaSchema.extend({ calidad: calidadDuenoSchema }).safeParse(input);
   if (!parse.success) return erroresDeZod(parse.error);
-  const { calidad, ...datos } = parse.data;
+  return reemplazarResponsable(actor, unidadId, parse.data);
+}
 
+/**
+ * Da de baja a los responsables actuales y da de alta al nuevo, en una sola transacción:
+ * la unidad nunca queda sin dueño. Las personas dadas de baja quedan en el historial.
+ */
+async function reemplazarResponsable(
+  actor: UsuarioActual,
+  unidadId: string,
+  { calidad, ...datos }: z.infer<typeof datosPersonaSchema> & { calidad: "PROPIETARIO" | "PROMITENTE" },
+  porAvisoDeVenta = false,
+): Promise<Resultado> {
   let invitar = false;
   const r = await db.$transaction(async (tx): Promise<Resultado> => {
     const unidad = await bloquearUnidad(tx, unidadId);
+    if (unidad.edificioId !== actor.edificio.id) return { ok: false, error: "No encontramos esa unidad." };
     const anteriores = unidad.personas.filter((p) => esDueno(p.calidad));
     if (unidad.personas.some((p) => p.calidad === "INQUILINO" && p.email === datos.email)) {
       return { ok: false, error: "Revisá los datos marcados.", campos: { email: "Ese mail es el del inquilino de la unidad." } };
@@ -395,7 +408,7 @@ export async function cambiarPropietario(unidadId: string, input: unknown): Prom
     for (const a of anteriores) {
       await tx.persona.update({ where: { id: a.id }, data: { activa: false, bajaEn: new Date() } });
     }
-    const { userId, necesitaInvitacion } = await vincularUsuario(tx, datos.email, datos.nombre);
+    const { userId, necesitaInvitacion } = await vincularUsuario(tx, datos.email, nombreCompleto(datos));
     invitar = necesitaInvitacion;
     await tx.persona.create({ data: { unidadId, calidad, ...datos, userId } });
     for (const a of anteriores) if (a.userId !== userId) await desactivarSiNoTieneUnidades(tx, a.userId);
@@ -407,14 +420,14 @@ export async function cambiarPropietario(unidadId: string, input: unknown): Prom
     await registrarAuditoria(
       {
         usuarioId: actor.userId, edificioId: actor.edificio.id,
-        accion: "propietario.cambio",
+        accion: porAvisoDeVenta ? "propietario.venta_confirmada" : "propietario.cambio",
         entidad: "unidad",
         entidadId: unidadId,
-        detalle: { anteriores: anteriores.map((a) => a.nombre), nuevo: datos.nombre, calidad },
+        detalle: { anteriores: anteriores.map(nombreCompleto), nuevo: nombreCompleto(datos), calidad },
       },
       tx,
     );
-    return { ok: true, mensaje: `Listo. ${datos.nombre} figura como responsable de la unidad.` };
+    return { ok: true, mensaje: `Listo. ${nombreCompleto(datos)} figura como responsable de la unidad.` };
   });
   if (r.ok && invitar) await enviarInvitacion(datos.email);
   return r;
@@ -434,7 +447,8 @@ export async function reenviarInvitacion(unidadId: string, personaId: string): P
 // Aviso de venta de la unidad (decisión 39). En la Fase 6 pasa a la bandeja de solicitudes.
 // ---------------------------------------------------------------------------
 
-const avisoVentaSchema = z.object({
+const avisoVentaSchema = datosPersonaSchema.extend({
+  calidad: z.enum(["PROPIETARIO", "PROMITENTE"], { error: "Elegí si el comprador es propietario o promitente comprador." }),
   comentario: z
     .string()
     .trim()
@@ -443,19 +457,26 @@ const avisoVentaSchema = z.object({
     .transform((v) => v || ""),
 });
 
-/** El propietario o promitente avisa que vendió: queda registrado y le llega un mail a Administración. */
+/**
+ * El propietario o promitente avisa que vendió y carga los datos del comprador. Queda
+ * registrado y le llega un mail a Administración, que lo confirma (el comprador entra
+ * como responsable y el vendedor sale) o lo rechaza.
+ */
 export async function avisarVenta(unidadId: string, input: unknown): Promise<Resultado> {
   const actor = await exigirPermiso("datos.avisarVenta", { unidadId });
   const parse = avisoVentaSchema.safeParse(input);
   if (!parse.success) return erroresDeZod(parse.error);
-  const { comentario } = parse.data;
+  const { comentario, ...comprador } = parse.data;
 
   const r = await db.$transaction(async (tx) => {
     const unidad = await bloquearUnidad(tx, unidadId);
     const previo = await tx.solicitud.findFirst({
       where: { unidadId, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
     });
-    if (previo) return { ok: false as const, error: "Ya avisaste la venta de esta unidad. La Administración se va a comunicar con vos." };
+    if (previo) return { ok: false as const, error: "Ya avisaste la venta de esta unidad. La Administración la está revisando." };
+    if (unidad.personas.some((p) => p.userId === actor.userId && p.email === comprador.email)) {
+      return { ok: false as const, error: "Revisá los datos marcados.", campos: { email: "Ese es tu mail: cargá el del comprador." } };
+    }
     const torre = await tx.torre.findUnique({ where: { codigo: unidad.torreId } });
     const codigo = codigoBase(torre?.numero ?? unidad.torreId, unidad.numero);
     const quien = unidad.personas.find((p) => p.userId === actor.userId);
@@ -467,14 +488,19 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
         categoria: "VENTA_UNIDAD",
         origen: "UNIDAD",
         asunto: `Venta de la unidad ${codigo}`,
-        texto: comentario || "El propietario avisó que vendió la unidad.",
+        texto: comentario || `Vendió la unidad a ${nombreCompleto(comprador)}.`,
+        aviso: { create: comprador },
       },
     });
     await registrarAuditoria(
-      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "unidad.venta_avisada", entidad: "unidad", entidadId: unidadId, detalle: { solicitudId: solicitud.id } },
+      {
+        usuarioId: actor.userId, edificioId: actor.edificio.id,
+        accion: "unidad.venta_avisada", entidad: "unidad", entidadId: unidadId,
+        detalle: { solicitudId: solicitud.id, comprador: nombreCompleto(comprador), calidad: comprador.calidad },
+      },
       tx,
     );
-    return { ok: true as const, codigo, torre: torre?.nombre ?? "", nombre: quien?.nombre ?? actor.nombre };
+    return { ok: true as const, codigo, torre: torre?.nombre ?? "", nombre: quien ? nombreCompleto(quien) : actor.nombre };
   });
   if (!r.ok) return r;
 
@@ -486,28 +512,101 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
       para: a.email,
       asunto: `Aviso de venta de la unidad ${r.codigo}`,
       texto: [
-        `${r.nombre} avisó que vendió la unidad ${r.codigo} (torre ${r.torre}).`,
+        `${r.nombre} avisó que vendió la unidad ${r.codigo} (torre ${r.torre}) a ${nombreCompleto(comprador)}.`,
         comentario ? `\nComentario:\n${comentario}` : "",
-        `\nPara dar de alta al nuevo propietario, entrá a la ficha de la unidad y usá "Cambiar de propietario":`,
+        `\nRevisalo y confirmalo en la ficha de la unidad:`,
         `${base}/datos/${unidadId}`,
         `\n${actor.edificio.nombre}`,
       ].join("\n"),
     });
   }
-  return { ok: true, mensaje: "Le avisamos a la Administración. Te van a pedir los datos del nuevo propietario para darle su usuario." };
+  return { ok: true, mensaje: "Le avisamos a la Administración. Cuando confirme la venta, el comprador recibe su usuario y vos dejás de figurar en la unidad." };
 }
 
-/** Avisos de venta sin resolver de una unidad (para la ficha). */
+/** Aviso de venta sin resolver de una unidad (para la ficha). */
 export async function ventaPendiente(unidadId: string) {
   const usuario = await exigirPermiso("datos.verUnidad", { unidadId });
   const s = await db.solicitud.findFirst({
-    where: { unidadId, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
+    where: { unidadId, edificioId: usuario.edificio.id, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
     orderBy: { creadaEn: "desc" },
-    select: { creadaEn: true, texto: true, autor: { select: { name: true } } },
+    select: { id: true, creadaEn: true, texto: true, autor: { select: { name: true } }, aviso: true },
   });
   if (!s) return null;
-  // El comentario solo lo ve Administración; el propietario ve que ya avisó.
-  return puede(usuario, "unidades.administrar") ? s : { creadaEn: s.creadaEn, texto: null, autor: null };
+  // Los datos del comprador los ven quien avisó y la Administración.
+  return s;
+}
+
+async function avisoPendiente(actor: UsuarioActual, unidadId: string) {
+  return db.solicitud.findFirst({
+    where: { unidadId, edificioId: actor.edificio.id, categoria: "VENTA_UNIDAD", estado: { not: "RESUELTA" } },
+    orderBy: { creadaEn: "desc" },
+    include: { aviso: true, autor: { select: { email: true, name: true } } },
+  });
+}
+
+/** Administración confirma la venta: el comprador entra como responsable y el vendedor sale. */
+export async function confirmarVenta(unidadId: string): Promise<Resultado> {
+  const actor = await exigirPermiso("unidades.administrar", { unidadId });
+  const s = await avisoPendiente(actor, unidadId);
+  if (!s?.aviso) return { ok: false, error: "No hay un aviso de venta con datos del comprador para confirmar." };
+  const { nombre, apellido, telefono, email, calidad } = s.aviso;
+  const r = await reemplazarResponsable(actor, unidadId, { nombre, apellido, telefono, email, calidad: calidad === "PROMITENTE" ? "PROMITENTE" : "PROPIETARIO" }, true);
+  if (!r.ok) return r;
+  if (s.autor) {
+    await avisar({
+      para: s.autor.email,
+      asunto: "Confirmamos la venta de tu unidad",
+      texto: [`Hola ${s.autor.name}:`, "", `La Administración confirmó la venta. Desde ahora el responsable de la unidad es ${nombreCompleto(s.aviso)}.`, "", actor.edificio.nombre].join("\n"),
+    });
+  }
+  return { ok: true, mensaje: `Confirmaste la venta. ${nombreCompleto(s.aviso)} figura como responsable y le llega su invitación.` };
+}
+
+const rechazoVentaSchema = z.object({
+  motivo: z.string().trim().max(500, "Es demasiado largo (máximo 500 caracteres).").optional().transform((v) => v || ""),
+});
+
+/** Administración rechaza el aviso (ej. datos mal cargados): la unidad sigue igual y se avisa a quien vendió. */
+export async function rechazarVenta(unidadId: string, input: unknown): Promise<Resultado> {
+  const actor = await exigirPermiso("unidades.administrar", { unidadId });
+  const p = rechazoVentaSchema.safeParse(input);
+  if (!p.success) return erroresDeZod(p.error);
+  const s = await avisoPendiente(actor, unidadId);
+  if (!s) return { ok: false, error: "No hay un aviso de venta para rechazar." };
+  await db.$transaction(async (tx) => {
+    await tx.solicitud.update({ where: { id: s.id }, data: { estado: "RESUELTA", resueltaEn: new Date() } });
+    await registrarAuditoria(
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "unidad.venta_rechazada", entidad: "unidad", entidadId: unidadId, detalle: { solicitudId: s.id, motivo: p.data.motivo } },
+      tx,
+    );
+  });
+  if (s.autor) {
+    await avisar({
+      para: s.autor.email,
+      asunto: "Tu aviso de venta de la unidad",
+      texto: [
+        `Hola ${s.autor.name}:`,
+        "",
+        "La Administración no pudo confirmar tu aviso de venta. La unidad sigue a tu nombre.",
+        p.data.motivo ? `Motivo: ${p.data.motivo}` : "",
+        "Si hace falta, podés avisar de nuevo con los datos corregidos.",
+        "",
+        actor.edificio.nombre,
+      ].join("\n"),
+    });
+  }
+  return { ok: true, mensaje: "Rechazaste el aviso de venta. Le avisamos por mail." };
+}
+
+/** Historial de responsables e inquilinos de la unidad (altas y bajas). Solo Administración y Comisión. */
+export async function historialUnidad(unidadId: string) {
+  const usuario = await exigirPermiso("datos.verTodos");
+  const personas = await db.persona.findMany({
+    where: { unidadId, unidad: { edificioId: usuario.edificio.id } },
+    orderBy: [{ altaEn: "desc" }],
+    select: { id: true, nombre: true, apellido: true, calidad: true, activa: true, altaEn: true, bajaEn: true },
+  });
+  return personas;
 }
 
 export type { UsuarioActual };

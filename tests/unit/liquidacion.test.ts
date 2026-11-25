@@ -25,7 +25,7 @@ const $ = (pesos: number) => Math.round(pesos * 100);
 function unidad(p: Partial<UnidadALiquidar> & { unidadId: string; numero: string }): UnidadALiquidar {
   return {
     torre: 2,
-    torreNombre: "Avenue",
+    torreNombre: "A",
     torreOrden: 1,
     etiqueta: null,
     arrendada: false,
@@ -181,7 +181,7 @@ describe("reglas de la liquidación (las del PDF modelo, con números ficticios)
       base({
         unidades: [
           unidad({ unidadId: "c", numero: "1002" }),
-          unidad({ unidadId: "z", numero: "101", torre: 3, torreNombre: "Sky", torreOrden: 2 }),
+          unidad({ unidadId: "z", numero: "101", torre: 3, torreNombre: "B", torreOrden: 2 }),
           unidad({ unidadId: "b", numero: "201", arrendada: true }),
           unidad({ unidadId: "a", numero: "001" }),
         ],
@@ -192,7 +192,7 @@ describe("reglas de la liquidación (las del PDF modelo, con números ficticios)
   });
 
   it("descripción de la columna Id.", () => {
-    expect(descripcionLinea({ torreNombre: "Avenue", numero: "201", etiqueta: null }, "P")).toBe("AVENUE 201 (P)");
+    expect(descripcionLinea({ torreNombre: "A", numero: "201", etiqueta: null }, "P")).toBe("A 201 (P)");
     expect(descripcionLinea({ torreNombre: "Garajes", numero: "14", etiqueta: "GGE 14" }, "A")).toBe("GGE 14");
   });
 });

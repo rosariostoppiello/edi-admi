@@ -9,7 +9,9 @@ async function pedir(page: Page, datos: { nombre: string; email: string; codigo:
   await expect(page.getByRole("heading", { name: "¿No tenés usuario?" })).toBeVisible();
   await page.getByRole("link", { name: "Pedir acceso" }).click();
   await expect(page).toHaveURL(/\/pedir-acceso$/);
-  await page.getByLabel("Nombre y apellido").fill(datos.nombre);
+  const [nombre, ...apellido] = datos.nombre.split(" ");
+  await page.getByLabel("Nombre", { exact: true }).fill(nombre);
+  await page.getByLabel("Apellido").fill(apellido.join(" "));
   await page.getByLabel("Mail").fill(datos.email);
   await page.getByLabel("Teléfono").fill("099 123 456");
   // Hay dos edificios ficticios: el de las pruebas es el principal.
@@ -18,6 +20,16 @@ async function pedir(page: Page, datos: { nombre: string; email: string; codigo:
   await page.getByLabel(datos.calidad, { exact: true }).check();
   await page.getByLabel(/Acepto que la Administración/).check();
   await page.getByRole("button", { name: "Pedir acceso" }).click();
+  // Confirma el mail con el código que le llega.
+  await expect(main(page).getByRole("status")).toContainText("Te mandamos un código");
+  const mail = await ultimoMailPara(datos.email, "Tu código de verificación");
+  const codigo = mail.texto.match(/\b\d{6}\b/)![0];
+  // Un código equivocado no sirve.
+  await page.getByLabel("Código de verificación").fill(codigo === "000000" ? "111111" : "000000");
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(main(page).getByRole("alert")).toContainText("Revisá el código");
+  await page.getByLabel("Código de verificación").fill(codigo);
+  await page.getByRole("button", { name: "Confirmar" }).click();
   await expect(main(page).getByRole("status")).toContainText("Recibimos tu pedido");
 }
 

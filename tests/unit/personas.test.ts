@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   datosPersonaSchema,
   destinatariosDeUnidad,
+  nombreCompleto,
   validarAltaInquilino,
   validarBajaInquilino,
   type EstadoUnidad,
@@ -9,8 +10,9 @@ import {
 
 describe("datos de la persona (nunca vacíos)", () => {
   it("normaliza espacios y mail", () => {
-    const r = datosPersonaSchema.parse({ nombre: "  Ana   María  Silva ", telefono: " 099 123 456 ", email: " Ana@Example.COM " });
-    expect(r).toEqual({ nombre: "Ana María Silva", telefono: "099 123 456", email: "ana@example.com" });
+    const r = datosPersonaSchema.parse({ nombre: "  Ana   María ", apellido: " Silva  Pérez ", telefono: " 099 123 456 ", email: " Ana@Example.COM " });
+    expect(r).toEqual({ nombre: "Ana María", apellido: "Silva Pérez", telefono: "099 123 456", email: "ana@example.com" });
+    expect(nombreCompleto(r)).toBe("Ana María Silva Pérez");
   });
 
   it.each([
@@ -22,6 +24,8 @@ describe("datos de la persona (nunca vacíos)", () => {
     [{ nombre: "Ana", telefono: "099123456", email: "" }, "email"],
     [{ nombre: "Ana", telefono: "099123456", email: "no-es-mail" }, "email"],
     [{ telefono: "099123456", email: "a@example.com" }, "nombre"],
+    [{ nombre: "Ana", telefono: "099123456", email: "a@example.com" }, "apellido"],
+    [{ nombre: "Ana", apellido: "  ", telefono: "099123456", email: "a@example.com" }, "apellido"],
   ])("rechaza %j (campo %s)", (datos, campo) => {
     const r = datosPersonaSchema.safeParse(datos);
     expect(r.success).toBe(false);
@@ -29,7 +33,7 @@ describe("datos de la persona (nunca vacíos)", () => {
   });
 
   it.each(["099 123 456", "+598 99 123 456", "2400-1234", "(02) 400 1234"])("acepta el teléfono %s", (telefono) => {
-    expect(datosPersonaSchema.safeParse({ nombre: "Ana", telefono, email: "a@example.com" }).success).toBe(true);
+    expect(datosPersonaSchema.safeParse({ nombre: "Ana", apellido: "Silva", telefono, email: "a@example.com" }).success).toBe(true);
   });
 });
 

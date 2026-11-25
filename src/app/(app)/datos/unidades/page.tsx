@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { BotonEnlace } from "@/componentes/ui/boton";
 import { codigoBase } from "@/dominio/codigos";
 import { puede } from "@/dominio/permisos";
-import { esDueno, NOMBRE_CALIDAD } from "@/dominio/personas";
+import { esDueno, NOMBRE_CALIDAD, nombreCompleto } from "@/dominio/personas";
 import { listarOcupantes, listarUnidades } from "@/servidor/datos";
 import { pedidosPendientes } from "@/servidor/accesos";
 import { exigirUsuario } from "@/servidor/sesion";
@@ -26,7 +26,7 @@ export default async function PaginaUnidades() {
       torreColor: u.torre.color,
       torreNombre: u.torre.nombre,
       codigo: codigoBase(u.torre.numero, u.numero),
-      personas: u.personas.map((p) => `${p.nombre} (${NOMBRE_CALIDAD[p.calidad].toLowerCase()})`),
+      personas: u.personas.map((p) => `${nombreCompleto(p)} (${NOMBRE_CALIDAD[p.calidad].toLowerCase()})`),
       alquilada: u.arrendada,
       pendiente: u.personas.some((p) => esDueno(p.calidad) && !p.datosConfirmadosEn),
     }));

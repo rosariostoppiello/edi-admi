@@ -300,7 +300,7 @@ export function FormCargo({ accion, codigos }: { accion: AccionForm; codigos: st
                 </option>
               ))}
             </Selector>
-            <Campo etiqueta="Concepto" name="concepto" ayuda="Lo ve la unidad. Ej. Barbacoa Sky 12/10" error={err.concepto} required />
+            <Campo etiqueta="Concepto" name="concepto" ayuda="Lo ve la unidad. Ej. Barbacoa B 12/10" error={err.concepto} required />
             <Campo etiqueta="Monto" name="monto" inputMode="decimal" ayuda="Negativo solo para bonificar" error={err.monto} required />
           </div>
           <Enviar pendiente={pendiente} texto="Cargar" />

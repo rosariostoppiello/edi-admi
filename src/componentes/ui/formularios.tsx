@@ -66,6 +66,7 @@ export function MensajeEstado({ estado }: { estado: Estado }) {
 
 export interface ValoresPersona {
   nombre?: string;
+  apellido?: string;
   telefono?: string;
   email?: string;
   calidad?: string;
@@ -125,7 +126,10 @@ export function FormPersona({
           {err.calidad && <p className="text-chico font-bold text-alerta">{err.calidad}</p>}
         </fieldset>
       )}
-      <Campo etiqueta="Nombre y apellido" name="nombre" autoComplete="name" defaultValue={valores.nombre} error={err.nombre} required />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo etiqueta="Nombre" name="nombre" autoComplete="given-name" defaultValue={valores.nombre} error={err.nombre} required />
+        <Campo etiqueta="Apellido" name="apellido" autoComplete="family-name" defaultValue={valores.apellido} error={err.apellido} required />
+      </div>
       <Campo
         etiqueta="Teléfono"
         name="telefono"

@@ -15,6 +15,7 @@ const fecha = new Intl.DateTimeFormat("es-UY", {
   timeStyle: "short",
 });
 const ESTADO = {
+  SIN_VERIFICAR: "Sin verificar",
   PENDIENTE: "Pendiente",
   APROBADO: "Aprobado",
   RECHAZADO: "Rechazado",

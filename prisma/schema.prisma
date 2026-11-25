@@ -187,6 +187,7 @@ model Persona {
   unidad             Unidad    @relation(fields: [unidadId], references: [id])
   calidad            Calidad
   nombre             String
+  apellido           String    @default("")
   telefono           String
   email              String
   userId             String?
@@ -602,6 +603,7 @@ model Solicitud {
   creadaEn   DateTime           @default(now())
   resueltaEn DateTime?
   eventos    SolicitudEvento[]
+  aviso      AvisoVenta?
 
   @@index([unidadId, categoria, estado])
   @@index([estado, creadaEn])
@@ -865,6 +867,8 @@ model Emergencia {
 // ---------------------------------------------------------------------------
 
 enum EstadoPedidoAcceso {
+  /// Recién cargado: falta que la persona escriba el código que le llegó al mail.
+  SIN_VERIFICAR
   PENDIENTE
   APROBADO
   RECHAZADO
@@ -877,8 +881,13 @@ model PedidoAcceso {
   edificioId    String
   edificio      Edificio           @relation(fields: [edificioId], references: [id])
   nombre        String
+  apellido      String             @default("")
   email         String
   telefono      String
+  /// Código de verificación del mail (hash) y su vencimiento; se borra al verificar.
+  codigoHash    String?
+  codigoVence   DateTime?
+  intentos      Int                @default(0)
   /// Lo que escribió la persona ("2-201"); `unidadId` es la unidad encontrada.
   codigo        String
   unidadId      String
@@ -955,4 +964,20 @@ model Membresia {
   @@unique([userId, edificioId])
   @@index([edificioId, rol])
   @@map("membresia")
+}
+
+/// Datos del comprador que carga el propietario al avisar la venta. La Administración
+/// los revisa y, al confirmar, el comprador queda como responsable y el vendedor sale.
+model AvisoVenta {
+  id          String    @id @default(cuid())
+  solicitudId String    @unique
+  solicitud   Solicitud @relation(fields: [solicitudId], references: [id], onDelete: Cascade)
+  nombre      String
+  apellido    String
+  telefono    String
+  email       String
+  calidad     Calidad
+  creadoEn    DateTime  @default(now())
+
+  @@map("aviso_venta")
 }

@@ -31,7 +31,7 @@ del edificio.
 | `--ok` | `#2B6337` | Confirmaciones, al día | 7,1:1 sobre blanco |
 
 **Colores de torre** (solo como marca chica junto al nombre, nunca como fondo):
-Avenue `#2F5C87` · Sky `#2F6F6A` · Pilay `#6A5590` · NE `#4C6E2E` · Garajes `#5B5B5B`.
+A `#2F5C87` · B `#2F6F6A` · C `#6A5590` · D `#4C6E2E` · Garajes `#5B5B5B`.
 Todos superan 5,8:1 sobre blanco. Sirven para reconocer de un vistazo a qué torre pertenece una unidad o una barbacoa.
 
 ## Tipografía

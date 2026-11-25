@@ -116,7 +116,7 @@ export function sufijoVigente(sufijo: Sufijo, arrendada: boolean): Sufijo {
   return "A";
 }
 
-/** Texto de la columna "Id." del PDF: "AVENUE 201 (P)", o la etiqueta de la unidad. */
+/** Texto de la columna "Id." del PDF: "A 201 (P)", o la etiqueta de la unidad. */
 export function descripcionLinea(u: Pick<UnidadALiquidar, "torreNombre" | "numero" | "etiqueta">, sufijo: Sufijo): string {
   const base = u.etiqueta?.trim() || `${u.torreNombre.toUpperCase()} ${u.numero}`;
   return sufijo === "A" ? base : `${base} (${sufijo})`;

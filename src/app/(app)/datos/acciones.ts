@@ -28,7 +28,7 @@ function campos(fd: FormData, nombres: string[]) {
 export async function accionEditarPersona(unidadId: string, personaId: string, _: Estado, fd: FormData) {
   return ejecutar(() =>
     datos.editarPersona(unidadId, personaId, {
-      ...campos(fd, ["nombre", "telefono", "email"]),
+      ...campos(fd, ["nombre", "apellido", "telefono", "email"]),
       calidad: fd.get("calidad") || undefined,
     }),
   );
@@ -39,7 +39,7 @@ export async function accionConfirmarSinAlquilar(unidadId: string, personaId: st
 }
 
 export async function accionAltaInquilino(unidadId: string, _: Estado, fd: FormData) {
-  return ejecutar(() => datos.altaInquilino(unidadId, campos(fd, ["nombre", "telefono", "email"])));
+  return ejecutar(() => datos.altaInquilino(unidadId, campos(fd, ["nombre", "apellido", "telefono", "email"])));
 }
 
 export async function accionBajaInquilino(unidadId: string, personaId: string, _: Estado) {
@@ -58,11 +58,19 @@ export async function accionQuitarDestinatario(unidadId: string, destinatarioId:
 }
 
 export async function accionCambiarPropietario(unidadId: string, _: Estado, fd: FormData) {
-  return ejecutar(() => datos.cambiarPropietario(unidadId, campos(fd, ["nombre", "telefono", "email", "calidad"])));
+  return ejecutar(() => datos.cambiarPropietario(unidadId, campos(fd, ["nombre", "apellido", "telefono", "email", "calidad"])));
 }
 
 export async function accionAvisarVenta(unidadId: string, _: Estado, fd: FormData) {
-  return ejecutar(() => datos.avisarVenta(unidadId, campos(fd, ["comentario"])));
+  return ejecutar(() => datos.avisarVenta(unidadId, campos(fd, ["nombre", "apellido", "telefono", "email", "calidad", "comentario"])));
+}
+
+export async function accionConfirmarVenta(unidadId: string, _: Estado) {
+  return ejecutar(() => datos.confirmarVenta(unidadId));
+}
+
+export async function accionRechazarVenta(unidadId: string, _: Estado, fd: FormData) {
+  return ejecutar(() => datos.rechazarVenta(unidadId, campos(fd, ["motivo"])));
 }
 
 export async function accionReenviarInvitacion(unidadId: string, personaId: string, _: Estado) {
@@ -71,7 +79,7 @@ export async function accionReenviarInvitacion(unidadId: string, personaId: stri
 
 export async function accionCrearUnidad(_: Estado, fd: FormData) {
   const r = await ejecutar(() =>
-    datos.crearUnidad(campos(fd, ["torreId", "numero", "tipo", "etiqueta", "calidad", "nombre", "telefono", "email"])),
+    datos.crearUnidad(campos(fd, ["torreId", "numero", "tipo", "etiqueta", "calidad", "nombre", "apellido", "telefono", "email"])),
   );
   if (r.ok && "unidadId" in r && r.unidadId) redirect(`/datos/${r.unidadId}?creada=1`);
   return r;

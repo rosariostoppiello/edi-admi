@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
+import { useActionState } from "react";
 import { Aviso } from "@/componentes/ui/aviso";
 import { Boton } from "@/componentes/ui/boton";
 import { AreaTexto, Campo, Casilla, Selector } from "@/componentes/ui/campo";
 import { MensajeEstado, useEnvioConservado, type Estado } from "@/componentes/ui/formularios";
 
-type AccionForm = (estado: Estado, fd: FormData) => Promise<Estado>;
+type EstadoPedido = (Estado & { pedidoId?: string }) | null;
+type AccionForm = (estado: EstadoPedido, fd: FormData) => Promise<EstadoPedido>;
 
 const CALIDADES = [
   ["PROPIETARIO", "Propietario"],
@@ -13,9 +15,19 @@ const CALIDADES = [
   ["INQUILINO", "Inquilino"],
 ] as const;
 
-export function FormPedirAcceso({ accion, edificios }: { accion: AccionForm; edificios: { id: string; nombre: string }[] }) {
-  const { estado, alEnviar, pendiente, errores } = useEnvioConservado(accion);
+export function FormPedirAcceso({
+  accion,
+  verificar,
+  edificios,
+}: {
+  accion: AccionForm;
+  verificar: AccionForm;
+  edificios: { id: string; nombre: string }[];
+}) {
+  const { estado: e, alEnviar, pendiente, errores } = useEnvioConservado(accion);
+  const estado = e as EstadoPedido;
 
+  if (estado?.ok && estado.pedidoId) return <VerificarCodigo accion={verificar} pedidoId={estado.pedidoId} aviso={estado.mensaje} />;
   if (estado?.ok) {
     return (
       <div className="mt-6 flex flex-col gap-5">
@@ -30,7 +42,8 @@ export function FormPedirAcceso({ accion, edificios }: { accion: AccionForm; edi
   return (
     <form onSubmit={alEnviar} className="mt-6 flex flex-col gap-5" noValidate>
       <MensajeEstado estado={estado} />
-      <Campo etiqueta="Nombre y apellido" name="nombre" autoComplete="name" error={errores.nombre} required />
+      <Campo etiqueta="Nombre" name="nombre" autoComplete="given-name" error={errores.nombre} required />
+      <Campo etiqueta="Apellido" name="apellido" autoComplete="family-name" error={errores.apellido} required />
       <Campo etiqueta="Mail" name="email" type="email" autoComplete="email" inputMode="email" ayuda="Va a ser tu usuario para ingresar." error={errores.email} required />
       <Campo etiqueta="Teléfono" name="telefono" type="tel" autoComplete="tel" inputMode="tel" ayuda="Ej. 099 123 456. Solo lo ve la Administración." error={errores.telefono} required />
       {edificios.length > 0 && (
@@ -72,6 +85,41 @@ export function FormPedirAcceso({ accion, edificios }: { accion: AccionForm; edi
       {errores.acepto && <p className="text-chico font-bold text-alerta">{errores.acepto}</p>}
       <Boton type="submit" disabled={pendiente}>
         {pendiente ? "Enviando…" : "Pedir acceso"}
+      </Boton>
+    </form>
+  );
+}
+
+/** Segundo paso: el código de 6 números que le llegó al mail confirma que el mail es suyo. */
+function VerificarCodigo({ accion, pedidoId, aviso }: { accion: AccionForm; pedidoId: string; aviso: string }) {
+  const [estado, enviar, pendiente] = useActionState(accion, null);
+  if (estado?.ok) {
+    return (
+      <div className="mt-6 flex flex-col gap-5">
+        <Aviso tono="ok">{estado.mensaje}</Aviso>
+        <Link href="/ingresar" className="self-start py-2 underline underline-offset-4 hover:text-bronce">
+          Volver a ingresar
+        </Link>
+      </div>
+    );
+  }
+  const err = estado && !estado.ok ? (estado.campos ?? {}) : {};
+  return (
+    <form action={enviar} className="mt-6 flex flex-col gap-5" noValidate>
+      {estado ? <MensajeEstado estado={estado} /> : <Aviso tono="info">{aviso}</Aviso>}
+      <input type="hidden" name="pedidoId" value={pedidoId} />
+      <Campo
+        etiqueta="Código de verificación"
+        name="codigoVerificacion"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={7}
+        ayuda="Son 6 números. Si no lo ves, revisá el correo no deseado."
+        error={err.codigoVerificacion}
+        required
+      />
+      <Boton type="submit" disabled={pendiente}>
+        {pendiente ? "Confirmando…" : "Confirmar"}
       </Boton>
     </form>
   );

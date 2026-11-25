@@ -33,10 +33,14 @@ export const emailSchema = z
   .pipe(z.string().min(1, "Completá el mail.").email("Ese mail no parece válido (ej. nombre@gmail.com).").max(200));
 
 export const datosPersonaSchema = z.object({
-  nombre: texto("el nombre", 120).pipe(z.string().min(2, "El nombre es demasiado corto.")),
+  nombre: texto("el nombre", 80),
+  apellido: texto("el apellido", 80),
   telefono: telefonoSchema,
   email: emailSchema,
 });
+
+/** "Nombre Apellido" para mostrar (los datos se guardan por separado). */
+export const nombreCompleto = (p: { nombre: string; apellido?: string | null }) => [p.nombre, p.apellido].filter(Boolean).join(" ");
 
 export type DatosPersona = z.infer<typeof datosPersonaSchema>;
 

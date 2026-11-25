@@ -82,7 +82,8 @@ export function FormNuevaUnidad({ torres }: { torres: { codigo: number; numero: 
             </label>
           ))}
         </div>
-        <Campo etiqueta="Nombre y apellido" name="nombre" autoComplete="off" error={err.nombre} required />
+        <Campo etiqueta="Nombre" name="nombre" autoComplete="off" error={err.nombre} required />
+        <Campo etiqueta="Apellido" name="apellido" autoComplete="off" error={err.apellido} required />
         <Campo etiqueta="Teléfono" name="telefono" type="tel" inputMode="tel" ayuda="Ej. 099 123 456" error={err.telefono} required />
         <Campo etiqueta="Mail" name="email" type="email" inputMode="email" ayuda="Le llega la invitación y la liquidación." error={err.email} required />
       </fieldset>

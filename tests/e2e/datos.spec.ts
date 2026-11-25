@@ -16,7 +16,8 @@ test("alta y baja de inquilino: A → P+I → A, con invitación por mail", asyn
   await expect(main(page)).toContainText(`figura como ${codigo}-A`);
   await main(page).getByRole("button", { name: /cargar al inquilino|Cargar inquilino/ }).click();
   const form = main(page).locator("form").filter({ has: page.getByRole("button", { name: "Cargar inquilino" }) });
-  await form.getByLabel("Nombre y apellido").fill("Inquilina De Prueba");
+  await form.getByLabel("Nombre", { exact: true }).fill("Inquilina");
+  await form.getByLabel("Apellido").fill("De Prueba");
   await form.getByLabel("Teléfono").fill("098 765 432");
   await form.getByLabel("Mail").fill(inquilinoEmail);
   await form.getByRole("button", { name: "Cargar inquilino" }).click();
@@ -81,12 +82,13 @@ test("los datos del responsable no pueden quedar vacíos", async ({ page }, info
   await page.goto("/datos/editar");
   await main(page).getByRole("button", { name: "Editar mis datos" }).click();
   await main(page).getByLabel("Teléfono").fill("");
-  await main(page).getByLabel("Nombre y apellido").fill("   ");
+  await main(page).getByLabel("Nombre", { exact: true }).fill("   ");
   await main(page).getByRole("button", { name: "Guardar cambios" }).click();
   await expect(main(page)).toContainText("Completá el teléfono.");
   await expect(main(page)).toContainText("Completá el nombre.");
 
-  await main(page).getByLabel("Nombre y apellido").fill("Nombre Corregido");
+  await main(page).getByLabel("Nombre", { exact: true }).fill("Nombre");
+  await main(page).getByLabel("Apellido").fill("Corregido");
   await main(page).getByLabel("Teléfono").fill("099 111 222");
   await main(page).getByRole("button", { name: "Guardar cambios" }).click();
   await expect(main(page).getByRole("status").filter({ hasText: "Datos guardados" })).toBeVisible();
@@ -120,9 +122,10 @@ for (const [rol, email] of [
   });
 }
 
-test("la unidad ve sus datos, entra a Editar y avisa la venta a la Administración", async ({ page }, info) => {
+test("la unidad avisa la venta con los datos del comprador y la Administración la confirma", async ({ page, browser }, info) => {
   const u = await unidad(false, 8 + proyecto(info.project.name));
   const codigo = `${u.torre}-${u.numero}`;
+  const comprador = `comprador.${info.project.name}.${Date.now()}@example.com`;
   await ingresar(page, u.duenoEmail);
   await page.getByRole("link", { name: /Datos de propietarios e inquilinos/ }).click();
   await expect(page).toHaveURL(/\/datos$/);
@@ -135,18 +138,42 @@ test("la unidad ve sus datos, entra a Editar y avisa la venta a la Administraci�
 
   await page.getByRole("link", { name: "Mis datos" }).click();
   await main(page).getByRole("button", { name: "Avisar venta de la unidad" }).click();
+  // Sin los datos del comprador no se manda.
+  await main(page).getByRole("button", { name: "Avisar a la Administración" }).click();
+  await expect(main(page)).toContainText("Completá el apellido.");
+  await main(page).getByLabel("Promitente comprador").check();
+  await main(page).getByLabel("Nombre", { exact: true }).fill("Carla");
+  await main(page).getByLabel("Apellido").fill("Compradora");
+  await main(page).getByLabel("Teléfono").fill("099 222 333");
+  await main(page).getByLabel("Mail").fill(comprador);
   await main(page).getByLabel(/Comentario para la Administración/).fill("Firmamos la compraventa la semana pasada");
   await main(page).getByRole("button", { name: "Avisar a la Administración" }).click();
   await expect(main(page)).toContainText("Avisaste la venta");
+  await expect(main(page)).toContainText("Carla Compradora");
   const mail = await ultimoMailPara(ADMIN, `Aviso de venta de la unidad ${codigo}`);
   expect(mail.texto).toContain("Firmamos la compraventa");
+  expect(mail.texto).toContain("a Carla Compradora");
 
-  // Administración lo ve en la ficha de la unidad.
-  await page.getByRole("button", { name: "Salir" }).click();
-  await ingresar(page, ADMIN);
-  await page.goto(`/datos/${u.unidadId}`);
-  await expect(main(page)).toContainText("avisó el");
-  await expect(main(page)).toContainText("Firmamos la compraventa");
+  // Administración lo ve en la ficha de la unidad y lo confirma.
+  const admin = await (await browser.newContext()).newPage();
+  await ingresar(admin, ADMIN);
+  await admin.goto(`/datos/${u.unidadId}`);
+  const aviso = main(admin).locator("section").filter({ has: admin.getByRole("heading", { name: "Aviso de venta" }) });
+  await expect(aviso).toContainText("Carla Compradora (promitente comprador)");
+  await expect(aviso).toContainText(comprador);
+  await aviso.getByRole("button", { name: "Confirmar la venta" }).click();
+  await aviso.getByRole("button", { name: "Sí, confirmar" }).click();
+  await expect(main(admin).getByRole("status").filter({ hasText: "Confirmaste la venta" })).toBeVisible();
+  await admin.reload();
+  await expect(main(admin).getByRole("heading", { name: "Aviso de venta" })).toHaveCount(0);
+  const historial = main(admin).locator("section").filter({ has: admin.getByRole("heading", { name: "Historial de la unidad" }) });
+  await expect(historial.getByRole("listitem")).toHaveCount(2);
+  await expect(historial.getByRole("listitem").first()).toContainText("Carla Compradora (promitente comprador)");
+  await expect(historial.getByRole("listitem").nth(1)).toContainText("hasta");
+
+  // Al comprador le llega la invitación y el vendedor ya no puede entrar.
+  expect((await ultimoMailPara(comprador)).asunto).toBe("Tu acceso al sistema de gastos comunes");
+  expect((await ultimoMailPara(u.duenoEmail, "Confirmamos la venta de tu unidad")).texto).toContain("Carla Compradora");
 });
 
 test("Administración crea una unidad con su responsable y le llega la invitación", async ({ page }, info) => {
@@ -158,7 +185,8 @@ test("Administración crea una unidad con su responsable y le llega la invitaci�
   await expect(page.getByRole("heading", { name: "Nueva unidad" })).toBeVisible();
   await page.getByLabel("Torre", { exact: true }).selectOption("2");
   await page.getByLabel("Número").fill(numero);
-  await page.getByLabel("Nombre y apellido").fill("Responsable Nuevo");
+  await page.getByLabel("Nombre", { exact: true }).fill("Responsable");
+  await page.getByLabel("Apellido").fill("Nuevo");
   await page.getByLabel("Teléfono").fill("099 000 111");
   await page.getByLabel("Mail").fill(email);
   await page.getByRole("button", { name: "Crear unidad" }).click();
@@ -170,7 +198,8 @@ test("Administración crea una unidad con su responsable y le llega la invitaci�
   await page.goto("/datos/nueva");
   await page.getByLabel("Torre", { exact: true }).selectOption("2");
   await page.getByLabel("Número").fill(numero);
-  await page.getByLabel("Nombre y apellido").fill("Otro");
+  await page.getByLabel("Nombre", { exact: true }).fill("Otro");
+  await page.getByLabel("Apellido").fill("Más");
   await page.getByLabel("Teléfono").fill("099 000 222");
   await page.getByLabel("Mail").fill(`otro.${email}`);
   await page.getByRole("button", { name: "Crear unidad" }).click();

@@ -45,7 +45,7 @@ function personaFicticia() {
     .replace(/[̀-ͯ]/g, "")
     .concat("@example.com");
   const telefono = `09${(1000000 + ((contador * 7919) % 8999999)).toString().padStart(7, "0")}`;
-  return { nombre: `${nombre} ${apellido}`, email, telefono };
+  return { nombre, apellido, email, telefono };
 }
 
 let hashClave: string;
@@ -97,10 +97,10 @@ async function main() {
   // El código interno de la torre coincide con su número en el edificio principal.
   await db.torre.createMany({
     data: [
-      { edificioId: EDIFICIO, codigo: 2, numero: 2, nombre: "Avenue", color: "var(--torre-avenue)", orden: 1 },
-      { edificioId: EDIFICIO, codigo: 3, numero: 3, nombre: "Sky", color: "var(--torre-sky)", orden: 2 },
-      { edificioId: EDIFICIO, codigo: 4, numero: 4, nombre: "Pilay", color: "var(--torre-pilay)", orden: 3 },
-      { edificioId: EDIFICIO, codigo: 5, numero: 5, nombre: "NE", color: "var(--torre-ne)", orden: 4 },
+      { edificioId: EDIFICIO, codigo: 2, numero: 2, nombre: "A", color: "var(--torre-a)", orden: 1 },
+      { edificioId: EDIFICIO, codigo: 3, numero: 3, nombre: "B", color: "var(--torre-b)", orden: 2 },
+      { edificioId: EDIFICIO, codigo: 4, numero: 4, nombre: "C", color: "var(--torre-c)", orden: 3 },
+      { edificioId: EDIFICIO, codigo: 5, numero: 5, nombre: "D", color: "var(--torre-d)", orden: 4 },
       { edificioId: EDIFICIO, codigo: 6, numero: 6, nombre: "Garajes", color: "var(--torre-garajes)", tipo: "SECTOR", orden: 5 },
     ],
   });
@@ -122,7 +122,7 @@ async function main() {
         });
         const duenio = personaFicticia();
         const calidad: Calidad = indice % 5 === 0 ? "PROMITENTE" : "PROPIETARIO";
-        const userDuenio = await crearUsuario(duenio.nombre, duenio.email, "UNIDAD");
+        const userDuenio = await crearUsuario(`${duenio.nombre} ${duenio.apellido}`, duenio.email, "UNIDAD");
         // ~3 de cada 4 ya confirmaron sus datos; el resto ve el aviso para revisarlos.
         const confirmado = indice % 4 !== 3 ? new Date() : null;
         await db.persona.create({
@@ -130,7 +130,7 @@ async function main() {
         });
         if (arrendada) {
           const inq = personaFicticia();
-          const userInq = await crearUsuario(inq.nombre, inq.email, "UNIDAD");
+          const userInq = await crearUsuario(`${inq.nombre} ${inq.apellido}`, inq.email, "UNIDAD");
           await db.persona.create({
             data: { unidadId: unidad.id, calidad: "INQUILINO", ...inq, userId: userInq, datosConfirmadosEn: new Date(), altaEn: ALTA },
           });
@@ -155,6 +155,7 @@ async function main() {
         unidadId: garaje.id,
         calidad: d.calidad,
         nombre: d.nombre,
+        apellido: d.apellido,
         telefono: d.telefono,
         email: d.email,
         userId: d.userId,
@@ -195,12 +196,12 @@ async function main() {
  */
 async function sembrarRambla() {
   await db.edificio.create({ data: { id: EDIFICIO_RAMBLA, nombre: "Edificio Rambla", direccion: "Rambla de Ejemplo 500, Montevideo" } });
-  const torre = await db.torre.create({ data: { edificioId: EDIFICIO_RAMBLA, numero: 2, nombre: "Única", color: "var(--torre-sky)", orden: 1 } });
+  const torre = await db.torre.create({ data: { edificioId: EDIFICIO_RAMBLA, numero: 2, nombre: "Única", color: "var(--torre-b)", orden: 1 } });
   await db.configuracion.create({ data: { edificioId: EDIFICIO_RAMBLA, direccion: "Rambla de Ejemplo 500, Montevideo" } });
   for (const numero of ["101", "102", "201", "202"]) {
     const u = await db.unidad.create({ data: { edificioId: EDIFICIO_RAMBLA, torreId: torre.codigo, numero, etiqueta: `Apto ${numero}` } });
     const d = personaFicticia();
-    const userId = await crearUsuario(d.nombre, d.email, "UNIDAD");
+    const userId = await crearUsuario(`${d.nombre} ${d.apellido}`, d.email, "UNIDAD");
     await db.persona.create({ data: { unidadId: u.id, calidad: "PROPIETARIO", ...d, userId, datosConfirmadosEn: new Date(), altaEn: ALTA } });
   }
   // Administradora de los dos edificios (para elegir con cuál trabajar).
@@ -220,8 +221,8 @@ async function sembrarRambla() {
     },
   });
   // Vecina con apartamento en los dos edificios.
-  const ana = { nombre: "Ana Dos Edificios", email: "ana.dos.edificios@example.com", telefono: "099000123" };
-  const anaId = await crearUsuario(ana.nombre, ana.email, "UNIDAD");
+  const ana = { nombre: "Ana", apellido: "Dos Edificios", email: "ana.dos.edificios@example.com", telefono: "099000123" };
+  const anaId = await crearUsuario("Ana Dos Edificios", ana.email, "UNIDAD");
   const enPrincipal = await db.unidad.create({ data: { edificioId: EDIFICIO, torreId: 5, numero: "601", etiqueta: "Apto 601" } });
   const enRambla = await db.unidad.create({ data: { edificioId: EDIFICIO_RAMBLA, torreId: torre.codigo, numero: "301", etiqueta: "Apto 301" } });
   for (const u of [enPrincipal, enRambla]) {

@@ -15,7 +15,7 @@ test("la unidad reserva un turno libre, las demás lo ven ocupado sin saber de q
   const u = await unidad(false, 10 + p);
   const otra = await unidad(false, 12 + p);
   const fecha = sumarDias(hoy(), 30 + p);
-  const turno = `Barbacoa Torre Sky, ${fechaEnFrase(fecha)}, noche`;
+  const turno = `Barbacoa Torre B, ${fechaEnFrase(fecha)}, noche`;
 
   await ingresar(page, u.duenoEmail);
   await page.getByRole("link", { name: /Reserva de espacios comunes/ }).click();
@@ -34,7 +34,7 @@ test("la unidad reserva un turno libre, las demás lo ven ocupado sin saber de q
   await expect(page).toHaveURL(/reservada=1/);
   await expect(exito(page, "la reserva quedó hecha")).toBeVisible();
   await expect(main(page)).toContainText(`${turno}: tu reserva`);
-  const mia = lista(page).filter({ hasText: "Torre Sky" }).filter({ hasText: fechaEnFrase(fecha).slice(1) });
+  const mia = lista(page).filter({ hasText: "Torre B" }).filter({ hasText: fechaEnFrase(fecha).slice(1) });
   await expect(mia).toContainText("La reservó la unidad");
   // Mobile-first: sin scroll horizontal.
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
@@ -53,7 +53,7 @@ test("la unidad reserva un turno libre, las demás lo ven ocupado sin saber de q
   await page.goto(`/reservas/barbacoas?desde=${fecha}`);
   await mia.getByRole("button", { name: "Cancelar la reserva" }).click();
   await mia.getByRole("button", { name: "Sí, cancelar la reserva" }).click();
-  await expect(exito(page, "Cancelaste la reserva de Barbacoa Torre Sky")).toBeVisible();
+  await expect(exito(page, "Cancelaste la reserva de Barbacoa Torre B")).toBeVisible();
   await page.reload();
   await expect(main(page).getByRole("link", { name: `Reservar ${turno}` })).toBeVisible();
 });
@@ -62,7 +62,7 @@ test("Portería reserva a pedido de una unidad; dentro de las 48 h solo Administ
   const p = proyecto(info.project.name);
   const u = await unidad(false, 14 + p);
   const codigo = `${u.torre}-${u.numero}-A`;
-  const barbacoa = p === 0 ? "Torre Avenue" : "Torre Pilay";
+  const barbacoa = p === 0 ? "Torre A" : "Torre C";
   const fecha = sumarDias(hoy(), 1);
   const turno = `Barbacoa ${barbacoa}, ${fechaEnFrase(fecha)}, mediodía`;
 
@@ -108,7 +108,7 @@ test("Portería reserva a pedido de una unidad; dentro de las 48 h solo Administ
 test("dos unidades confirman el mismo turno a la vez: queda una sola reserva", async ({ browser }, info) => {
   const p = proyecto(info.project.name);
   const fecha = sumarDias(hoy(), 40 + p);
-  const turno = `Barbacoa Torre Pilay, ${fechaEnFrase(fecha)}, mediodía`;
+  const turno = `Barbacoa Torre C, ${fechaEnFrase(fecha)}, mediodía`;
   const paginas: Page[] = [];
   for (const n of [16 + p * 2, 17 + p * 2]) {
     const u = await unidad(false, n);
@@ -131,7 +131,7 @@ test("dos unidades confirman el mismo turno a la vez: queda una sola reserva", a
     .toBe("error,ok");
   const perdedora = paginas.find((pg) => !/reservada=1/.test(pg.url()))!;
   await expect(main(perdedora).getByRole("alert")).toContainText("Ese turno se acaba de reservar");
-  expect(await reservasActivas("Barbacoa Torre Pilay", fecha, "MEDIODIA")).toBe(1);
+  expect(await reservasActivas("Barbacoa Torre C", fecha, "MEDIODIA")).toBe(1);
   for (const pg of paginas) await pg.context().close();
 });
 
@@ -140,13 +140,13 @@ test("Administración configura la tarifa y el laundry; una unidad no entra a la
   await ingresar(page, ADMIN);
   await page.goto("/reservas");
   await main(page).getByRole("link", { name: "Configurar los espacios y las tarifas" }).click();
-  const sky = main(page).locator("section").filter({ has: page.getByRole("heading", { name: "Barbacoa Torre Sky" }) });
+  const sky = main(page).locator("section").filter({ has: page.getByRole("heading", { name: "Barbacoa Torre B" }) });
   await sky.getByLabel("Tarifa por turno").fill("-5");
   await sky.getByRole("button", { name: "Guardar cambios" }).click();
   await expect(sky).toContainText("La tarifa no puede ser negativa.");
   await sky.getByLabel("Tarifa por turno").fill("800,00");
   await sky.getByRole("button", { name: "Guardar cambios" }).click();
-  await expect(sky.getByRole("status")).toContainText("Guardaste Barbacoa Torre Sky.");
+  await expect(sky.getByRole("status")).toContainText("Guardaste Barbacoa Torre B.");
 
   const laundry = main(page).locator("section").filter({ has: page.getByRole("heading", { name: "Laundry" }) });
   await laundry.getByLabel("Cómo funciona (lo ven todos)").fill("La tarjeta prepaga se recarga en la Portería de lunes a sábado.");

@@ -130,7 +130,7 @@ test.describe.serial("confección, publicación y anulación (Administración)",
     await main(page).getByRole("button", { name: "Traer las reservas de barbacoa del mes" }).click();
     await expect(exito(page, "Cargaste 2 reservas de barbacoa por $U 1.600,00.")).toBeVisible();
     await expect(main(page).getByRole("heading", { name: "Cargos de este mes (2)" })).toBeVisible();
-    await expect(main(page)).toContainText("Barbacoas: Barbacoa Torre Avenue 10/10 noche");
+    await expect(main(page)).toContainText("Barbacoas: Barbacoa Torre A 10/10 noche");
     await main(page).getByRole("button", { name: "Traer las reservas de barbacoa del mes" }).click();
     await expect(exito(page, "No hay reservas nuevas para cobrar este mes.")).toBeVisible();
     await expect(main(page).getByRole("heading", { name: "Cargos de este mes (2)" })).toBeVisible();
