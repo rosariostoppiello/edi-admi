@@ -64,6 +64,9 @@ export const ACCIONES = [
   "emergencia.avisar", // cualquiera con sesión
   "emergencia.ver", // alertas activas y quién avisó
   "emergencia.gestionar", // avisar a todas las unidades y cerrar el aviso
+  // Edificios (decisiones 86 y 87)
+  "edificio.solicitarAlta", // pedir el alta de un edificio nuevo (lo aprueba el dueño del sistema)
+  "edificio.configurarModulos", // qué módulos tiene el edificio
   // Administración del sistema
   "unidades.administrar",
   "usuarios.administrar",
@@ -103,6 +106,8 @@ const POR_ROL: Partial<Record<Accion, Rol[]>> = {
   "emergencia.avisar": TODOS,
   "emergencia.ver": ["ADMINISTRACION", "COMISION", "PORTERIA"],
   "emergencia.gestionar": ["ADMINISTRACION", "PORTERIA"],
+  "edificio.solicitarAlta": ["ADMINISTRACION"],
+  "edificio.configurarModulos": ["ADMINISTRACION"],
   "unidades.administrar": ["ADMINISTRACION"],
   "usuarios.administrar": ["ADMINISTRACION"],
   "auditoria.ver": ["ADMINISTRACION"],

@@ -97,4 +97,10 @@ test("la pantalla para elegir edificio no tiene errores de accesibilidad", async
   await page.getByRole("button", { name: "Ingresar" }).click();
   await page.waitForURL((u) => u.pathname === "/edificios");
   await revisar(page, "/edificios");
+  await page.getByRole("navigation", { name: "Edificios" }).getByRole("button", { name: /Edificio Rambla/ }).click();
+  await page.waitForURL((u) => u.pathname === "/inicio");
+  for (const ruta of ["/edificio", "/edificios/nuevo", "/reservas/piscina"]) {
+    await page.goto(ruta);
+    await revisar(page, ruta);
+  }
 });

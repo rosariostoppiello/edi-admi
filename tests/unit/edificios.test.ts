@@ -38,3 +38,31 @@ describe("edificiosDelUsuario", () => {
     expect(edificiosDelUsuario([{ edificioId: "a" }], [{ edificioId: "a" }, { edificioId: "b" }])).toEqual(["a", "b"]);
   });
 });
+
+import { leerTorres, modulosAGuardar } from "@/dominio/edificios";
+
+describe("leerTorres", () => {
+  it("lee número y nombre", () => {
+    expect(leerTorres("1 Norte\nTorre 2 Sur\n3")).toEqual({
+      torres: [
+        { numero: 1, nombre: "Norte" },
+        { numero: 2, nombre: "Sur" },
+        { numero: 3, nombre: "Torre 3" },
+      ],
+    });
+  });
+  it("rechaza líneas sin número y torres repetidas", () => {
+    expect(leerTorres("Norte")).toHaveProperty("error");
+    expect(leerTorres("1\n1 Otra")).toEqual({ error: "La torre 1 está repetida." });
+    expect(leerTorres("  ")).toHaveProperty("error");
+  });
+});
+
+describe("modulosAGuardar", () => {
+  it("con todos prendidos guarda vacío", () => {
+    expect(modulosAGuardar(["/liquidaciones", "/reservas", "/solicitudes", "/comunicados", "/telefonos"])).toEqual([]);
+  });
+  it("guarda solo los válidos", () => {
+    expect(modulosAGuardar(["/reservas", "/inventado"])).toEqual(["/reservas"]);
+  });
+});

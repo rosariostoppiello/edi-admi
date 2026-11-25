@@ -52,6 +52,8 @@ export const MODULOS: Modulo[] = [
       { ruta: "/reservas/barbacoas", nombre: "Barbacoas" },
       { ruta: "/reservas/solarium", nombre: "Solarium" },
       { ruta: "/reservas/laundry", nombre: "Laundry" },
+      // Solo en los edificios que tienen piscina (la página de Reservas la filtra).
+      { ruta: "/reservas/piscina", nombre: "Piscina" },
     ],
   },
   {
@@ -104,6 +106,19 @@ export const LIQUIDACION_MENSUAL: Subtecla[] = [
   { ruta: "/liquidaciones/ultima", nombre: "Última liquidación" },
   { ruta: "/liquidaciones/anteriores", nombre: "Liquidaciones anteriores" },
 ];
+
+/** Módulos que se pueden apagar por edificio (Datos siempre está: ahí se manejan las cuentas). */
+export const MODULOS_OPCIONALES = MODULOS.filter((m) => m.ruta !== "/datos");
+
+/** ¿Está prendido el módulo en el edificio? Sin lista guardada, están todos (decisión 87). */
+export function moduloPrendido(modulosDelEdificio: string[], ruta: string): boolean {
+  return ruta === "/datos" || modulosDelEdificio.length === 0 || modulosDelEdificio.includes(ruta);
+}
+
+/** Los módulos del inicio, según el edificio. */
+export function modulosDelEdificio(modulosDelEdificio: string[]): Modulo[] {
+  return MODULOS.filter((m) => moduloPrendido(modulosDelEdificio, m.ruta));
+}
 
 export function buscarModulo(ruta: string) {
   return MODULOS.find((m) => m.ruta === ruta);

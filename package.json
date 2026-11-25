@@ -16,7 +16,8 @@
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "vercel-build": "prisma generate && prisma migrate deploy && next build",
-    "admin:crear": "tsx scripts/crear-admin.ts"
+    "admin:crear": "tsx scripts/crear-admin.ts",
+    "dueno:crear": "tsx scripts/crear-dueno.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

@@ -5,7 +5,7 @@ import { exigirUsuario } from "@/servidor/sesion";
 import { Aviso } from "@/componentes/ui/aviso";
 import { Tecla } from "@/componentes/ui/teclas";
 import { alertaSeguro } from "@/servidor/telefonos";
-import { MODULOS } from "../modulos";
+import { modulosDelEdificio } from "../modulos";
 import { puede } from "@/dominio/permisos";
 import { pedidosPendientes } from "@/servidor/accesos";
 
@@ -49,13 +49,28 @@ export default async function Inicio() {
 
       <nav aria-label="Secciones">
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
-          {MODULOS.map(({ ruta, nombre, descripcion, Icono }) => (
+          {modulosDelEdificio(usuario.edificio.modulos).map(({ ruta, nombre, descripcion, Icono }) => (
             <li key={ruta}>
               <Tecla href={ruta} nombre={nombre} descripcion={descripcion} Icono={Icono} />
             </li>
           ))}
         </ul>
       </nav>
+
+      {(puede(usuario, "edificio.configurarModulos") || usuario.duenoSistema) && (
+        <p className="mt-6 flex flex-wrap gap-x-6 gap-y-1">
+          {puede(usuario, "edificio.configurarModulos") && (
+            <Link href="/edificio" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+              Configuración del edificio
+            </Link>
+          )}
+          {usuario.duenoSistema && (
+            <Link href="/sistema" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+              Edificios del sistema
+            </Link>
+          )}
+        </p>
+      )}
     </>
   );
 }

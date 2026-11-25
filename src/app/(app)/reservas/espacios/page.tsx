@@ -12,7 +12,7 @@ import { FormEspacio, FormNuevoEspacio } from "../partes";
 
 export const metadata: Metadata = { title: "Configurar los espacios" };
 
-const TIPOS = { BARBACOA: "Barbacoa", SOLARIUM: "Solarium", LAUNDRY: "Laundry", OTRO: "Otro" } as const;
+const TIPOS = { BARBACOA: "Barbacoa", SOLARIUM: "Solarium", LAUNDRY: "Laundry", PISCINA: "Piscina", OTRO: "Otro" } as const;
 
 /** Administración: tarifas, reglas, texto del laundry, alta y baja de espacios. */
 export default async function PaginaEspacios() {

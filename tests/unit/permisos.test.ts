@@ -71,6 +71,8 @@ const MATRIZ: Record<Accion, { recurso?: { unidadId?: string; personaId?: string
   // Quién avisó lo ven solo quienes pueden actuar; el aviso a todos lo dan Portería o Administración.
   "emergencia.ver": { pueden: ["admin", "comision", "porteria"] },
   "emergencia.gestionar": { pueden: ["admin", "porteria"] },
+  "edificio.solicitarAlta": { pueden: ["admin"] },
+  "edificio.configurarModulos": { pueden: ["admin"] },
   "unidades.administrar": { pueden: ["admin"] },
   "usuarios.administrar": { pueden: ["admin"] },
   "auditoria.ver": { pueden: ["admin"] },

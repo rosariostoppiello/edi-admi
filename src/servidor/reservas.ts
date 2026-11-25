@@ -34,7 +34,7 @@ const deFecha = (d: Date) => d.toISOString().slice(0, 10);
 // Lecturas
 // ---------------------------------------------------------------------------
 
-export async function listarEspacios(tipo?: "BARBACOA" | "SOLARIUM" | "LAUNDRY" | "OTRO", { soloActivos = true } = {}) {
+export async function listarEspacios(tipo?: "BARBACOA" | "SOLARIUM" | "LAUNDRY" | "PISCINA" | "OTRO", { soloActivos = true } = {}) {
   const usuario = await exigirPermiso("reserva.ver");
   return db.espacio.findMany({
     where: { edificioId: usuario.edificio.id, ...(tipo ? { tipo } : {}), ...(soloActivos ? { activo: true } : {}) },
@@ -318,7 +318,7 @@ export async function guardarEspacio(espacioId: string, input: unknown): Promise
 
 const nuevoEspacioSchema = z.object({
   nombre: textoSchema("el nombre", 80),
-  tipo: z.enum(["BARBACOA", "SOLARIUM", "OTRO"], { error: "Elegí el tipo de espacio." }),
+  tipo: z.enum(["BARBACOA", "SOLARIUM", "PISCINA", "OTRO"], { error: "Elegí el tipo de espacio." }),
   torreId: z.string().optional().transform((v) => (v ? Number(v) : null)),
   barbacoaId: z.string().optional().transform((v) => v || null),
   tarifa: montoSchema({ campo: "la tarifa" }).refine((m) => m >= 0, "La tarifa no puede ser negativa."),

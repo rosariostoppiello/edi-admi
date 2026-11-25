@@ -27,6 +27,10 @@ horizontal (Uruguay). Plan y decisiones: `docs/PLAN.md`. Diseño: `docs/design.m
   acción, agregala a la matriz del test (el test falla si falta).
 - **Consultas por unidad:** filtrar siempre por las unidades del actor; nunca confiar en
   un `unidadId` que venga del cliente sin pasar por `exigirPermiso`.
+- **Varios edificios:** toda consulta de datos del edificio filtra por `usuario.edificio.id`
+  (el edificio activo de la sesión), y todo id que venga del cliente se busca con ese
+  filtro. El código que ve la gente usa `torre.numero`, nunca `torreId` (clave interna).
+  Los avisos al equipo van por `equipoDelEdificio()` (membresías), no por rol global.
 - **Validación:** Zod en servidor para toda entrada.
 - **Auditoría:** acciones sensibles (publicar/anular liquidación, cambios de datos,
   bajas, contraseñas) llaman a `registrarAuditoria()`, dentro de la misma transacción.

@@ -22,7 +22,7 @@
 3. Variables de entorno (Production y Preview), ver `.env.example`:
    - `DATABASE_URL`, `DIRECT_URL` (de Neon)
    - `BETTER_AUTH_SECRET` (`openssl rand -base64 32`), `BETTER_AUTH_URL` (`https://dominio`)
-   - `EDIFICIO_NOMBRE`
+   - `EDIFICIO_NOMBRE` (nombre del primer edificio; los demás se cargan desde la app)
    - `MAIL_DRIVER=smtp`, `MAIL_FROM` (el nombre que se ve), `SMTP_USER` (la cuenta de
      Gmail) y `SMTP_PASS` (contraseña de aplicación de Google, no la clave de la cuenta)
    - `CRON_SECRET` (cualquier texto largo y aleatorio)
@@ -36,6 +36,8 @@ Como todos los mails del seed son `@example.com`, no sale ningún mail real.
 5. Crear el primer usuario de Administración (con la `DATABASE_URL` de producción en el entorno):
    `npm run admin:crear -- "Nombre Apellido" mail@dominio`. Esa persona entra a
    `/ingresar` → "Me olvidé la contraseña" y crea su clave con el mail que le llega.
+   Para que pueda aprobar edificios nuevos, marcala como dueña del sistema:
+   `npm run dueno:crear -- mail@dominio`.
 6. Desde la app, Administración carga torres y unidades (o se importan), los datos de
    Teléfonos, los espacios de Reservas y la primera liquidación con los saldos iniciales.
 

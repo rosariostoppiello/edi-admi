@@ -110,7 +110,7 @@ export function FormEspacio({ accion, valores }: { accion: AccionForm; valores: 
           <input type="hidden" name="horasCancelacion" value={valores.horasCancelacion} />
         </>
       )}
-      {valores.tipo === "LAUNDRY" ? (
+      {valores.tipo === "LAUNDRY" || valores.tipo === "PISCINA" ? (
         <AreaTexto etiqueta="Cómo funciona (lo ven todos)" name="descripcion" rows={5} defaultValue={valores.descripcion} error={err.descripcion} />
       ) : (
         <input type="hidden" name="descripcion" value={valores.descripcion} />
@@ -141,6 +141,7 @@ export function FormNuevoEspacio({
         <Selector etiqueta="Tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} error={err.tipo}>
           <option value="BARBACOA">Barbacoa (se reserva)</option>
           <option value="SOLARIUM">Solarium (atado a una barbacoa)</option>
+          <option value="PISCINA">Piscina (informativa: horarios y reglas)</option>
           <option value="OTRO">Otro espacio</option>
         </Selector>
         <Campo etiqueta="Nombre" name="nombre" placeholder={tipo === "SOLARIUM" ? "Solarium Torre …" : "Barbacoa Torre …"} error={err.nombre} required />

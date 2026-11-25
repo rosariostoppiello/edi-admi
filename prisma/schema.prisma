@@ -48,6 +48,8 @@ model User {
   emergenciasDifundidas Emergencia[]      @relation("EmergenciaDifundidaPor")
   pedidosResueltos      PedidoAcceso[]    @relation("PedidoAccesoResueltoPor")
   membresias            Membresia[]
+  edificiosSolicitados  Edificio[]        @relation("EdificioSolicitadoPor")
+  edificiosRevisados    Edificio[]        @relation("EdificioRevisadoPor")
 
   @@map("user")
 }
@@ -615,6 +617,7 @@ enum TipoEspacio {
   BARBACOA
   SOLARIUM // atado a su barbacoa: no se reserva, está disponible si la barbacoa no está reservada
   LAUNDRY // informativo (funciona con tarjeta prepaga)
+  PISCINA // informativo: horarios y reglas (decisión 87)
   OTRO
 }
 
@@ -906,27 +909,34 @@ enum EstadoEdificio {
 }
 
 model Edificio {
-  id            String          @id @default(cuid())
-  nombre        String
-  direccion     String          @default("")
-  estado        EstadoEdificio  @default(ACTIVO)
-  /// Módulos prendidos (claves de src/app/(app)/modulos.ts). Vacío = los de siempre.
-  modulos       String[]        @default([])
-  creadoEn      DateTime        @default(now())
-  torres        Torre[]
-  unidades      Unidad[]
-  configuracion Configuracion?
-  liquidaciones Liquidacion[]
-  rubros        Rubro[]
-  espacios      Espacio[]
-  comunicados   Comunicado[]
-  fichas        FichaContacto[]
-  contactos     Contacto[]
-  polizas       Poliza[]
-  solicitudes   Solicitud[]
-  emergencias   Emergencia[]
-  pedidosAcceso PedidoAcceso[]
-  membresias    Membresia[]
+  id              String          @id @default(cuid())
+  nombre          String
+  direccion       String          @default("")
+  estado          EstadoEdificio  @default(ACTIVO)
+  /// Módulos prendidos (rutas de src/app/(app)/modulos.ts). Vacío = todos.
+  modulos         String[]        @default([])
+  creadoEn        DateTime        @default(now())
+  /// Alta pedida por un administrador; la revisa el dueño del sistema (decisión 86).
+  solicitadoPorId String?
+  solicitadoPor   User?           @relation("EdificioSolicitadoPor", fields: [solicitadoPorId], references: [id])
+  revisadoPorId   String?
+  revisadoPor     User?           @relation("EdificioRevisadoPor", fields: [revisadoPorId], references: [id])
+  revisadoEn      DateTime?
+  motivoRechazo   String?
+  torres          Torre[]
+  unidades        Unidad[]
+  configuracion   Configuracion?
+  liquidaciones   Liquidacion[]
+  rubros          Rubro[]
+  espacios        Espacio[]
+  comunicados     Comunicado[]
+  fichas          FichaContacto[]
+  contactos       Contacto[]
+  polizas         Poliza[]
+  solicitudes     Solicitud[]
+  emergencias     Emergencia[]
+  pedidosAcceso   PedidoAcceso[]
+  membresias      Membresia[]
 
   @@map("edificio")
 }

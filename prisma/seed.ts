@@ -206,6 +206,19 @@ async function sembrarRambla() {
   // Administradora de los dos edificios (para elegir con cuál trabajar).
   const admin2 = await crearUsuario("Administradora de Dos Edificios", "admin.dos@example.com", "ADMINISTRACION");
   await db.membresia.create({ data: { userId: admin2, edificioId: EDIFICIO_RAMBLA, rol: "ADMINISTRACION" } });
+  // Dueño del sistema (aprueba los edificios nuevos), Administración de Rambla.
+  const dueno = await crearUsuario("Dueño del Sistema", "dueno@example.com", "ADMINISTRACION", EDIFICIO_RAMBLA);
+  await db.user.update({ where: { id: dueno }, data: { duenoSistema: true } });
+  // Rambla tiene piscina (informativa).
+  await db.espacio.create({
+    data: {
+      edificioId: EDIFICIO_RAMBLA,
+      nombre: "Piscina",
+      tipo: "PISCINA",
+      orden: 1,
+      descripcion: "Abierta de diciembre a marzo, todos los días de 10 a 20 h.\n\nDucharse antes de entrar. Menores de 12 años, con un adulto.",
+    },
+  });
   // Vecina con apartamento en los dos edificios.
   const ana = { nombre: "Ana Dos Edificios", email: "ana.dos.edificios@example.com", telefono: "099000123" };
   const anaId = await crearUsuario(ana.nombre, ana.email, "UNIDAD");
@@ -214,7 +227,7 @@ async function sembrarRambla() {
   for (const u of [enPrincipal, enRambla]) {
     await db.persona.create({ data: { unidadId: u.id, calidad: "PROPIETARIO", ...ana, userId: anaId, datosConfirmadosEn: new Date(), altaEn: ALTA } });
   }
-  return `Edificio Rambla: 5 unidades; ${ana.email} tiene apartamento en los dos edificios y admin.dos@example.com administra los dos.`;
+  return `Edificio Rambla: 5 unidades; ${ana.email} tiene apartamento en los dos edificios y admin.dos@example.com administra los dos; dueno@example.com es el dueño del sistema.`;
 }
 
 main()
