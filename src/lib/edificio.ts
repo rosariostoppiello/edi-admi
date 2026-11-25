@@ -1,8 +1,6 @@
 import { formatearCodigo, type Sufijo } from "@/dominio/codigos";
 import type { Calidad, Rol } from "@/dominio/permisos";
 
-export const NOMBRE_COMPLEJO = process.env.EDIFICIO_NOMBRE ?? "Complejo";
-
 /** Sufijo de la línea de liquidación que le corresponde a una persona. */
 export function sufijoDePersona(arrendada: boolean, calidad: Calidad): Sufijo {
   if (!arrendada) return "A";
@@ -25,11 +23,7 @@ export const NOMBRE_ROL: Record<Rol, string> = {
   UNIDAD: "Unidad",
 };
 
-/** Color de marca de cada torre (código → variable CSS). Ver docs/design.md. */
-export const COLOR_TORRE: Record<number, string> = {
-  2: "var(--torre-avenue)",
-  3: "var(--torre-sky)",
-  4: "var(--torre-pilay)",
-  5: "var(--torre-ne)",
-  6: "var(--torre-garajes)",
-};
+/** Color de marca de una torre (guardado en la torre, docs/design.md); sin color, gris. */
+export function colorTorre(color: string | null | undefined): string {
+  return color || "var(--torre-garajes)";
+}

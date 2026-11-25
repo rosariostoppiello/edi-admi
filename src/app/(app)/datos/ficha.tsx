@@ -8,7 +8,7 @@ import { formatearCodigo } from "@/dominio/codigos";
 import { obtenerFicha, ventaPendiente } from "@/servidor/datos";
 import { formatearFecha } from "@/dominio/liquidacion/periodo";
 import { tieneContrasena } from "@/servidor/invitaciones";
-import { COLOR_TORRE } from "@/lib/edificio";
+import { colorTorre } from "@/lib/edificio";
 import {
   accionAgregarDestinatario,
   accionAltaInquilino,
@@ -73,7 +73,7 @@ export async function Ficha({
   if (!ficha) notFound();
   const { unidad, personas, destinatarios, usuario, vinculo } = ficha;
 
-  const torre = unidad.torre.codigo;
+  const torre = unidad.torre.numero;
   const codigo = (sufijo: "A" | "P" | "I") => formatearCodigo({ torre, numero: unidad.numero, sufijo });
   const dueno = personas.find((p) => esDueno(p.calidad));
   const inquilino = personas.find((p) => p.calidad === "INQUILINO");
@@ -135,7 +135,7 @@ export async function Ficha({
           {TIPO[unidad.tipo]} {unidad.numero}
         </h1>
         <span className="flex items-center gap-2 text-pizarra-suave">
-          <span aria-hidden="true" className="inline-block size-3 rounded-full" style={{ background: COLOR_TORRE[torre] }} />
+          <span aria-hidden="true" className="inline-block size-3 rounded-full" style={{ background: colorTorre(unidad.torre.color) }} />
           Torre {unidad.torre.nombre}
         </span>
       </div>

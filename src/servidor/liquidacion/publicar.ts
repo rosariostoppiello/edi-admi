@@ -6,7 +6,6 @@ import { destinatariosPorUnidad } from "../datos";
 import { enviarMail } from "../mail";
 import { exigirPermiso } from "../sesion";
 import { error, erroresDeZod, ok, type Resultado } from "../resultado";
-import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 import { formatearPesos, type Centesimos } from "@/dominio/dinero";
 import { formatearFecha, nombreMes, periodoEnFrase, vencimiento } from "@/dominio/liquidacion/periodo";
 import { textoSchema } from "@/dominio/liquidacion/esquemas";
@@ -23,10 +22,10 @@ export interface Destino {
 }
 
 /** A quién le llega la liquidación: cada mail una sola vez, con sus líneas. */
-async function destinos(lineas: { unidadId: string; sufijo: string; codigo: string; saldoAPagar: number }[]): Promise<Destino[]> {
+async function destinos(edificioId: string, lineas: { unidadId: string; sufijo: string; codigo: string; saldoAPagar: number }[]): Promise<Destino[]> {
   const porLinea = new Map(lineas.map((l) => [`${l.unidadId}|${l.sufijo}`, l]));
   const porMail = new Map<string, Destino>();
-  for (const u of await destinatariosPorUnidad()) {
+  for (const u of await destinatariosPorUnidad(edificioId)) {
     for (const d of u.destinatarios) {
       const l = porLinea.get(`${u.unidadId}|${d.sufijo}`);
       if (!l) continue;
@@ -40,16 +39,16 @@ async function destinos(lineas: { unidadId: string; sufijo: string; codigo: stri
 
 /** Cuántos mails saldrían al publicar (para la confirmación). */
 export async function contarDestinatarios(liquidacionId: string) {
-  await exigirPermiso("liquidacion.publicar");
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId } });
+  const usuario = await exigirPermiso("liquidacion.publicar");
+  const liq = await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: usuario.edificio.id } });
   if (!liq) return { mails: 0, lineasSinMail: [] as string[] };
   const { lineas } = await calcularBorrador(liq);
-  const d = await destinos(lineas);
+  const d = await destinos(liq.edificioId, lineas);
   const conMail = new Set(d.flatMap((x) => x.lineas.map((l) => l.codigo)));
   return { mails: d.length, lineasSinMail: lineas.filter((l) => !conMail.has(l.codigo)).map((l) => l.codigo) };
 }
 
-function textoMail(periodo: string, dia: number, destino: Destino, rectificada: boolean) {
+function textoMail(periodo: string, dia: number, destino: Destino, rectificada: boolean, edificio: string) {
   const base = process.env.BETTER_AUTH_URL ?? "";
   const lineas = destino.lineas
     .map((l) =>
@@ -73,6 +72,7 @@ function textoMail(periodo: string, dia: number, destino: Destino, rectificada: 
     base ? `También la podés ver en el sistema: ${base}/liquidaciones/${periodo}` : "",
     "",
     "Administración",
+    edificio,
   ].join("\n");
 }
 
@@ -83,13 +83,13 @@ function textoMail(periodo: string, dia: number, destino: Destino, rectificada: 
  */
 export async function publicarLiquidacion(liquidacionId: string): Promise<Resultado & { periodo?: string }> {
   const actor = await exigirPermiso("liquidacion.publicar");
-  const cfg = await configuracion();
+  const cfg = await configuracion(actor.edificio.id);
 
   const r = await db.$transaction(
     async (tx) => {
       await tx.$queryRaw`SELECT id FROM "liquidacion" WHERE id = ${liquidacionId} FOR UPDATE`;
       const liq = await tx.liquidacion.findUnique({ where: { id: liquidacionId } });
-      if (!liq) return error("No encontramos esa liquidación.");
+      if (!liq || liq.edificioId !== actor.edificio.id) return error("No encontramos esa liquidación.");
       if (liq.estado !== "BORRADOR") return error("Esta liquidación ya está publicada.");
 
       const calculo = await calcularBorrador(liq, tx);
@@ -106,14 +106,14 @@ export async function publicarLiquidacion(liquidacionId: string): Promise<Result
         data: { estado: "PUBLICADA", publicadaEn: new Date(), publicadaPorId: actor.userId },
       });
 
-      const armada = (await armarLiquidacion(liquidacionId, tx))!;
-      const pdf = await generarPdf(armada, NOMBRE_COMPLEJO, cfg.direccion);
+      const armada = (await armarLiquidacion(liquidacionId, liq.edificioId, tx))!;
+      const pdf = await generarPdf(armada, actor.edificio.nombre, cfg.direccion);
       const archivo = await tx.archivo.create({
         data: { nombre: nombreArchivoPdf(liq.periodo, "PUBLICADA"), tipo: "application/pdf", tamano: pdf.length, datos: new Uint8Array(pdf) },
       });
       await tx.liquidacion.update({ where: { id: liquidacionId }, data: { pdfId: archivo.id } });
 
-      const lista = await destinos(calculo.lineas);
+      const lista = await destinos(liq.edificioId, calculo.lineas);
       const asunto = `${liq.rectificaId ? "Liquidación rectificada" : "Liquidación"} de gastos comunes de ${nombreMes(liq.periodo)} ${liq.periodo.slice(0, 4)}`;
       await tx.envioMail.createMany({
         data: lista.map((d) => ({ tipo: "liquidacion", refId: liquidacionId, destinatario: d.email, asunto })),
@@ -122,6 +122,7 @@ export async function publicarLiquidacion(liquidacionId: string): Promise<Result
       await registrarAuditoria(
         {
           usuarioId: actor.userId,
+          edificioId: actor.edificio.id,
           accion: "liquidacion.publicada",
           entidad: "liquidacion",
           entidadId: liquidacionId,
@@ -146,13 +147,13 @@ export async function publicarLiquidacion(liquidacionId: string): Promise<Result
 
 /** Manda los mails pendientes (o con error, si `reintentar`) de una liquidación, por lotes. */
 export async function procesarEnvios(liquidacionId: string, reintentar = false) {
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId }, include: { pdf: true } });
+  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId }, include: { pdf: true, edificio: { select: { nombre: true } } } });
   if (!liq || liq.estado !== "PUBLICADA" || !liq.pdf) return { enviados: 0, errores: 0 };
   const pendientes = await db.envioMail.findMany({
     where: { tipo: "liquidacion", refId: liquidacionId, estado: reintentar ? { in: ["PENDIENTE", "ERROR"] } : "PENDIENTE" },
   });
   const lineas = await db.lineaLiquidacion.findMany({ where: { liquidacionId } });
-  const porMail = new Map((await destinos(lineas)).map((d) => [d.email, d]));
+  const porMail = new Map((await destinos(liq.edificioId, lineas)).map((d) => [d.email, d]));
   const adjunto = { nombre: liq.pdf.nombre, tipo: liq.pdf.tipo, contenido: Buffer.from(liq.pdf.datos) };
 
   let enviados = 0;
@@ -165,7 +166,7 @@ export async function procesarEnvios(liquidacionId: string, reintentar = false) 
           await enviarMail({
             para: envio.destinatario,
             asunto: envio.asunto,
-            texto: textoMail(liq.periodo, liq.diaVencimiento, destino, Boolean(liq.rectificaId)),
+            texto: textoMail(liq.periodo, liq.diaVencimiento, destino, Boolean(liq.rectificaId), liq.edificio.nombre),
             adjuntos: [adjunto],
           });
           await db.envioMail.update({
@@ -188,14 +189,18 @@ export async function procesarEnvios(liquidacionId: string, reintentar = false) 
 
 export async function reintentarEnvios(liquidacionId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.publicar");
+  if (!(await db.liquidacion.count({ where: { id: liquidacionId, edificioId: actor.edificio.id } }))) return error("No encontramos esa liquidación.");
   const r = await procesarEnvios(liquidacionId, true);
-  await registrarAuditoria({ usuarioId: actor.userId, accion: "liquidacion.reenvio", entidad: "liquidacion", entidadId: liquidacionId, detalle: r });
+  await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "liquidacion.reenvio", entidad: "liquidacion", entidadId: liquidacionId, detalle: r });
   if (r.enviados + r.errores === 0) return ok("No había mails pendientes.");
   return r.errores ? error(`Se mandaron ${r.enviados}; ${r.errores} siguen con error.`) : ok(`Se mandaron ${r.enviados} mails.`);
 }
 
 export async function estadoEnvios(liquidacionId: string) {
-  await exigirPermiso("liquidacion.publicar");
+  const usuario = await exigirPermiso("liquidacion.publicar");
+  // Lleva mails de destinatarios: solo de liquidaciones del edificio activo.
+  if (!(await db.liquidacion.count({ where: { id: liquidacionId, edificioId: usuario.edificio.id } })))
+    return { enviados: 0, pendientes: 0, errores: 0, conError: [] as { destinatario: string; error: string | null }[] };
   const grupos = await db.envioMail.groupBy({ by: ["estado"], where: { tipo: "liquidacion", refId: liquidacionId }, _count: true });
   const cuenta = Object.fromEntries(grupos.map((g) => [g.estado, g._count])) as Partial<Record<"PENDIENTE" | "ENVIADO" | "ERROR", number>>;
   const conError = await db.envioMail.findMany({
@@ -225,14 +230,14 @@ export async function anularLiquidacion(liquidacionId: string, input: unknown): 
       where: { id: liquidacionId },
       include: { ingresos: true, egresos: true, cargos: true, saldosIniciales: true },
     });
-    if (!liq || liq.estado !== "PUBLICADA") return error("Solo se puede anular una liquidación publicada.");
-    const posterior = await tx.liquidacion.findFirst({ where: { periodo: { gt: liq.periodo }, estado: { not: "ANULADA" } } });
+    if (!liq || liq.edificioId !== actor.edificio.id || liq.estado !== "PUBLICADA") return error("Solo se puede anular una liquidación publicada.");
+    const posterior = await tx.liquidacion.findFirst({ where: { edificioId: liq.edificioId, periodo: { gt: liq.periodo }, estado: { not: "ANULADA" } } });
     if (posterior) {
       return error(
         `Ya existe la liquidación de ${periodoEnFrase(posterior.periodo)}${posterior.estado === "BORRADOR" ? " (en preparación). Eliminá ese borrador" : ". Anulá esa primero"} para poder anular esta.`,
       );
     }
-    if (await tx.liquidacion.findFirst({ where: { estado: "BORRADOR" } })) {
+    if (await tx.liquidacion.findFirst({ where: { edificioId: liq.edificioId, estado: "BORRADOR" } })) {
       return error("Hay otra liquidación en preparación. Eliminala antes de anular esta.");
     }
 
@@ -242,6 +247,7 @@ export async function anularLiquidacion(liquidacionId: string, input: unknown): 
     });
     const nueva = await tx.liquidacion.create({
       data: {
+        edificioId: liq.edificioId,
         periodo: liq.periodo,
         tasaInteresPb: liq.tasaInteresPb,
         tasaFondoReservaPb: liq.tasaFondoReservaPb,
@@ -272,6 +278,7 @@ export async function anularLiquidacion(liquidacionId: string, input: unknown): 
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
+        edificioId: actor.edificio.id,
         accion: "liquidacion.anulada",
         entidad: "liquidacion",
         entidadId: liq.id,

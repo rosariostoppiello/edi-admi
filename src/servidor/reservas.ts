@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
 import { registrarAuditoria } from "./auditoria";
 import { exigirPermiso, exigirUsuario, type UsuarioActual } from "./sesion";
+import { SELECCION_CODIGO } from "./edificios";
 import { unidadActiva } from "./unidad-activa";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { puede } from "@/dominio/permisos";
@@ -34,17 +35,17 @@ const deFecha = (d: Date) => d.toISOString().slice(0, 10);
 // ---------------------------------------------------------------------------
 
 export async function listarEspacios(tipo?: "BARBACOA" | "SOLARIUM" | "LAUNDRY" | "OTRO", { soloActivos = true } = {}) {
-  await exigirPermiso("reserva.ver");
+  const usuario = await exigirPermiso("reserva.ver");
   return db.espacio.findMany({
-    where: { ...(tipo ? { tipo } : {}), ...(soloActivos ? { activo: true } : {}) },
+    where: { edificioId: usuario.edificio.id, ...(tipo ? { tipo } : {}), ...(soloActivos ? { activo: true } : {}) },
     include: { barbacoa: { select: { id: true, nombre: true } } },
     orderBy: [{ orden: "asc" }, { nombre: "asc" }],
   });
 }
 
 export async function obtenerEspacio(id: string) {
-  await exigirPermiso("reserva.ver");
-  return db.espacio.findUnique({ where: { id } });
+  const usuario = await exigirPermiso("reserva.ver");
+  return db.espacio.findFirst({ where: { id, edificioId: usuario.edificio.id } });
 }
 
 export interface Ocupacion {
@@ -66,15 +67,15 @@ export async function ocupacion(desde: string, hasta: string): Promise<Ocupacion
   const veQuien = puede(usuario, "reserva.verQuien");
   const mias = new Set(usuario.unidades.map((u) => u.unidadId));
   const reservas = await db.reserva.findMany({
-    where: { estado: "ACTIVA", fecha: { gte: aFecha(desde), lte: aFecha(hasta) } },
-    select: { espacioId: true, fecha: true, turno: true, unidadId: true, sufijo: true, unidad: { select: { numero: true, torreId: true } } },
+    where: { estado: "ACTIVA", espacio: { edificioId: usuario.edificio.id }, fecha: { gte: aFecha(desde), lte: aFecha(hasta) } },
+    select: { espacioId: true, fecha: true, turno: true, unidadId: true, sufijo: true, unidad: { select: SELECCION_CODIGO } },
   });
   return reservas.map((r) => ({
     espacioId: r.espacioId,
     fecha: deFecha(r.fecha),
     turno: r.turno,
     propia: mias.has(r.unidadId),
-    codigo: veQuien ? formatearCodigo({ torre: r.unidad.torreId, numero: r.unidad.numero, sufijo: r.sufijo }) : undefined,
+    codigo: veQuien ? formatearCodigo({ torre: r.unidad.torre.numero, numero: r.unidad.numero, sufijo: r.sufijo }) : undefined,
   }));
 }
 
@@ -102,12 +103,13 @@ export async function proximasReservas(): Promise<ReservaListada[]> {
   const reservas = await db.reserva.findMany({
     where: {
       estado: "ACTIVA",
+      espacio: { edificioId: usuario.edificio.id },
       fecha: { gte: aFecha(fechaUy(new Date(ahora.getTime() - 24 * 3600 * 1000))) },
       ...(todas ? {} : { unidadId: { in: usuario.unidades.map((u) => u.unidadId) } }),
     },
     include: {
       espacio: { select: { nombre: true, reglas: true } },
-      unidad: { select: { numero: true, torreId: true } },
+      unidad: { select: SELECCION_CODIGO },
       cargos: { where: { liquidacion: { estado: { not: "ANULADA" } } }, select: { id: true } },
     },
     orderBy: [{ fecha: "asc" }, { turno: "asc" }],
@@ -127,7 +129,7 @@ export async function proximasReservas(): Promise<ReservaListada[]> {
         espacio: r.espacio.nombre,
         fecha,
         turno: r.turno,
-        codigo: formatearCodigo({ torre: r.unidad.torreId, numero: r.unidad.numero, sufijo: r.sufijo }),
+        codigo: formatearCodigo({ torre: r.unidad.torre.numero, numero: r.unidad.numero, sufijo: r.sufijo }),
         origen: r.origen,
         pedidaPor: r.pedidaPor,
         puedeCancelar,
@@ -141,9 +143,9 @@ export async function proximasReservas(): Promise<ReservaListada[]> {
 export async function codigosParaReservar(): Promise<string[]> {
   const usuario = await exigirUsuario();
   if (!puede(usuario, "reserva.verQuien")) return [];
-  const unidades = await db.unidad.findMany({ where: { activa: true }, select: { numero: true, arrendada: true, torreId: true } });
+  const unidades = await db.unidad.findMany({ where: { edificioId: usuario.edificio.id, activa: true }, select: { arrendada: true, ...SELECCION_CODIGO } });
   return unidades
-    .flatMap((u) => (u.arrendada ? ["P", "I"] : ["A"]).map((s) => `${u.torreId}-${u.numero}-${s}`))
+    .flatMap((u) => (u.arrendada ? ["P", "I"] : ["A"]).map((s) => `${u.torre.numero}-${u.numero}-${s}`))
     .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
 }
 
@@ -168,8 +170,8 @@ async function destino(usuario: UsuarioActual, codigo: string | null, pedidaPor:
   if (usuario.rol === "ADMINISTRACION" || usuario.rol === "PORTERIA") {
     if (!codigo) return { error: { codigo: "Escribí el código de la unidad que pidió la reserva." } };
     if (usuario.rol === "PORTERIA" && !pedidaPor) return { error: { pedidaPor: "Anotá quién te pidió la reserva." } };
-    const unidades = await db.unidad.findMany({ where: { activa: true }, select: { id: true, numero: true, arrendada: true, torreId: true } });
-    const r = resolverUnidad(codigo, indexarUnidades(unidades.map((u) => ({ unidadId: u.id, torre: u.torreId, numero: u.numero, arrendada: u.arrendada }))));
+    const unidades = await db.unidad.findMany({ where: { edificioId: usuario.edificio.id, activa: true }, select: { id: true, arrendada: true, ...SELECCION_CODIGO } });
+    const r = resolverUnidad(codigo, indexarUnidades(unidades.map((u) => ({ unidadId: u.id, torre: u.torre.numero, numero: u.numero, arrendada: u.arrendada }))));
     if ("error" in r) return { error: { codigo: r.error! } };
     return {
       unidadId: r.unidad.unidadId,
@@ -198,7 +200,7 @@ export async function reservar(input: unknown): Promise<Resultado & { reservaId?
       // Bloquea la unidad: dos reservas simultáneas de la misma unidad no saltean el máximo.
       await tx.$queryRaw`SELECT id FROM "unidad" WHERE id = ${d.unidadId} FOR UPDATE`;
       const espacio = await tx.espacio.findUnique({ where: { id: espacioId } });
-      if (!espacio || !espacio.activo || espacio.tipo !== "BARBACOA") return error("Esa barbacoa no se puede reservar.");
+      if (!espacio || espacio.edificioId !== usuario.edificio.id || !espacio.activo || espacio.tipo !== "BARBACOA") return error("Esa barbacoa no se puede reservar.");
       const reglas = leerReglas(espacio.reglas);
       const ahora = new Date();
       const activas = await activasDeLaUnidad(tx, d.unidadId, ahora);
@@ -209,7 +211,7 @@ export async function reservar(input: unknown): Promise<Resultado & { reservaId?
         data: { espacioId, fecha: aFecha(fecha), turno, unidadId: d.unidadId, sufijo: d.sufijo, creadaPorId: usuario.userId, origen: d.origen, pedidaPor: d.pedidaPor },
       });
       await registrarAuditoria(
-        { usuarioId: usuario.userId, accion: "reserva.creada", entidad: "reserva", entidadId: r.id, detalle: { espacio: espacio.nombre, fecha, turno, origen: d.origen } },
+        { usuarioId: usuario.userId, edificioId: usuario.edificio.id, accion: "reserva.creada", entidad: "reserva", entidadId: r.id, detalle: { espacio: espacio.nombre, fecha, turno, origen: d.origen } },
         tx,
       );
       return { ...ok(`Reservaste ${espacio.nombre} el ${fechaEnFrase(fecha)}, turno ${DATOS_TURNO[turno].nombre.toLowerCase()} (${DATOS_TURNO[turno].horario}).`), reservaId: r.id };
@@ -257,7 +259,7 @@ export async function cancelar(reservaId: string): Promise<Resultado> {
     }
     await tx.reserva.update({ where: { id: reservaId }, data: { estado: "CANCELADA", canceladaPorId: usuario.userId, canceladaEn: ahora } });
     await registrarAuditoria(
-      { usuarioId: usuario.userId, accion: "reserva.cancelada", entidad: "reserva", entidadId: reservaId, detalle: { fecha, turno: reserva.turno, enPlazo } },
+      { usuarioId: usuario.userId, edificioId: usuario.edificio.id, accion: "reserva.cancelada", entidad: "reserva", entidadId: reservaId, detalle: { fecha, turno: reserva.turno, enPlazo } },
       tx,
     );
     return ok(`Cancelaste la reserva de ${reserva.espacio.nombre} del ${fechaEnFrase(fecha)}.`);
@@ -295,13 +297,14 @@ export async function guardarEspacio(espacioId: string, input: unknown): Promise
 
   return db.$transaction(async (tx) => {
     const antes = await tx.espacio.findUnique({ where: { id: espacioId } });
-    if (!antes) return error("No encontramos ese espacio.");
-    const repetido = await tx.espacio.findFirst({ where: { nombre: datos.nombre, id: { not: espacioId } } });
+    if (!antes || antes.edificioId !== actor.edificio.id) return error("No encontramos ese espacio.");
+    const repetido = await tx.espacio.findFirst({ where: { edificioId: actor.edificio.id, nombre: datos.nombre, id: { not: espacioId } } });
     if (repetido) return error("Revisá los datos marcados.", { nombre: "Ya hay un espacio con ese nombre." });
     await tx.espacio.update({ where: { id: espacioId }, data: { ...datos, reglas: reglas.data } });
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
+        edificioId: actor.edificio.id,
         accion: "espacio.modificado",
         entidad: "espacio",
         entidadId: espacioId,
@@ -329,15 +332,19 @@ export async function crearEspacio(input: unknown): Promise<Resultado> {
   if (d.tipo === "SOLARIUM" && !d.barbacoaId) return error("Revisá los datos marcados.", { barbacoaId: "Elegí la barbacoa a la que está atado el solarium." });
 
   return db.$transaction(async (tx) => {
-    if (await tx.espacio.findUnique({ where: { nombre: d.nombre } })) return error("Revisá los datos marcados.", { nombre: "Ya hay un espacio con ese nombre." });
+    const edificioId = actor.edificio.id;
+    if (await tx.espacio.findFirst({ where: { edificioId, nombre: d.nombre } })) return error("Revisá los datos marcados.", { nombre: "Ya hay un espacio con ese nombre." });
     if (d.barbacoaId) {
       const b = await tx.espacio.findUnique({ where: { id: d.barbacoaId }, include: { solarium: true } });
-      if (!b || b.tipo !== "BARBACOA") return error("Revisá los datos marcados.", { barbacoaId: "Esa barbacoa no existe." });
+      if (!b || b.edificioId !== edificioId || b.tipo !== "BARBACOA") return error("Revisá los datos marcados.", { barbacoaId: "Esa barbacoa no existe." });
       if (b.solarium) return error("Revisá los datos marcados.", { barbacoaId: `${b.nombre} ya tiene su solarium.` });
     }
-    const orden = (await tx.espacio.count()) + 1;
+    if (d.torreId !== null && !(await tx.torre.count({ where: { codigo: d.torreId, edificioId } })))
+      return error("Revisá los datos marcados.", { torreId: "Esa torre no existe." });
+    const orden = (await tx.espacio.count({ where: { edificioId } })) + 1;
     const e = await tx.espacio.create({
       data: {
+        edificioId,
         nombre: d.nombre,
         tipo: d.tipo,
         torreId: d.torreId,
@@ -346,12 +353,12 @@ export async function crearEspacio(input: unknown): Promise<Resultado> {
         orden,
       },
     });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "espacio.creado", entidad: "espacio", entidadId: e.id, detalle: { nombre: d.nombre, tipo: d.tipo } }, tx);
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId, accion: "espacio.creado", entidad: "espacio", entidadId: e.id, detalle: { nombre: d.nombre, tipo: d.tipo } }, tx);
     return ok(`Agregaste ${d.nombre}.`);
   });
 }
 
 export async function listarTorres() {
-  await exigirPermiso("reserva.configurarEspacios");
-  return db.torre.findMany({ where: { tipo: "TORRE" }, orderBy: { orden: "asc" } });
+  const usuario = await exigirPermiso("reserva.configurarEspacios");
+  return db.torre.findMany({ where: { edificioId: usuario.edificio.id, tipo: "TORRE" }, orderBy: { orden: "asc" } });
 }

@@ -24,12 +24,12 @@ import { fechaIso, periodoAnterior } from "@/dominio/liquidacion/periodo";
 
 type Cliente = Prisma.TransactionClient | typeof db;
 
-/** Unidades activas con lo necesario para liquidar. */
-export async function unidadesALiquidar(tx: Cliente = db): Promise<UnidadALiquidar[]> {
-  const unidades = await tx.unidad.findMany({ where: { activa: true }, include: { torre: true } });
+/** Unidades activas del edificio con lo necesario para liquidar. */
+export async function unidadesALiquidar(edificioId: string, tx: Cliente = db): Promise<UnidadALiquidar[]> {
+  const unidades = await tx.unidad.findMany({ where: { edificioId, activa: true }, include: { torre: true } });
   return unidades.map((u) => ({
     unidadId: u.id,
-    torre: u.torre.codigo,
+    torre: u.torre.numero,
     torreNombre: u.torre.nombre,
     torreOrden: u.torre.orden,
     numero: u.numero,
@@ -44,17 +44,17 @@ export async function unidadesALiquidar(tx: Cliente = db): Promise<UnidadALiquid
 }
 
 /** Liquidación publicada del período anterior (de donde salen los saldos). */
-export async function publicadaAnterior(periodo: string, tx: Cliente = db) {
-  return tx.liquidacion.findFirst({ where: { periodo: periodoAnterior(periodo), estado: "PUBLICADA" } });
+export async function publicadaAnterior(edificioId: string, periodo: string, tx: Cliente = db) {
+  return tx.liquidacion.findFirst({ where: { edificioId, periodo: periodoAnterior(periodo), estado: "PUBLICADA" } });
 }
 
 /** ¿Hay alguna liquidación publicada (o anulada) antes de este período? Si no, es la primera. */
-export async function esPrimera(periodo: string, tx: Cliente = db) {
-  return (await tx.liquidacion.count({ where: { periodo: { lt: periodo }, estado: "PUBLICADA" } })) === 0;
+export async function esPrimera(edificioId: string, periodo: string, tx: Cliente = db) {
+  return (await tx.liquidacion.count({ where: { edificioId, periodo: { lt: periodo }, estado: "PUBLICADA" } })) === 0;
 }
 
-export async function saldosAnteriores(liq: { id: string; periodo: string }, tx: Cliente = db): Promise<MontoDeLinea[]> {
-  const anterior = await publicadaAnterior(liq.periodo, tx);
+export async function saldosAnteriores(liq: { id: string; edificioId: string; periodo: string }, tx: Cliente = db): Promise<MontoDeLinea[]> {
+  const anterior = await publicadaAnterior(liq.edificioId, liq.periodo, tx);
   if (anterior) {
     const lineas = await tx.lineaLiquidacion.findMany({ where: { liquidacionId: anterior.id } });
     return lineas.map((l) => ({ unidadId: l.unidadId, sufijo: l.sufijo, monto: l.saldoAPagar }));
@@ -65,11 +65,11 @@ export async function saldosAnteriores(liq: { id: string; periodo: string }, tx:
 
 /** Calcula las líneas de un borrador con los datos actuales. */
 export async function calcularBorrador(
-  liq: { id: string; periodo: string; tasaInteresPb: number; tasaFondoReservaPb: number },
+  liq: { id: string; edificioId: string; periodo: string; tasaInteresPb: number; tasaFondoReservaPb: number },
   tx: Cliente = db,
 ): Promise<ResultadoLiquidacion> {
   // En serie: dentro de una transacción hay una sola conexión y no admite consultas en paralelo.
-  const unidades = await unidadesALiquidar(tx);
+  const unidades = await unidadesALiquidar(liq.edificioId, tx);
   const saldos = await saldosAnteriores(liq, tx);
   const ingresos = await tx.ingreso.findMany({ where: { liquidacionId: liq.id }, select: { unidadId: true, sufijo: true, monto: true } });
   const cargos = await tx.cargoExtra.findMany({ where: { liquidacionId: liq.id }, select: { unidadId: true, sufijo: true, monto: true, tipo: true } });
@@ -136,9 +136,9 @@ export interface LiquidacionArmada {
  * Si es borrador, las líneas se calculan en el momento; si está publicada o anulada,
  * se usan las líneas guardadas al publicar.
  */
-export async function armarLiquidacion(id: string, tx: Cliente = db): Promise<LiquidacionArmada | null> {
-  const liq = await tx.liquidacion.findUnique({
-    where: { id },
+export async function armarLiquidacion(id: string, edificioId: string, tx: Cliente = db): Promise<LiquidacionArmada | null> {
+  const liq = await tx.liquidacion.findFirst({
+    where: { id, edificioId },
     include: {
       egresos: { include: { rubro: true }, orderBy: [{ fecha: "asc" }, { createdAt: "asc" }] },
       lineas: { orderBy: { orden: "asc" } },
@@ -175,14 +175,14 @@ export async function armarLiquidacion(id: string, tx: Cliente = db): Promise<Li
     calculo = { lineas, totales: totalizar(lineas), sinUbicar: [] };
   }
 
-  const rubros = await tx.rubro.findMany();
+  const rubros = await tx.rubro.findMany({ where: { edificioId } });
   const resumen = resumirEgresos(rubros, liq.egresos);
   const disponibilidades = leerDisponibilidades(liq.disponibilidades);
 
   const identificados = liq.depositosIdentificados
     .filter((d) => d.ingreso)
     .map((d) => ({
-      codigo: formatearCodigo({ torre: d.ingreso!.unidad.torre.codigo, numero: d.ingreso!.unidad.numero, sufijo: d.ingreso!.sufijo as Sufijo }),
+      codigo: formatearCodigo({ torre: d.ingreso!.unidad.torre.numero, numero: d.ingreso!.unidad.numero, sufijo: d.ingreso!.sufijo as Sufijo }),
       monto: d.monto,
     }));
   const cuenta = calcularCuenta(disponibilidades, {
@@ -195,7 +195,7 @@ export async function armarLiquidacion(id: string, tx: Cliente = db): Promise<Li
 
   // Depósitos sin identificar al cierre del período.
   const depositos = await tx.depositoNoIdentificado.findMany({
-    where: { cargadoEn: { periodo: { lte: liq.periodo }, estado: { not: "ANULADA" } } },
+    where: { cargadoEn: { edificioId, periodo: { lte: liq.periodo }, estado: { not: "ANULADA" } } },
     include: { identificadoEn: { select: { periodo: true } } },
     orderBy: { fecha: "asc" },
   });
@@ -235,9 +235,9 @@ export async function armarLiquidacion(id: string, tx: Cliente = db): Promise<Li
   };
 }
 
-export async function configuracion(tx: Cliente = db) {
+export async function configuracion(edificioId: string, tx: Cliente = db) {
   return (
-    (await tx.configuracion.findUnique({ where: { id: 1 } })) ??
-    (await tx.configuracion.create({ data: { id: 1 } }))
+    (await tx.configuracion.findUnique({ where: { edificioId } })) ??
+    (await tx.configuracion.create({ data: { edificioId } }))
   );
 }

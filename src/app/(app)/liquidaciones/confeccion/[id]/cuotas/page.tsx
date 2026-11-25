@@ -27,7 +27,7 @@ export default async function PaginaCuotas() {
           <li key={u.id}>
             <FilaCuotas
               accion={accionGuardarCuotas.bind(null, u.id)}
-              codigo={codigoBase(u.torre.codigo, u.numero)}
+              codigo={codigoBase(u.torre.numero, u.numero)}
               descripcion={`${TIPO[u.tipo]} en ${u.torre.nombre}${u.arrendada ? ", alquilada" : ""}`}
               valores={{ gcUnidad: u.gcUnidad, gcPropietario: u.gcPropietario, gcGaraje: u.gcGaraje, cuotaExtraFr: u.cuotaExtraFr, garajeACargoDe: u.garajeACargoDe, arrendada: u.arrendada }}
             />

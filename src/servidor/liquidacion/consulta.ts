@@ -3,7 +3,6 @@ import { db } from "../db";
 import { exigirPermiso, type UsuarioActual } from "../sesion";
 import { puede } from "@/dominio/permisos";
 import { esDueno } from "@/dominio/personas";
-import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 import { armarLiquidacion, configuracion } from "./armado";
 import { generarPdf, nombreArchivoPdf } from "./pdf";
 
@@ -31,14 +30,14 @@ export async function listarLiquidaciones() {
   const usuario = await exigirPermiso("liquidacion.ver");
   const veAnuladas = puede(usuario, "liquidacion.verConsolidado");
   const liquidaciones = await db.liquidacion.findMany({
-    where: { estado: veAnuladas ? { in: ["PUBLICADA", "ANULADA"] } : "PUBLICADA" },
+    where: { edificioId: usuario.edificio.id, estado: veAnuladas ? { in: ["PUBLICADA", "ANULADA"] } : "PUBLICADA" },
     orderBy: [{ periodo: "desc" }, { createdAt: "desc" }],
     select: { id: true, periodo: true, estado: true, publicadaEn: true, rectificaId: true, motivoAnulacion: true },
   });
   const filtro = await filtroLineasPropias(usuario);
   const propias = filtro
     ? await db.lineaLiquidacion.findMany({
-        where: { OR: filtro, liquidacion: { estado: "PUBLICADA" } },
+        where: { OR: filtro, liquidacion: { edificioId: usuario.edificio.id, estado: "PUBLICADA" } },
         select: { liquidacionId: true, codigo: true, saldoAPagar: true },
         orderBy: { orden: "asc" },
       })
@@ -51,8 +50,8 @@ export async function verLiquidacion(periodo: string, liquidacionId?: string) {
   const usuario = await exigirPermiso("liquidacion.ver");
   const veConsolidado = puede(usuario, "liquidacion.verConsolidado");
   const liq = liquidacionId
-    ? await db.liquidacion.findFirst({ where: { id: liquidacionId, periodo, estado: veConsolidado ? { in: ["PUBLICADA", "ANULADA"] } : "PUBLICADA" } })
-    : await db.liquidacion.findFirst({ where: { periodo, estado: "PUBLICADA" } });
+    ? await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: usuario.edificio.id, periodo, estado: veConsolidado ? { in: ["PUBLICADA", "ANULADA"] } : "PUBLICADA" } })
+    : await db.liquidacion.findFirst({ where: { edificioId: usuario.edificio.id, periodo, estado: "PUBLICADA" } });
   if (!liq) return null;
 
   const filtro = await filtroLineasPropias(usuario);
@@ -60,15 +59,15 @@ export async function verLiquidacion(periodo: string, liquidacionId?: string) {
     ? await db.lineaLiquidacion.findMany({ where: { liquidacionId: liq.id, OR: filtro }, orderBy: { orden: "asc" } })
     : [];
   // El consolidado (todas las unidades) solo para Administración y Comisión.
-  const armada = veConsolidado ? await armarLiquidacion(liq.id) : null;
+  const armada = veConsolidado ? await armarLiquidacion(liq.id, usuario.edificio.id) : null;
   return { liquidacion: liq, propias, armada, usuario };
 }
 
 /** La última liquidación publicada (la rectificada, si hubo anulación). */
 export async function verUltima() {
-  await exigirPermiso("liquidacion.ver");
+  const usuario = await exigirPermiso("liquidacion.ver");
   const ultima = await db.liquidacion.findFirst({
-    where: { estado: "PUBLICADA" },
+    where: { edificioId: usuario.edificio.id, estado: "PUBLICADA" },
     orderBy: [{ periodo: "desc" }, { publicadaEn: "desc" }],
     select: { id: true, periodo: true },
   });
@@ -82,16 +81,16 @@ export async function verUltima() {
  */
 export async function obtenerPdf(liquidacionId: string): Promise<{ nombre: string; datos: Buffer } | null> {
   const usuario = await exigirPermiso("liquidacion.ver");
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId }, include: { pdf: true } });
+  const liq = await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: usuario.edificio.id }, include: { pdf: true } });
   if (!liq) return null;
   if (liq.estado === "BORRADOR" && !puede(usuario, "liquidacion.confeccionar")) return null;
   if (liq.estado === "ANULADA" && !puede(usuario, "liquidacion.verConsolidado")) return null;
 
   if (liq.estado === "PUBLICADA" && liq.pdf) return { nombre: liq.pdf.nombre, datos: Buffer.from(liq.pdf.datos) };
 
-  const armada = (await armarLiquidacion(liq.id))!;
-  const cfg = await configuracion();
-  const datos = await generarPdf(armada, NOMBRE_COMPLEJO, cfg.direccion);
+  const armada = (await armarLiquidacion(liq.id, usuario.edificio.id))!;
+  const cfg = await configuracion(usuario.edificio.id);
+  const datos = await generarPdf(armada, usuario.edificio.nombre, cfg.direccion);
   const nombre = nombreArchivoPdf(liq.periodo, liq.estado);
   if (liq.estado === "PUBLICADA") {
     // Publicada sin PDF guardado (ej. datos de ejemplo): se guarda para la próxima.

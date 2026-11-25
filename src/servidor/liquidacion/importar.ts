@@ -24,8 +24,8 @@ export const MAX_BYTES = 3 * 1024 * 1024;
 export type TipoPlanilla = "INGRESOS" | "SALDOS_INICIALES" | "EGRESOS";
 
 /** Rubros activos; solo los que no tienen hijos reciben egresos. */
-async function rubrosConocidos(tx: Pick<typeof db, "rubro"> = db) {
-  const rubros = await tx.rubro.findMany({ where: { activo: true }, select: { id: true, codigo: true, nombre: true, padreId: true } });
+async function rubrosConocidos(edificioId: string, tx: Pick<typeof db, "rubro"> = db) {
+  const rubros = await tx.rubro.findMany({ where: { edificioId, activo: true }, select: { id: true, codigo: true, nombre: true, padreId: true } });
   const conHijos = new Set(rubros.map((r) => r.padreId).filter(Boolean));
   return rubros.map((r) => ({ id: r.id, codigo: r.codigo, nombre: r.nombre, hoja: !conHijos.has(r.id) }));
 }
@@ -71,9 +71,9 @@ export async function subirPlanilla(
   if (!(archivo instanceof File) || archivo.size === 0) return error("Elegí la planilla (.xlsx o .csv).");
   if (archivo.size > MAX_BYTES) return error("La planilla pesa más de 3 MB. Dividila en partes.");
 
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId } });
+  const liq = await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: actor.edificio.id } });
   if (!liq || liq.estado !== "BORRADOR") return error("Esta liquidación ya no se puede modificar.");
-  if (tipo === "SALDOS_INICIALES" && !(await esPrimera(liq.periodo))) {
+  if (tipo === "SALDOS_INICIALES" && !(await esPrimera(liq.edificioId, liq.periodo))) {
     return error("Los saldos iniciales solo se cargan en la primera liquidación. Las siguientes toman el saldo del mes anterior.");
   }
 
@@ -85,13 +85,13 @@ export async function subirPlanilla(
     return error("No pudimos leer la planilla. Guardala de nuevo como .xlsx y volvé a subirla.");
   }
 
-  const unidades = await unidadesConocidas();
+  const unidades = await unidadesConocidas(liq.edificioId);
   let r: ResultadoImportacion;
   if (tipo === "EGRESOS") {
     const existentes = await db.egreso.findMany({ where: { liquidacionId }, select: { rubroId: true, fecha: true, proveedor: true, monto: true } });
     r = validarEgresos(celdas, {
       periodo: liq.periodo,
-      rubros: await rubrosConocidos(),
+      rubros: await rubrosConocidos(liq.edificioId),
       existentes: existentes.map((x) => ({ ...x, fecha: fechaIso(x.fecha) })),
     });
   } else if (tipo === "INGRESOS") {
@@ -124,8 +124,8 @@ export async function subirPlanilla(
 }
 
 export async function importacionPendiente(liquidacionId: string, tipo: TipoPlanilla) {
-  await exigirPermiso("liquidacion.confeccionar");
-  const imp = await db.importacion.findFirst({ where: { liquidacionId, tipo, estado: "PENDIENTE" }, orderBy: { createdAt: "desc" } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const imp = await db.importacion.findFirst({ where: { liquidacionId, liquidacion: { edificioId: usuario.edificio.id }, tipo, estado: "PENDIENTE" }, orderBy: { createdAt: "desc" } });
   if (!imp) return null;
   const filas = imp.filas as unknown as FilaImportada[];
   return {
@@ -138,8 +138,8 @@ export async function importacionPendiente(liquidacionId: string, tipo: TipoPlan
 }
 
 export async function descartarImportacion(liquidacionId: string, importacionId: string): Promise<Resultado> {
-  await exigirPermiso("liquidacion.confeccionar");
-  await db.importacion.updateMany({ where: { id: importacionId, liquidacionId, estado: "PENDIENTE" }, data: { estado: "DESCARTADA" } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  await db.importacion.updateMany({ where: { id: importacionId, liquidacionId, liquidacion: { edificioId: usuario.edificio.id }, estado: "PENDIENTE" }, data: { estado: "DESCARTADA" } });
   return ok("Descartaste la planilla. No se cargó nada.");
 }
 
@@ -152,7 +152,7 @@ export async function confirmarImportacion(liquidacionId: string, importacionId:
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "liquidacion" WHERE id = ${liquidacionId} FOR UPDATE`;
     const liq = await tx.liquidacion.findUnique({ where: { id: liquidacionId } });
-    if (!liq || liq.estado !== "BORRADOR") return error("Esta liquidación ya no se puede modificar.");
+    if (!liq || liq.edificioId !== actor.edificio.id || liq.estado !== "BORRADOR") return error("Esta liquidación ya no se puede modificar.");
     const imp = await tx.importacion.findFirst({ where: { id: importacionId, liquidacionId, estado: "PENDIENTE" } });
     if (!imp) return error("Esa planilla ya se confirmó o se descartó.");
     if (imp.errores > 0) return error("La planilla tiene errores. Corregilos y subila de nuevo.");
@@ -160,12 +160,12 @@ export async function confirmarImportacion(liquidacionId: string, importacionId:
     const filas = imp.filas as unknown as FilaImportada[];
     if (imp.tipo === "EGRESOS") {
       // Los rubros pudieron cambiar desde que se subió: se revalida.
-      const hojas = new Set((await rubrosConocidos(tx)).filter((r) => r.hoja).map((r) => r.id));
+      const hojas = new Set((await rubrosConocidos(liq.edificioId, tx)).filter((r) => r.hoja).map((r) => r.id));
       const cambiado = filas.find((f) => !hojas.has(f.rubroId!));
       if (cambiado) return error(`El rubro ${cambiado.codigo} cambió desde que subiste la planilla. Subila de nuevo.`);
     } else {
       // Las unidades pudieron cambiar (A ↔ P+I) desde que se subió: se revalida.
-      const vigentes = new Map((await unidadesConocidas(tx)).map((u) => [u.unidadId, u]));
+      const vigentes = new Map((await unidadesConocidas(liq.edificioId, tx)).map((u) => [u.unidadId, u]));
       for (const f of filas) {
         const u = vigentes.get(f.unidadId!);
         if (!u || (u.arrendada ? f.sufijo === "A" : f.sufijo !== "A")) {
@@ -211,6 +211,7 @@ export async function confirmarImportacion(liquidacionId: string, importacionId:
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
+        edificioId: actor.edificio.id,
         accion: { INGRESOS: "ingresos.importados", EGRESOS: "egresos.importados", SALDOS_INICIALES: "saldos_iniciales.importados" }[imp.tipo],
         entidad: "liquidacion",
         entidadId: liquidacionId,
@@ -230,7 +231,7 @@ export async function confirmarImportacion(liquidacionId: string, importacionId:
 }
 
 export async function resumenSaldosIniciales(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
-  const r = await db.saldoInicial.aggregate({ where: { liquidacionId }, _count: true, _sum: { monto: true } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const r = await db.saldoInicial.aggregate({ where: { liquidacionId, liquidacion: { edificioId: usuario.edificio.id } }, _count: true, _sum: { monto: true } });
   return { cantidad: r._count, total: r._sum.monto ?? 0 };
 }

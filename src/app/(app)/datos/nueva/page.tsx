@@ -7,8 +7,8 @@ import { FormNuevaUnidad } from "./form";
 export const metadata: Metadata = { title: "Nueva unidad" };
 
 export default async function PaginaNuevaUnidad() {
-  await exigirPermiso("unidades.administrar");
-  const torres = await db.torre.findMany({ orderBy: { orden: "asc" } });
+  const usuario = await exigirPermiso("unidades.administrar");
+  const torres = await db.torre.findMany({ where: { edificioId: usuario.edificio.id }, orderBy: { orden: "asc" } });
   return (
     <>
       <Volver href="/datos/unidades" texto="Todas las unidades" />
@@ -17,7 +17,7 @@ export default async function PaginaNuevaUnidad() {
         Toda unidad tiene que tener un responsable (propietario o promitente comprador). Le mandamos un mail
         para que cree su contraseña.
       </p>
-      <FormNuevaUnidad torres={torres.map((t) => ({ codigo: t.codigo, nombre: t.nombre }))} />
+      <FormNuevaUnidad torres={torres.map((t) => ({ codigo: t.codigo, numero: t.numero, nombre: t.nombre }))} />
     </>
   );
 }

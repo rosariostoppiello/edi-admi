@@ -15,6 +15,7 @@ import { limpiarReservas, sembrarReservas } from "./seed-reservas";
 import { sembrarSolicitudes } from "./seed-solicitudes";
 import { limpiarComunicados, sembrarComunicados } from "./seed-comunicados";
 import { limpiarTelefonos, sembrarTelefonos } from "./seed-telefonos";
+import { EDIFICIO, EDIFICIO_RAMBLA } from "./seed-edificio";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
@@ -89,14 +90,17 @@ async function main() {
   await db.account.deleteMany();
   await db.verification.deleteMany();
   await db.user.deleteMany();
+  await db.edificio.deleteMany();
 
+  await db.edificio.create({ data: { id: EDIFICIO, nombre: process.env.EDIFICIO_NOMBRE || "Complejo", direccion: "Av. de Ejemplo 1234, Montevideo" } });
+  // El código interno de la torre coincide con su número en el edificio principal.
   await db.torre.createMany({
     data: [
-      { codigo: 2, nombre: "Avenue", orden: 1 },
-      { codigo: 3, nombre: "Sky", orden: 2 },
-      { codigo: 4, nombre: "Pilay", orden: 3 },
-      { codigo: 5, nombre: "NE", orden: 4 },
-      { codigo: 6, nombre: "Garajes", tipo: "SECTOR", orden: 5 },
+      { edificioId: EDIFICIO, codigo: 2, numero: 2, nombre: "Avenue", color: "var(--torre-avenue)", orden: 1 },
+      { edificioId: EDIFICIO, codigo: 3, numero: 3, nombre: "Sky", color: "var(--torre-sky)", orden: 2 },
+      { edificioId: EDIFICIO, codigo: 4, numero: 4, nombre: "Pilay", color: "var(--torre-pilay)", orden: 3 },
+      { edificioId: EDIFICIO, codigo: 5, numero: 5, nombre: "NE", color: "var(--torre-ne)", orden: 4 },
+      { edificioId: EDIFICIO, codigo: 6, numero: 6, nombre: "Garajes", color: "var(--torre-garajes)", tipo: "SECTOR", orden: 5 },
     ],
   });
 
@@ -113,7 +117,7 @@ async function main() {
         const numero = `${piso}0${letra}`;
         const arrendada = indice % 3 === 1; // ~1 de cada 3 alquilada
         const unidad = await db.unidad.create({
-          data: { torreId: torre, numero, arrendada, etiqueta: `Apto ${numero}` },
+          data: { edificioId: EDIFICIO, torreId: torre, numero, arrendada, etiqueta: `Apto ${numero}` },
         });
         const duenio = personaFicticia();
         const calidad: Calidad = indice % 5 === 0 ? "PROMITENTE" : "PROPIETARIO";
@@ -143,7 +147,7 @@ async function main() {
   });
   for (const [i, d] of duenios.entries()) {
     const garaje = await db.unidad.create({
-      data: { torreId: 6, numero: String(i + 1).padStart(3, "0"), tipo: "GARAJE", etiqueta: `Garaje ${i + 1}` },
+      data: { edificioId: EDIFICIO, torreId: 6, numero: String(i + 1).padStart(3, "0"), tipo: "GARAJE", etiqueta: `Garaje ${i + 1}` },
     });
     await db.persona.create({
       data: {
@@ -171,6 +175,7 @@ async function main() {
   console.log(`${await sembrarComunicados(db)} comunicados de ejemplo (avisos, reglamentos y un acta).`);
   await sembrarTelefonos(db);
   console.log("Teléfonos y datos de interés de ejemplo (la póliza vence en 20 días).");
+  console.log(await sembrarRambla());
 
   const [unidades, personas, usuarios] = await Promise.all([
     db.unidad.count(),
@@ -180,6 +185,32 @@ async function main() {
   console.log(`Seed listo: ${unidades} unidades, ${personas} personas, ${usuarios} usuarios.`);
   console.log(`Usuarios de prueba: admin@example.com, porteria@example.com, comision@example.com,`);
   console.log(`y ${primerDuenio.email} (Comisión + propietario). Clave: la de SEED_PASSWORD en .env.`);
+}
+
+/**
+ * Segundo edificio ficticio (decisión 85): una torre que también es la "2", para
+ * comprobar que los códigos 2-101 de un edificio no se mezclan con los del otro.
+ * Una vecina tiene apartamento en los dos edificios.
+ */
+async function sembrarRambla() {
+  await db.edificio.create({ data: { id: EDIFICIO_RAMBLA, nombre: "Edificio Rambla", direccion: "Rambla de Ejemplo 500, Montevideo" } });
+  const torre = await db.torre.create({ data: { edificioId: EDIFICIO_RAMBLA, numero: 2, nombre: "Única", color: "var(--torre-sky)", orden: 1 } });
+  await db.configuracion.create({ data: { edificioId: EDIFICIO_RAMBLA, direccion: "Rambla de Ejemplo 500, Montevideo" } });
+  for (const numero of ["101", "102", "201", "202"]) {
+    const u = await db.unidad.create({ data: { edificioId: EDIFICIO_RAMBLA, torreId: torre.codigo, numero, etiqueta: `Apto ${numero}` } });
+    const d = personaFicticia();
+    const userId = await crearUsuario(d.nombre, d.email, "UNIDAD");
+    await db.persona.create({ data: { unidadId: u.id, calidad: "PROPIETARIO", ...d, userId, datosConfirmadosEn: new Date(), altaEn: ALTA } });
+  }
+  // Vecina con apartamento en los dos edificios.
+  const ana = { nombre: "Ana Dos Edificios", email: "ana.dos.edificios@example.com", telefono: "099000123" };
+  const anaId = await crearUsuario(ana.nombre, ana.email, "UNIDAD");
+  const enPrincipal = await db.unidad.create({ data: { edificioId: EDIFICIO, torreId: 5, numero: "601", etiqueta: "Apto 601" } });
+  const enRambla = await db.unidad.create({ data: { edificioId: EDIFICIO_RAMBLA, torreId: torre.codigo, numero: "301", etiqueta: "Apto 301" } });
+  for (const u of [enPrincipal, enRambla]) {
+    await db.persona.create({ data: { unidadId: u.id, calidad: "PROPIETARIO", ...ana, userId: anaId, datosConfirmadosEn: new Date(), altaEn: ALTA } });
+  }
+  return `Edificio Rambla: 5 unidades; ${ana.email} tiene apartamento en los dos edificios.`;
 }
 
 main()

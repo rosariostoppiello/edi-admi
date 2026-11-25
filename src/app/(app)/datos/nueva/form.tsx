@@ -36,7 +36,7 @@ function Selector({
   );
 }
 
-export function FormNuevaUnidad({ torres }: { torres: { codigo: number; nombre: string }[] }) {
+export function FormNuevaUnidad({ torres }: { torres: { codigo: number; numero: number; nombre: string }[] }) {
   const [estado, enviar, pendiente] = useActionState<Estado, FormData>(accionCrearUnidad, null);
   const err = estado && !estado.ok ? estado.campos ?? {} : {};
 
@@ -49,7 +49,7 @@ export function FormNuevaUnidad({ torres }: { torres: { codigo: number; nombre: 
           <Selector
             etiqueta="Torre"
             name="torreId"
-            opciones={torres.map((t) => [String(t.codigo), `Torre ${t.codigo} (${t.nombre})`])}
+            opciones={torres.map((t) => [String(t.codigo), `Torre ${t.numero} (${t.nombre})`])}
             error={err.torreId}
           />
           <Campo etiqueta="Número" name="numero" inputMode="numeric" ayuda="Ej. 201, 1002 o 001" error={err.numero} required />

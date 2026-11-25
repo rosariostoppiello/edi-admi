@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Aviso } from "@/componentes/ui/aviso";
 import { Boton } from "@/componentes/ui/boton";
-import { AreaTexto, Campo, Casilla } from "@/componentes/ui/campo";
+import { AreaTexto, Campo, Casilla, Selector } from "@/componentes/ui/campo";
 import { MensajeEstado, useEnvioConservado, type Estado } from "@/componentes/ui/formularios";
 
 type AccionForm = (estado: Estado, fd: FormData) => Promise<Estado>;
@@ -13,7 +13,7 @@ const CALIDADES = [
   ["INQUILINO", "Inquilino"],
 ] as const;
 
-export function FormPedirAcceso({ accion }: { accion: AccionForm }) {
+export function FormPedirAcceso({ accion, edificios }: { accion: AccionForm; edificios: { id: string; nombre: string }[] }) {
   const { estado, alEnviar, pendiente, errores } = useEnvioConservado(accion);
 
   if (estado?.ok) {
@@ -33,6 +33,18 @@ export function FormPedirAcceso({ accion }: { accion: AccionForm }) {
       <Campo etiqueta="Nombre y apellido" name="nombre" autoComplete="name" error={errores.nombre} required />
       <Campo etiqueta="Mail" name="email" type="email" autoComplete="email" inputMode="email" ayuda="Va a ser tu usuario para ingresar." error={errores.email} required />
       <Campo etiqueta="Teléfono" name="telefono" type="tel" autoComplete="tel" inputMode="tel" ayuda="Ej. 099 123 456. Solo lo ve la Administración." error={errores.telefono} required />
+      {edificios.length > 0 && (
+        <Selector etiqueta="Tu edificio" name="edificioId" defaultValue="" error={errores.edificioId}>
+          <option value="" disabled>
+            Elegí tu edificio
+          </option>
+          {edificios.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.nombre}
+            </option>
+          ))}
+        </Selector>
+      )}
       <Campo etiqueta="Tu unidad" name="codigo" autoComplete="off" autoCapitalize="characters" placeholder="2-201" ayuda="Torre y número, ej. 2-201" error={errores.codigo} required />
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 font-bold">Sos…</legend>

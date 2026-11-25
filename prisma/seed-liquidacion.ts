@@ -8,6 +8,7 @@
  */
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { calcularLiquidacion, type UnidadALiquidar } from "../src/dominio/liquidacion/calculo";
+import { EDIFICIO } from "./seed-edificio";
 
 const $ = (pesos: number) => Math.round(pesos * 100);
 const PERIODO = "2026-09";
@@ -39,12 +40,12 @@ const RUBROS: [string, string, boolean?][] = [
 
 export async function sembrarLiquidacion(db: PrismaClient) {
   await db.configuracion.upsert({
-    where: { id: 1 },
-    create: { id: 1 },
+    where: { edificioId: EDIFICIO },
+    create: { edificioId: EDIFICIO },
     update: {},
   });
   await db.configuracion.update({
-    where: { id: 1 },
+    where: { edificioId: EDIFICIO },
     data: {
       direccion: "Av. de Ejemplo 1234, Montevideo",
       procedimientoPago:
@@ -59,7 +60,7 @@ export async function sembrarLiquidacion(db: PrismaClient) {
   for (const [codigo, nombre, cargoPropietario] of RUBROS) {
     const padre = codigo.includes(".") ? ids.get(codigo.split(".")[0]) : undefined;
     const r = await db.rubro.create({
-      data: { codigo, nombre, padreId: padre ?? null, cargoPropietario: cargoPropietario ?? false, orden: Number(codigo.split(".")[0]) },
+      data: { edificioId: EDIFICIO, codigo, nombre, padreId: padre ?? null, cargoPropietario: cargoPropietario ?? false, orden: Number(codigo.split(".")[0]) },
     });
     ids.set(codigo, r.id);
   }
@@ -79,7 +80,7 @@ export async function sembrarLiquidacion(db: PrismaClient) {
   }
 
   // Cuotas mensuales por unidad (inventadas, según piso)
-  const unidades = await db.unidad.findMany({ include: { torre: true }, orderBy: [{ torreId: "asc" }, { numero: "asc" }] });
+  const unidades = await db.unidad.findMany({ where: { edificioId: EDIFICIO }, include: { torre: true }, orderBy: [{ torreId: "asc" }, { numero: "asc" }] });
   for (const [i, u] of unidades.entries()) {
     const piso = Number(u.numero[0]) || 1;
     const datos =
@@ -88,10 +89,10 @@ export async function sembrarLiquidacion(db: PrismaClient) {
         : { gcUnidad: $(4_800 + piso * 450 + (u.numero.endsWith("2") ? 300 : 0)), gcPropietario: $(350), gcGaraje: i % 3 === 0 ? $(1_500) : 0 };
     await db.unidad.update({ where: { id: u.id }, data: { ...datos, garajeACargoDe: i % 7 === 0 ? "PROPIETARIO" : "INQUILINO" } });
   }
-  const actualizadas = await db.unidad.findMany({ include: { torre: true } });
+  const actualizadas = await db.unidad.findMany({ where: { edificioId: EDIFICIO }, include: { torre: true } });
   const aLiquidar: UnidadALiquidar[] = actualizadas.map((u) => ({
     unidadId: u.id,
-    torre: u.torre.codigo,
+    torre: u.torre.numero,
     torreNombre: u.torre.nombre,
     torreOrden: u.torre.orden,
     numero: u.numero,
@@ -107,11 +108,12 @@ export async function sembrarLiquidacion(db: PrismaClient) {
   const admin = await db.user.findUniqueOrThrow({ where: { email: "admin@example.com" } });
   const liq = await db.liquidacion.create({
     data: {
+      edificioId: EDIFICIO,
       periodo: PERIODO,
       tasaInteresPb: 100,
       tasaFondoReservaPb: 500,
       diaVencimiento: 25,
-      procedimientoPago: (await db.configuracion.findUniqueOrThrow({ where: { id: 1 } })).procedimientoPago,
+      procedimientoPago: (await db.configuracion.findUniqueOrThrow({ where: { edificioId: EDIFICIO } })).procedimientoPago,
       disponibilidades: {
         nombreCuenta: "Cuenta corriente Banco de Ejemplo",
         saldoInicial: { gc: $(312_450.3), fr: $(1_850_000), dni: $(6_200) },

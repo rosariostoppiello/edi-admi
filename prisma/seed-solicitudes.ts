@@ -1,9 +1,10 @@
 /** Solicitudes de ejemplo (datos ficticios), con una respuesta y una nota interna. */
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { EDIFICIO } from "./seed-edificio";
 
 export async function sembrarSolicitudes(db: PrismaClient) {
   // Número de WhatsApp inventado (decisión 19).
-  await db.configuracion.update({ where: { id: 1 }, data: { whatsapp: "59899000000" } });
+  await db.configuracion.update({ where: { edificioId: EDIFICIO }, data: { whatsapp: "59899000000" } });
   const admin = await db.user.findUniqueOrThrow({ where: { email: "admin@example.com" } });
   const porteria = await db.user.findUniqueOrThrow({ where: { email: "porteria@example.com" } });
   const duenos = await db.persona.findMany({
@@ -16,6 +17,7 @@ export async function sembrarSolicitudes(db: PrismaClient) {
 
   const d1 = await db.solicitud.create({
     data: {
+      edificioId: EDIFICIO,
       unidadId: duenos[0].unidadId,
       autorId: duenos[0].userId!,
       categoria: "DESPERFECTO",
@@ -33,6 +35,7 @@ export async function sembrarSolicitudes(db: PrismaClient) {
   });
   await db.solicitud.create({
     data: {
+      edificioId: EDIFICIO,
       unidadId: duenos[1].unidadId,
       autorId: duenos[1].userId!,
       categoria: "CONSULTA_GC",
@@ -42,6 +45,7 @@ export async function sembrarSolicitudes(db: PrismaClient) {
   });
   await db.solicitud.create({
     data: {
+      edificioId: EDIFICIO,
       autorId: porteria.id,
       categoria: "DESPERFECTO",
       origen: "PORTERIA_PROPIA",

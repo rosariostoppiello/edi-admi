@@ -1,4 +1,5 @@
 import { revisarVencimientoSeguro } from "@/servidor/telefonos";
+import { edificiosActivos } from "@/servidor/edificios";
 
 /**
  * Revisión diaria del vencimiento del seguro (opcional: un cron del hosting la llama
@@ -7,6 +8,7 @@ import { revisarVencimientoSeguro } from "@/servidor/telefonos";
 export async function GET(request: Request) {
   const secreto = process.env.CRON_SECRET;
   if (!secreto || request.headers.get("authorization") !== `Bearer ${secreto}`) return new Response("No encontrado", { status: 404 });
-  const avisado = await revisarVencimientoSeguro();
-  return Response.json({ avisado });
+  let avisados = 0;
+  for (const e of await edificiosActivos()) if (await revisarVencimientoSeguro(e.id)) avisados++;
+  return Response.json({ avisados });
 }

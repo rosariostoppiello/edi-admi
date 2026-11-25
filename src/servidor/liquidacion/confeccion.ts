@@ -23,13 +23,15 @@ class ErrorConfeccion extends Error {}
  */
 async function enBorrador(
   liquidacionId: string,
-  fn: (tx: Tx, liq: { id: string; periodo: string }) => Promise<Resultado>,
+  edificioId: string,
+  fn: (tx: Tx, liq: { id: string; periodo: string; edificioId: string }) => Promise<Resultado>,
 ): Promise<Resultado> {
   try {
     return await db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "liquidacion" WHERE id = ${liquidacionId} FOR UPDATE`;
-      const liq = await tx.liquidacion.findUnique({ where: { id: liquidacionId }, select: { id: true, periodo: true, estado: true } });
-      if (!liq) throw new ErrorConfeccion("No encontramos esa liquidación.");
+      const liq = await tx.liquidacion.findUnique({ where: { id: liquidacionId }, select: { id: true, periodo: true, estado: true, edificioId: true } });
+      // Una liquidación de otro edificio es como si no existiera.
+      if (!liq || liq.edificioId !== edificioId) throw new ErrorConfeccion("No encontramos esa liquidación.");
       if (liq.estado !== "BORRADOR") throw new ErrorConfeccion("Esta liquidación ya está publicada: no se puede modificar.");
       return fn(tx, liq);
     });
@@ -39,14 +41,14 @@ async function enBorrador(
   }
 }
 
-async function unidadesConocidas(tx: Tx | typeof db = db) {
-  const unidades = await tx.unidad.findMany({ where: { activa: true }, select: { id: true, numero: true, arrendada: true, torreId: true } });
-  return unidades.map((u) => ({ unidadId: u.id, torre: u.torreId, numero: u.numero, arrendada: u.arrendada }));
+async function unidadesConocidas(edificioId: string, tx: Tx | typeof db = db) {
+  const unidades = await tx.unidad.findMany({ where: { edificioId, activa: true }, select: { id: true, arrendada: true, numero: true, torre: { select: { numero: true } } } });
+  return unidades.map((u) => ({ unidadId: u.id, torre: u.torre.numero, numero: u.numero, arrendada: u.arrendada }));
 }
 
-/** Resuelve un código "2-201-A" contra las unidades actuales. */
-async function resolverCodigo(tx: Tx, codigo: string) {
-  const r = resolverUnidad(codigo, indexarUnidades(await unidadesConocidas(tx)));
+/** Resuelve un código "2-201-A" contra las unidades actuales del edificio. */
+async function resolverCodigo(tx: Tx, edificioId: string, codigo: string) {
+  const r = resolverUnidad(codigo, indexarUnidades(await unidadesConocidas(edificioId, tx)));
   if ("error" in r) throw new ErrorCampo("codigo", r.error!);
   return r;
 }
@@ -67,7 +69,7 @@ async function conCampos(fn: () => Promise<Resultado>): Promise<Resultado> {
 }
 
 function auditar(tx: Tx, actor: UsuarioActual, accion: string, liquidacionId: string, detalle?: Prisma.InputJsonValue) {
-  return registrarAuditoria({ usuarioId: actor.userId, accion, entidad: "liquidacion", entidadId: liquidacionId, detalle }, tx);
+  return registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion, entidad: "liquidacion", entidadId: liquidacionId, detalle }, tx);
 }
 
 // ---------------------------------------------------------------------------
@@ -75,34 +77,36 @@ function auditar(tx: Tx, actor: UsuarioActual, accion: string, liquidacionId: st
 // ---------------------------------------------------------------------------
 
 /** Período que corresponde crear ahora (el siguiente al último publicado), o null si es la primera. */
-export async function proximoPeriodo(): Promise<string | null> {
-  const ultima = await db.liquidacion.findFirst({ where: { estado: "PUBLICADA" }, orderBy: { periodo: "desc" } });
+export async function proximoPeriodo(edificioId: string): Promise<string | null> {
+  const ultima = await db.liquidacion.findFirst({ where: { edificioId, estado: "PUBLICADA" }, orderBy: { periodo: "desc" } });
   return ultima ? siguientePeriodo(ultima.periodo) : null;
 }
 
 export async function crearLiquidacion(input: { periodo?: string }): Promise<Resultado & { id?: string }> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  const sugerido = await proximoPeriodo();
+  const edificioId = actor.edificio.id;
+  const sugerido = await proximoPeriodo(edificioId);
   const periodo = sugerido ?? input.periodo ?? "";
   if (!esPeriodo(periodo)) return error("Revisá los datos marcados.", { periodo: "Elegí el mes de la primera liquidación." });
 
   try {
     const id = await db.$transaction(async (tx) => {
-      if (await tx.liquidacion.findFirst({ where: { estado: "BORRADOR" } })) {
+      if (await tx.liquidacion.findFirst({ where: { edificioId, estado: "BORRADOR" } })) {
         throw new ErrorConfeccion("Ya hay una liquidación en preparación. Terminala o eliminala antes de crear otra.");
       }
-      if (await tx.liquidacion.findFirst({ where: { periodo, estado: { not: "ANULADA" } } })) {
+      if (await tx.liquidacion.findFirst({ where: { edificioId, periodo, estado: { not: "ANULADA" } } })) {
         throw new ErrorConfeccion(`La liquidación de ${periodoEnFrase(periodo)} ya existe.`);
       }
-      const cfg = await configuracion(tx);
-      const anterior = await tx.liquidacion.findFirst({ where: { estado: "PUBLICADA" }, orderBy: { periodo: "desc" } });
+      const cfg = await configuracion(edificioId, tx);
+      const anterior = await tx.liquidacion.findFirst({ where: { edificioId, estado: "PUBLICADA" }, orderBy: { periodo: "desc" } });
       let disponibilidades: Prisma.InputJsonValue | undefined;
       if (anterior) {
-        const armada = await armarLiquidacion(anterior.id, tx);
+        const armada = await armarLiquidacion(anterior.id, edificioId, tx);
         if (armada) disponibilidades = arrastrarDisponibilidades(armada.disponibilidades, armada.cuenta);
       }
       const liq = await tx.liquidacion.create({
         data: {
+          edificioId,
           periodo,
           tasaInteresPb: cfg.tasaInteresPb,
           tasaFondoReservaPb: cfg.tasaFondoReservaPb,
@@ -112,7 +116,7 @@ export async function crearLiquidacion(input: { periodo?: string }): Promise<Res
         },
       });
       // Precarga de egresos fijos: quedan con el monto habitual para revisar.
-      const fijos = await tx.egresoFijo.findMany({ where: { activo: true } });
+      const fijos = await tx.egresoFijo.findMany({ where: { activo: true, rubro: { edificioId } } });
       const fecha = new Date(`${rangoPeriodo(periodo).desde}T00:00:00Z`);
       if (fijos.length) {
         await tx.egreso.createMany({
@@ -132,7 +136,7 @@ export async function crearLiquidacion(input: { periodo?: string }): Promise<Res
 /** Elimina un borrador (no una rectificación: esa reemplaza a una anulada). */
 export async function eliminarBorrador(liquidacionId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const l = await tx.liquidacion.findUnique({ where: { id: liq.id }, select: { rectificaId: true } });
     if (l?.rectificaId) return error("Es la corrección de una liquidación anulada: terminala y publicala.");
     await tx.liquidacion.delete({ where: { id: liq.id } });
@@ -157,8 +161,8 @@ export async function agregarIngreso(liquidacionId: string, input: unknown): Pro
   const p = ingresoSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
   return conCampos(() =>
-    enBorrador(liquidacionId, async (tx, liq) => {
-      const u = await resolverCodigo(tx, p.data.codigo);
+    enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
+      const u = await resolverCodigo(tx, liq.edificioId, p.data.codigo);
       const ingreso = await tx.ingreso.create({
         data: {
           liquidacionId: liq.id,
@@ -179,7 +183,7 @@ export async function agregarIngreso(liquidacionId: string, input: unknown): Pro
 
 export async function eliminarIngreso(liquidacionId: string, ingresoId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const ing = await tx.ingreso.findFirst({ where: { id: ingresoId, liquidacionId: liq.id }, include: { deposito: true } });
     if (!ing) return error("Ese pago ya no está cargado.");
     if (ing.deposito) {
@@ -206,7 +210,7 @@ export async function cargarDeposito(liquidacionId: string, input: unknown): Pro
   const actor = await exigirPermiso("liquidacion.confeccionar");
   const p = depositoSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const d = await tx.depositoNoIdentificado.create({
       data: { ...p.data, fecha: new Date(`${p.data.fecha}T00:00:00Z`), cargadoEnId: liq.id },
     });
@@ -220,11 +224,11 @@ export async function identificarDeposito(liquidacionId: string, depositoId: str
   const p = z.object({ codigo: textoSchema("la unidad", 20) }).safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
   return conCampos(() =>
-    enBorrador(liquidacionId, async (tx, liq) => {
+    enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
       const d = await tx.depositoNoIdentificado.findUnique({ where: { id: depositoId }, include: { cargadoEn: true } });
-      if (!d || d.cargadoEn.periodo > liq.periodo) return error("Ese depósito no existe.");
+      if (!d || d.cargadoEn.edificioId !== liq.edificioId || d.cargadoEn.periodo > liq.periodo) return error("Ese depósito no existe.");
       if (d.ingresoId) return error("Ese depósito ya está identificado.");
-      const u = await resolverCodigo(tx, p.data.codigo);
+      const u = await resolverCodigo(tx, liq.edificioId, p.data.codigo);
       const ingreso = await tx.ingreso.create({
         data: {
           liquidacionId: liq.id,
@@ -246,7 +250,7 @@ export async function identificarDeposito(liquidacionId: string, depositoId: str
 
 export async function eliminarDeposito(liquidacionId: string, depositoId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const d = await tx.depositoNoIdentificado.findFirst({ where: { id: depositoId, cargadoEnId: liq.id } });
     if (!d) return error("Solo podés quitar depósitos cargados en esta liquidación.");
     if (d.ingresoId) return error("Primero quitá el pago asignado a la unidad.");
@@ -274,8 +278,8 @@ export async function agregarEgreso(liquidacionId: string, input: unknown): Prom
   const p = egresoSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
   const { fijo, ...datos } = p.data;
-  return enBorrador(liquidacionId, async (tx, liq) => {
-    const rubro = await tx.rubro.findFirst({ where: { id: datos.rubroId, activo: true } });
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
+    const rubro = await tx.rubro.findFirst({ where: { id: datos.rubroId, edificioId: liq.edificioId, activo: true } });
     if (!rubro) return error("Revisá los datos marcados.", { rubroId: "Ese rubro no existe." });
     let fijoId: string | null = null;
     if (fijo) {
@@ -294,7 +298,7 @@ export async function editarEgreso(liquidacionId: string, egresoId: string, inpu
   const actor = await exigirPermiso("liquidacion.confeccionar");
   const p = editarEgresoSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const e = await tx.egreso.findFirst({ where: { id: egresoId, liquidacionId: liq.id } });
     if (!e) return error("Ese egreso ya no está cargado.");
     await tx.egreso.update({ where: { id: e.id }, data: { ...p.data, fecha: new Date(`${p.data.fecha}T00:00:00Z`) } });
@@ -305,7 +309,7 @@ export async function editarEgreso(liquidacionId: string, egresoId: string, inpu
 
 export async function eliminarEgreso(liquidacionId: string, egresoId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const e = await tx.egreso.findFirst({ where: { id: egresoId, liquidacionId: liq.id } });
     if (!e) return error("Ese egreso ya no está cargado.");
     await tx.egreso.delete({ where: { id: e.id } });
@@ -317,11 +321,11 @@ export async function eliminarEgreso(liquidacionId: string, egresoId: string): P
 /** Deja de precargar un egreso fijo en los meses siguientes. */
 export async function desactivarEgresoFijo(fijoId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  const f = await db.egresoFijo.findUnique({ where: { id: fijoId } });
+  const f = await db.egresoFijo.findFirst({ where: { id: fijoId, rubro: { edificioId: actor.edificio.id } } });
   if (!f || !f.activo) return error("Ese egreso fijo ya no está activo.");
   await db.$transaction(async (tx) => {
     await tx.egresoFijo.update({ where: { id: f.id }, data: { activo: false } });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "egreso_fijo.baja", entidad: "egreso_fijo", entidadId: f.id }, tx);
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "egreso_fijo.baja", entidad: "egreso_fijo", entidadId: f.id }, tx);
   });
   return ok(`"${f.proveedor}" ya no se precarga en los meses siguientes.`);
 }
@@ -341,13 +345,14 @@ export async function agregarRubro(input: unknown): Promise<Resultado> {
   const p = rubroSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
   const { codigo, nombre, cargoPropietario } = p.data;
-  if (await db.rubro.findUnique({ where: { codigo } })) return error("Revisá los datos marcados.", { codigo: `Ya existe el rubro ${codigo}.` });
+  const edificioId = actor.edificio.id;
+  if (await db.rubro.findUnique({ where: { edificioId_codigo: { edificioId, codigo } } })) return error("Revisá los datos marcados.", { codigo: `Ya existe el rubro ${codigo}.` });
   const codigoPadre = codigo.includes(".") ? codigo.slice(0, codigo.lastIndexOf(".")) : null;
-  const padre = codigoPadre ? await db.rubro.findUnique({ where: { codigo: codigoPadre } }) : null;
+  const padre = codigoPadre ? await db.rubro.findUnique({ where: { edificioId_codigo: { edificioId, codigo: codigoPadre } } }) : null;
   if (codigoPadre && !padre) return error("Revisá los datos marcados.", { codigo: `Primero creá el rubro ${codigoPadre}.` });
   await db.$transaction(async (tx) => {
-    const r = await tx.rubro.create({ data: { codigo, nombre, padreId: padre?.id ?? null, cargoPropietario, orden: Number(codigo.split(".")[0]) } });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "rubro.alta", entidad: "rubro", entidadId: r.id, detalle: { codigo, nombre } }, tx);
+    const r = await tx.rubro.create({ data: { edificioId, codigo, nombre, padreId: padre?.id ?? null, cargoPropietario, orden: Number(codigo.split(".")[0]) } });
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId, accion: "rubro.alta", entidad: "rubro", entidadId: r.id, detalle: { codigo, nombre } }, tx);
   });
   return ok(`Agregaste el rubro ${codigo} ${nombre}.`);
 }
@@ -372,8 +377,8 @@ export async function agregarCargo(liquidacionId: string, input: unknown): Promi
     return error("Revisá los datos marcados.", { monto: "Solo un cargo de \"Otros\" puede ser negativo (un ajuste o una bonificación)." });
   }
   return conCampos(() =>
-    enBorrador(liquidacionId, async (tx, liq) => {
-      const u = await resolverCodigo(tx, p.data.codigo);
+    enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
+      const u = await resolverCodigo(tx, liq.edificioId, p.data.codigo);
       const c = await tx.cargoExtra.create({
         data: { liquidacionId: liq.id, unidadId: u.unidad.unidadId, sufijo: u.sufijo, tipo: p.data.tipo, concepto: p.data.concepto, monto: p.data.monto },
       });
@@ -385,7 +390,7 @@ export async function agregarCargo(liquidacionId: string, input: unknown): Promi
 
 export async function eliminarCargo(liquidacionId: string, cargoId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     const c = await tx.cargoExtra.findFirst({ where: { id: cargoId, liquidacionId: liq.id } });
     if (!c) return error("Ese cargo ya no está.");
     await tx.cargoExtra.delete({ where: { id: c.id } });
@@ -395,24 +400,24 @@ export async function eliminarCargo(liquidacionId: string, cargoId: string): Pro
 }
 
 /** Reservas de barbacoa del período que todavía no se cobraron en ninguna liquidación vigente. */
-async function reservasSinCobrar(tx: Tx | typeof db, periodo: string) {
+async function reservasSinCobrar(tx: Tx | typeof db, edificioId: string, periodo: string) {
   const { desde, hasta } = rangoPeriodo(periodo);
   return tx.reserva.findMany({
     where: {
       estado: "ACTIVA",
-      espacio: { tipo: "BARBACOA" },
+      espacio: { tipo: "BARBACOA", edificioId },
       fecha: { gte: new Date(`${desde}T00:00:00Z`), lte: new Date(`${hasta}T00:00:00Z`) },
       cargos: { none: { liquidacion: { estado: { not: "ANULADA" } } } },
     },
-    include: { espacio: { select: { nombre: true, tarifa: true } }, unidad: { select: { numero: true, torreId: true, arrendada: true } } },
+    include: { espacio: { select: { nombre: true, tarifa: true } }, unidad: { select: { numero: true, arrendada: true } } },
     orderBy: [{ fecha: "asc" }, { turno: "asc" }],
   });
 }
 
 export async function contarReservasSinCobrar(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId }, select: { periodo: true } });
-  return liq ? (await reservasSinCobrar(db, liq.periodo)).length : 0;
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const liq = await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: usuario.edificio.id }, select: { periodo: true } });
+  return liq ? (await reservasSinCobrar(db, usuario.edificio.id, liq.periodo)).length : 0;
 }
 
 /**
@@ -422,8 +427,8 @@ export async function contarReservasSinCobrar(liquidacionId: string) {
  */
 export async function traerReservasBarbacoa(liquidacionId: string): Promise<Resultado> {
   const actor = await exigirPermiso("liquidacion.confeccionar");
-  return enBorrador(liquidacionId, async (tx, liq) => {
-    const reservas = await reservasSinCobrar(tx, liq.periodo);
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
+    const reservas = await reservasSinCobrar(tx, liq.edificioId, liq.periodo);
     if (reservas.length === 0) return ok("No hay reservas nuevas para cobrar este mes.");
     let total = 0;
     let cobradas = 0;
@@ -475,13 +480,14 @@ export async function guardarCuotas(unidadId: string, input: unknown): Promise<R
   for (const [k, v] of Object.entries(p.data)) {
     if (typeof v === "number" && v < 0) return error("Revisá los datos marcados.", { [k]: "No puede ser negativo." });
   }
-  const u = await db.unidad.findUnique({ where: { id: unidadId }, include: { torre: true } });
+  const u = await db.unidad.findFirst({ where: { id: unidadId, edificioId: actor.edificio.id }, include: { torre: true } });
   if (!u) return error("Esa unidad no existe.");
   await db.$transaction(async (tx) => {
     await tx.unidad.update({ where: { id: unidadId }, data: p.data });
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
+        edificioId: actor.edificio.id,
         accion: "cuotas.editadas",
         entidad: "unidad",
         entidadId: unidadId,
@@ -499,7 +505,7 @@ export async function guardarCuotas(unidadId: string, input: unknown): Promise<R
       tx,
     );
   });
-  return ok(`Guardaste las cuotas de ${u.torre.codigo}-${u.numero}.`);
+  return ok(`Guardaste las cuotas de ${u.torre.numero}-${u.numero}.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -530,10 +536,10 @@ export async function guardarParametros(liquidacionId: string, input: unknown): 
     diaVencimiento: p.data.diaVencimiento,
     procedimientoPago: p.data.procedimientoPago,
   };
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     await tx.liquidacion.update({ where: { id: liq.id }, data: datos });
     if (p.data.guardarComoPredeterminado) {
-      await tx.configuracion.upsert({ where: { id: 1 }, create: { id: 1, ...datos }, update: datos });
+      await tx.configuracion.upsert({ where: { edificioId: liq.edificioId }, create: { edificioId: liq.edificioId, ...datos }, update: datos });
     }
     await auditar(tx, actor, "liquidacion.parametros", liq.id, { ...datos, predeterminado: p.data.guardarComoPredeterminado });
     return ok("Guardaste los parámetros.");
@@ -544,7 +550,7 @@ export async function guardarDisponibilidades(liquidacionId: string, input: unkn
   const actor = await exigirPermiso("liquidacion.confeccionar");
   const p = disponibilidadesSchema.safeParse(input);
   if (!p.success) return error("Revisá los montos de las cuentas: alguno no es válido.");
-  return enBorrador(liquidacionId, async (tx, liq) => {
+  return enBorrador(liquidacionId, actor.edificio.id, async (tx, liq) => {
     await tx.liquidacion.update({ where: { id: liq.id }, data: { disponibilidades: p.data } });
     await auditar(tx, actor, "liquidacion.disponibilidades", liq.id);
     return ok("Guardaste las disponibilidades.");
@@ -556,18 +562,19 @@ export async function guardarDisponibilidades(liquidacionId: string, input: unkn
 // ---------------------------------------------------------------------------
 
 export async function obtenerBorrador(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const liq = await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: usuario.edificio.id } });
   if (!liq) return null;
-  return { ...liq, primera: await esPrimera(liq.periodo) };
+  return { ...liq, primera: await esPrimera(liq.edificioId, liq.periodo) };
 }
 
 /** Totales para la pantalla de la confección (teclas Egresos e Ingresos). */
 export async function resumenBorrador(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
-  const ingresos = await db.ingreso.aggregate({ where: { liquidacionId }, _count: true, _sum: { monto: true } });
-  const egresos = await db.egreso.aggregate({ where: { liquidacionId }, _count: true, _sum: { monto: true } });
-  const cargos = await db.cargoExtra.count({ where: { liquidacionId } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const propia = { liquidacionId, liquidacion: { edificioId: usuario.edificio.id } };
+  const ingresos = await db.ingreso.aggregate({ where: propia, _count: true, _sum: { monto: true } });
+  const egresos = await db.egreso.aggregate({ where: propia, _count: true, _sum: { monto: true } });
+  const cargos = await db.cargoExtra.count({ where: propia });
   return {
     ingresos: { cantidad: ingresos._count, total: ingresos._sum.monto ?? 0 },
     egresos: { cantidad: egresos._count, total: egresos._sum.monto ?? 0 },
@@ -576,25 +583,25 @@ export async function resumenBorrador(liquidacionId: string) {
 }
 
 export async function borradorActual() {
-  await exigirPermiso("liquidacion.confeccionar");
-  return db.liquidacion.findFirst({ where: { estado: "BORRADOR" } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  return db.liquidacion.findFirst({ where: { edificioId: usuario.edificio.id, estado: "BORRADOR" } });
 }
 
 export async function listarIngresos(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
   return db.ingreso.findMany({
-    where: { liquidacionId },
+    where: { liquidacionId, liquidacion: { edificioId: usuario.edificio.id } },
     include: { unidad: { include: { torre: true } } },
     orderBy: [{ fecha: "desc" }, { createdAt: "desc" }],
   });
 }
 
 export async function listarDepositos(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
-  const liq = await db.liquidacion.findUnique({ where: { id: liquidacionId } });
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const liq = await db.liquidacion.findFirst({ where: { id: liquidacionId, edificioId: usuario.edificio.id } });
   if (!liq) return [];
   const depositos = await db.depositoNoIdentificado.findMany({
-    where: { cargadoEn: { periodo: { lte: liq.periodo }, estado: { not: "ANULADA" } } },
+    where: { cargadoEn: { edificioId: liq.edificioId, periodo: { lte: liq.periodo }, estado: { not: "ANULADA" } } },
     include: { identificadoEn: { select: { id: true, periodo: true } }, ingreso: { include: { unidad: { include: { torre: true } } } } },
     orderBy: { fecha: "desc" },
   });
@@ -603,29 +610,30 @@ export async function listarDepositos(liquidacionId: string) {
 }
 
 export async function listarEgresosYRubros(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const edificioId = usuario.edificio.id;
   const [egresos, rubros, fijos] = await Promise.all([
-    db.egreso.findMany({ where: { liquidacionId }, include: { rubro: true }, orderBy: [{ fecha: "asc" }, { createdAt: "asc" }] }),
-    db.rubro.findMany({ where: { activo: true }, orderBy: [{ orden: "asc" }, { codigo: "asc" }] }),
-    db.egresoFijo.findMany({ where: { activo: true }, include: { rubro: true }, orderBy: { proveedor: "asc" } }),
+    db.egreso.findMany({ where: { liquidacionId, liquidacion: { edificioId } }, include: { rubro: true }, orderBy: [{ fecha: "asc" }, { createdAt: "asc" }] }),
+    db.rubro.findMany({ where: { edificioId, activo: true }, orderBy: [{ orden: "asc" }, { codigo: "asc" }] }),
+    db.egresoFijo.findMany({ where: { activo: true, rubro: { edificioId } }, include: { rubro: true }, orderBy: { proveedor: "asc" } }),
   ]);
-  const proveedores = [...new Set((await db.egreso.findMany({ select: { proveedor: true }, distinct: ["proveedor"], take: 300 })).map((e) => e.proveedor))].sort();
+  const proveedores = [...new Set((await db.egreso.findMany({ where: { liquidacion: { edificioId } }, select: { proveedor: true }, distinct: ["proveedor"], take: 300 })).map((e) => e.proveedor))].sort();
   return { egresos, rubros, fijos, proveedores };
 }
 
 export async function listarCargos(liquidacionId: string) {
-  await exigirPermiso("liquidacion.confeccionar");
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
   return db.cargoExtra.findMany({
-    where: { liquidacionId },
+    where: { liquidacionId, liquidacion: { edificioId: usuario.edificio.id } },
     include: { unidad: { include: { torre: true } } },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function listarCuotas() {
-  await exigirPermiso("liquidacion.confeccionar");
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
   return db.unidad.findMany({
-    where: { activa: true },
+    where: { edificioId: usuario.edificio.id, activa: true },
     include: { torre: true },
     orderBy: [{ torre: { orden: "asc" } }, { numero: "asc" }],
   });
@@ -633,8 +641,8 @@ export async function listarCuotas() {
 
 /** Códigos de línea vigentes (para el autocompletado de los formularios). */
 export async function codigosVigentes(): Promise<string[]> {
-  await exigirPermiso("liquidacion.confeccionar");
-  const unidades = await unidadesConocidas();
+  const usuario = await exigirPermiso("liquidacion.confeccionar");
+  const unidades = await unidadesConocidas(usuario.edificio.id);
   return unidades
     .flatMap((u) => (u.arrendada ? ["P", "I"] : ["A"]).map((s) => `${u.torre}-${u.numero}-${s}`))
     .sort((a, b) => a.localeCompare(b, "es", { numeric: true }));

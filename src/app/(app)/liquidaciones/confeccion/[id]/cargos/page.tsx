@@ -36,7 +36,7 @@ export default async function PaginaCargos({ params }: PageProps<"/liquidaciones
         ) : (
           <ul className="flex flex-col divide-y divide-junta">
             {cargos.map((c) => {
-              const codigo = formatearCodigo({ torre: c.unidad.torre.codigo, numero: c.unidad.numero, sufijo: c.sufijo });
+              const codigo = formatearCodigo({ torre: c.unidad.torre.numero, numero: c.unidad.numero, sufijo: c.sufijo });
               return (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div className="min-w-0">

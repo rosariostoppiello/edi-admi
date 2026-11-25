@@ -7,10 +7,10 @@ import { avisar } from "./mail";
 import { altaInquilino, cambiarPropietario } from "./datos";
 import { enviarInvitacion, tieneContrasena } from "./invitaciones";
 import { whatsappAdministracion } from "./solicitudes";
+import { edificiosActivos, SELECCION_CODIGO, unidadPorCodigo } from "./edificios";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { codigoBase } from "@/dominio/codigos";
 import { datosPersonaSchema, NOMBRE_CALIDAD, esDueno } from "@/dominio/personas";
-import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 
 /**
  * Pedidos de acceso (decisión 84). Quien no tiene usuario lo pide desde el login; la
@@ -40,14 +40,9 @@ const pedidoSchema = datosPersonaSchema.extend({
   acepto: z.literal("si", { error: "Necesitamos tu permiso para usar estos datos." }),
   // Campo trampa: invisible para las personas; si viene con algo, es un robot.
   sitio: z.string().optional(),
+  /** Solo si hay más de un edificio: lo elige la persona. */
+  edificioId: z.string().optional(),
 });
-
-/** "2-201", "2-201-A" o "2 201" → unidad activa. */
-async function unidadPorCodigo(texto: string) {
-  const m = /^(\d{1,3})[\s-]+([0-9A-Za-z]{1,6})(?:[\s-]*[APIapi])?$/.exec(texto.trim());
-  if (!m) return null;
-  return db.unidad.findFirst({ where: { torreId: Number(m[1]), numero: m[2].toUpperCase(), activa: true }, select: { id: true, torreId: true, numero: true } });
-}
 
 /** Público (sin sesión). Siempre responde lo mismo si el pedido es válido: no revela quién tiene usuario. */
 export async function pedirAcceso(input: unknown): Promise<Resultado> {
@@ -56,7 +51,10 @@ export async function pedirAcceso(input: unknown): Promise<Resultado> {
   const d = p.data;
   if (d.sitio) return ok(RESPUESTA);
 
-  const unidad = await unidadPorCodigo(d.codigo);
+  const edificios = await edificiosActivos();
+  const edificio = edificios.length === 1 ? edificios[0] : edificios.find((e) => e.id === d.edificioId);
+  if (!edificio) return error("Revisá los datos marcados.", { edificioId: "Elegí tu edificio." });
+  const unidad = await unidadPorCodigo(edificio.id, d.codigo);
   if (!unidad) return error("Revisá los datos marcados.", { codigo: "No encontramos esa unidad. Escribí torre y número, ej. 2-201." });
 
   const email = d.email.toLowerCase();
@@ -65,23 +63,23 @@ export async function pedirAcceso(input: unknown): Promise<Resultado> {
   if (repetido || recientes >= MAX_POR_HORA) return ok(RESPUESTA);
 
   const pedido = await db.pedidoAcceso.create({
-    data: { nombre: d.nombre, email, telefono: d.telefono, codigo: d.codigo, unidadId: unidad.id, calidad: d.calidad, mensaje: d.mensaje },
+    data: { nombre: d.nombre, email, telefono: d.telefono, codigo: d.codigo, unidadId: unidad.id, edificioId: edificio.id, calidad: d.calidad, mensaje: d.mensaje },
   });
 
   const admins = await db.user.findMany({ where: { rol: "ADMINISTRACION", activo: true }, select: { email: true } });
-  const codigo = codigoBase(unidad.torreId, unidad.numero);
+  const codigo = codigoBase(unidad.torre.numero, unidad.numero);
   await Promise.all(
     admins.map((a) =>
       avisar({
         para: a.email,
         asunto: `Pedido de acceso: unidad ${codigo}`,
         texto: [
-          `${d.nombre} pide acceso al sistema como ${NOMBRE_CALIDAD[d.calidad].toLowerCase()} de la unidad ${codigo}.`,
+          `${d.nombre} pide acceso al sistema como ${NOMBRE_CALIDAD[d.calidad].toLowerCase()} de la unidad ${codigo} de ${edificio.nombre}.`,
           "",
           "Comprobá que sea de esa unidad antes de aprobarlo.",
           `Para revisarlo: ${urlBase()}/datos/accesos#${pedido.id}`,
           "",
-          NOMBRE_COMPLEJO,
+          edificio.nombre,
         ].join("\n"),
       }),
     ),
@@ -91,32 +89,37 @@ export async function pedirAcceso(input: unknown): Promise<Resultado> {
 
 /** Contacto de la Administración para la pantalla de login (datos de trabajo, no personales). */
 export async function contactoAdministracion() {
-  const ficha = await db.fichaContacto.findUnique({ where: { clave: "ADMINISTRACION" } });
+  // Con varios edificios no se sabe de cuál es la persona: se ofrece solo el formulario.
+  const edificios = await edificiosActivos();
+  if (edificios.length !== 1) return { whatsapp: "", mail: "" };
+  const edificioId = edificios[0].id;
+  const ficha = await db.fichaContacto.findUnique({ where: { edificioId_clave: { edificioId, clave: "ADMINISTRACION" } } });
   const datos = (ficha?.datos ?? {}) as { mail?: string };
-  return { whatsapp: await whatsappAdministracion(), mail: typeof datos.mail === "string" ? datos.mail : "" };
+  return { whatsapp: await whatsappAdministracion(edificioId), mail: typeof datos.mail === "string" ? datos.mail : "" };
 }
 
 // ---------------------------------------------------------------------------
 // Administración
 // ---------------------------------------------------------------------------
 
-export async function pedidosPendientes(): Promise<number> {
-  return db.pedidoAcceso.count({ where: { estado: "PENDIENTE" } });
+export async function pedidosPendientes(edificioId: string): Promise<number> {
+  return db.pedidoAcceso.count({ where: { edificioId, estado: "PENDIENTE" } });
 }
 
 export async function listarPedidos() {
-  await exigirPermiso("usuarios.administrar");
+  const usuario = await exigirPermiso("usuarios.administrar");
   const filas = await db.pedidoAcceso.findMany({
+    where: { edificioId: usuario.edificio.id },
     orderBy: [{ estado: "asc" }, { creadoEn: "desc" }],
     take: 100,
     include: {
       resueltoPor: { select: { name: true } },
-      unidad: { select: { torreId: true, numero: true, arrendada: true, personas: { where: { activa: true }, select: { nombre: true, email: true, calidad: true } } } },
+      unidad: { select: { ...SELECCION_CODIGO, arrendada: true, personas: { where: { activa: true }, select: { nombre: true, email: true, calidad: true } } } },
     },
   });
   return filas.map((f) => ({
     ...f,
-    unidadCodigo: codigoBase(f.unidad.torreId, f.unidad.numero),
+    unidadCodigo: codigoBase(f.unidad.torre.numero, f.unidad.numero),
     nombreCalidad: NOMBRE_CALIDAD[f.calidad],
     /** Qué pasa si se aprueba, para que la Administración decida sabiendo. */
     efecto: efectoDeAprobar(f.calidad, f.email, f.unidad.personas),
@@ -140,8 +143,8 @@ function efectoDeAprobar(calidad: PersonaActiva["calidad"], email: string, perso
 
 export async function aprobarPedido(id: string): Promise<Resultado> {
   const actor = await exigirPermiso("usuarios.administrar");
-  const pedido = await db.pedidoAcceso.findUnique({
-    where: { id },
+  const pedido = await db.pedidoAcceso.findFirst({
+    where: { id, edificioId: actor.edificio.id },
     include: { unidad: { select: { personas: { where: { activa: true }, select: { id: true, email: true, userId: true } } } } },
   });
   if (!pedido) return error("No encontramos ese pedido.");
@@ -167,7 +170,7 @@ export async function aprobarPedido(id: string): Promise<Resultado> {
 
   await db.$transaction(async (tx) => {
     await tx.pedidoAcceso.update({ where: { id }, data: { estado: "APROBADO", resueltoEn: new Date(), resueltoPorId: actor.userId } });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "acceso.aprobado", entidad: "pedido_acceso", entidadId: id, detalle: { email: pedido.email, calidad: pedido.calidad } }, tx);
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "acceso.aprobado", entidad: "pedido_acceso", entidadId: id, detalle: { email: pedido.email, calidad: pedido.calidad } }, tx);
   });
   return ok(`Aprobaste el pedido. ${r.mensaje}`);
 }
@@ -184,7 +187,7 @@ export async function rechazarPedido(id: string, input: unknown): Promise<Result
   const actor = await exigirPermiso("usuarios.administrar");
   const p = rechazoSchema.safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
-  const pedido = await db.pedidoAcceso.findUnique({ where: { id }, select: { estado: true, email: true, nombre: true } });
+  const pedido = await db.pedidoAcceso.findFirst({ where: { id, edificioId: actor.edificio.id }, select: { estado: true, email: true, nombre: true } });
   if (!pedido) return error("No encontramos ese pedido.");
 
   const r = await db.$transaction(async (tx) => {
@@ -193,7 +196,7 @@ export async function rechazarPedido(id: string, input: unknown): Promise<Result
       data: { estado: "RECHAZADO", resueltoEn: new Date(), resueltoPorId: actor.userId, motivo: p.data.motivo || null },
     });
     if (c.count === 0) return false;
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "acceso.rechazado", entidad: "pedido_acceso", entidadId: id, detalle: { motivo: p.data.motivo } }, tx);
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "acceso.rechazado", entidad: "pedido_acceso", entidadId: id, detalle: { motivo: p.data.motivo } }, tx);
     return true;
   });
   if (!r) return error("Ese pedido ya se resolvió.");
@@ -209,7 +212,7 @@ export async function rechazarPedido(id: string, input: unknown): Promise<Result
       "",
       "Si creés que es un error, comunicate con la Administración.",
       "",
-      NOMBRE_COMPLEJO,
+      actor.edificio.nombre,
     ]
       .filter((l, i, a) => l !== "" || a[i - 1] !== "")
       .join("\n"),

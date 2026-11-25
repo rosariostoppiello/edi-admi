@@ -8,7 +8,6 @@ import { destinatariosPorUnidad } from "./datos";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { textoSchema } from "@/dominio/liquidacion/esquemas";
 import { MAX_PDF, errorDePdf, mover, nombreDescarga, tipoDeSlug, type TipoComunicado } from "@/dominio/comunicados";
-import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 
 const LOTE = 10;
 const ASUNTO: Record<TipoComunicado, string> = { AVISO: "Aviso importante", REGLAMENTO: "Reglamento", ACTA: "Acta de asamblea" };
@@ -19,9 +18,9 @@ const aFecha = (f: string) => new Date(`${f}T00:00:00Z`);
 // ---------------------------------------------------------------------------
 
 export async function listarComunicados(tipo: TipoComunicado) {
-  await exigirPermiso("comunicado.ver");
+  const usuario = await exigirPermiso("comunicado.ver");
   return db.comunicado.findMany({
-    where: { tipo, activo: true },
+    where: { edificioId: usuario.edificio.id, tipo, activo: true },
     include: { archivo: { select: { tamano: true } } },
     // Avisos y actas: lo último arriba. Reglamentos: el orden que elige Administración.
     orderBy: tipo === "REGLAMENTO" ? [{ orden: "asc" }, { titulo: "asc" }] : [{ fecha: "desc" }, { createdAt: "desc" }],
@@ -30,17 +29,17 @@ export async function listarComunicados(tipo: TipoComunicado) {
 
 /** PDF de un comunicado vigente. Lo pueden bajar todos los usuarios con sesión. */
 export async function obtenerPdfComunicado(id: string) {
-  await exigirPermiso("comunicado.ver");
-  const c = await db.comunicado.findUnique({ where: { id }, include: { archivo: true } });
+  const usuario = await exigirPermiso("comunicado.ver");
+  const c = await db.comunicado.findFirst({ where: { id, edificioId: usuario.edificio.id }, include: { archivo: true } });
   if (!c || !c.activo || !c.archivo) return null;
   return { nombre: nombreDescarga(c.titulo), datos: c.archivo.datos };
 }
 
 /** Para enlazarlo desde Barbacoas. */
 export async function reglamentoDeBarbacoas() {
-  await exigirPermiso("comunicado.ver");
+  const usuario = await exigirPermiso("comunicado.ver");
   return db.comunicado.findFirst({
-    where: { tipo: "REGLAMENTO", activo: true, titulo: { contains: "barbacoa", mode: "insensitive" } },
+    where: { edificioId: usuario.edificio.id, tipo: "REGLAMENTO", activo: true, titulo: { contains: "barbacoa", mode: "insensitive" } },
     select: { id: true, titulo: true, archivoId: true },
   });
 }
@@ -96,9 +95,10 @@ export async function publicarComunicado(slug: string, input: Record<string, unk
     const archivo = pdf
       ? await tx.archivo.create({ data: { nombre: nombreDescarga(p.data.titulo), tipo: "application/pdf", tamano: pdf.tamano, datos: pdf.datos } })
       : null;
-    const orden = t.tipo === "REGLAMENTO" ? (await tx.comunicado.count({ where: { tipo: "REGLAMENTO", activo: true } })) + 1 : 0;
+    const orden = t.tipo === "REGLAMENTO" ? (await tx.comunicado.count({ where: { edificioId: actor.edificio.id, tipo: "REGLAMENTO", activo: true } })) + 1 : 0;
     const c = await tx.comunicado.create({
       data: {
+        edificioId: actor.edificio.id,
         tipo: t.tipo,
         titulo: p.data.titulo,
         fecha: aFecha(p.data.fecha),
@@ -112,12 +112,12 @@ export async function publicarComunicado(slug: string, input: Record<string, unk
     let mails = 0;
     if (enviar) {
       // Los mismos destinatarios que la liquidación: responsables, inquilinos y mails extra.
-      const emails = [...new Set((await destinatariosPorUnidad()).flatMap((u) => u.destinatarios.map((d) => d.email.toLowerCase())))];
+      const emails = [...new Set((await destinatariosPorUnidad(actor.edificio.id)).flatMap((u) => u.destinatarios.map((d) => d.email.toLowerCase())))];
       await tx.envioMail.createMany({ data: emails.map((e) => ({ tipo: "comunicado", refId: c.id, destinatario: e, asunto: `${ASUNTO[t.tipo]}: ${p.data.titulo}` })) });
       mails = emails.length;
     }
     await registrarAuditoria(
-      { usuarioId: actor.userId, accion: "comunicado.publicado", entidad: "comunicado", entidadId: c.id, detalle: { tipo: t.tipo, titulo: p.data.titulo, mails } },
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "comunicado.publicado", entidad: "comunicado", entidadId: c.id, detalle: { tipo: t.tipo, titulo: p.data.titulo, mails } },
       tx,
     );
     return { id: c.id, mails };
@@ -132,12 +132,12 @@ export async function publicarComunicado(slug: string, input: Record<string, unk
 
 /** Manda los mails pendientes de un comunicado, de a 10. El PDF va adjunto. */
 async function procesarEnvios(comunicadoId: string) {
-  const c = await db.comunicado.findUnique({ where: { id: comunicadoId }, include: { archivo: true } });
+  const c = await db.comunicado.findUnique({ where: { id: comunicadoId }, include: { archivo: true, edificio: { select: { nombre: true } } } });
   if (!c) return { enviados: 0, errores: 0 };
   const pendientes = await db.envioMail.findMany({ where: { tipo: "comunicado", refId: comunicadoId, estado: { in: ["PENDIENTE", "ERROR"] } } });
   const base = process.env.BETTER_AUTH_URL ?? "";
   const slug = { AVISO: "avisos", REGLAMENTO: "reglamentos", ACTA: "actas" }[c.tipo];
-  const texto = [c.titulo, "", c.cuerpo, "", c.archivo ? "Va adjunto el documento." : "", `También lo podés ver en el sistema: ${base}/comunicados/${slug}`, "", NOMBRE_COMPLEJO]
+  const texto = [c.titulo, "", c.cuerpo, "", c.archivo ? "Va adjunto el documento." : "", `También lo podés ver en el sistema: ${base}/comunicados/${slug}`, "", c.edificio.nombre]
     .filter((l, i, a) => l !== "" || a[i - 1] !== "")
     .join("\n");
   const adjuntos = c.archivo ? [{ nombre: c.archivo.nombre, tipo: c.archivo.tipo, contenido: Buffer.from(c.archivo.datos) }] : undefined;
@@ -162,8 +162,9 @@ async function procesarEnvios(comunicadoId: string) {
 
 export async function reintentarEnvios(comunicadoId: string): Promise<Resultado> {
   const actor = await exigirPermiso("comunicado.publicar");
+  if (!(await db.comunicado.count({ where: { id: comunicadoId, edificioId: actor.edificio.id } }))) return error("Ese comunicado ya no está.");
   const r = await procesarEnvios(comunicadoId);
-  await registrarAuditoria({ usuarioId: actor.userId, accion: "comunicado.reenvio", entidad: "comunicado", entidadId: comunicadoId, detalle: r });
+  await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "comunicado.reenvio", entidad: "comunicado", entidadId: comunicadoId, detalle: r });
   if (r.enviados + r.errores === 0) return ok("No había mails pendientes.");
   return r.errores ? error(`Se mandaron ${r.enviados}; ${r.errores} siguen con error.`) : ok(`Se mandaron ${r.enviados} mails.`);
 }
@@ -177,7 +178,7 @@ export async function editarComunicado(id: string, input: Record<string, unknown
 
   return db.$transaction(async (tx) => {
     const antes = await tx.comunicado.findUnique({ where: { id } });
-    if (!antes || !antes.activo) return error("Ese comunicado ya no está.");
+    if (!antes || !antes.activo || antes.edificioId !== actor.edificio.id) return error("Ese comunicado ya no está.");
     if (!pdf && !antes.archivoId && !p.data.cuerpo) return error("Revisá los datos marcados.", { cuerpo: "Escribí el texto o subí un PDF." });
     let archivoId = antes.archivoId;
     if (pdf) {
@@ -189,6 +190,7 @@ export async function editarComunicado(id: string, input: Record<string, unknown
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
+        edificioId: actor.edificio.id,
         accion: "comunicado.editado",
         entidad: "comunicado",
         entidadId: id,
@@ -204,17 +206,17 @@ export async function darDeBaja(id: string): Promise<Resultado> {
   const actor = await exigirPermiso("comunicado.publicar");
   return db.$transaction(async (tx) => {
     const c = await tx.comunicado.findUnique({ where: { id } });
-    if (!c || !c.activo) return error("Ese comunicado ya no está.");
+    if (!c || !c.activo || c.edificioId !== actor.edificio.id) return error("Ese comunicado ya no está.");
     await tx.comunicado.update({ where: { id }, data: { activo: false } });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "comunicado.baja", entidad: "comunicado", entidadId: id, detalle: { tipo: c.tipo, titulo: c.titulo } }, tx);
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "comunicado.baja", entidad: "comunicado", entidadId: id, detalle: { tipo: c.tipo, titulo: c.titulo } }, tx);
     return ok(`Diste de baja "${c.titulo}".`);
   });
 }
 
 export async function moverReglamento(id: string, direccion: "arriba" | "abajo"): Promise<Resultado> {
-  await exigirPermiso("comunicado.publicar");
+  const actor = await exigirPermiso("comunicado.publicar");
   return db.$transaction(async (tx) => {
-    const lista = await tx.comunicado.findMany({ where: { tipo: "REGLAMENTO", activo: true }, orderBy: [{ orden: "asc" }, { titulo: "asc" }], select: { id: true } });
+    const lista = await tx.comunicado.findMany({ where: { edificioId: actor.edificio.id, tipo: "REGLAMENTO", activo: true }, orderBy: [{ orden: "asc" }, { titulo: "asc" }], select: { id: true } });
     const nuevo = mover(lista.map((r) => r.id), id, direccion);
     for (const [i, rid] of nuevo.entries()) await tx.comunicado.update({ where: { id: rid }, data: { orden: i + 1 } });
     return ok("Cambiaste el orden.");

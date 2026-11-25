@@ -15,7 +15,7 @@ export default async function Inicio() {
   // Para Administración revisa el vencimiento del seguro y le manda el mail (una vez por
   // vigencia); el aviso ya no se muestra acá: queda en Teléfonos → Seguro de incendio.
   await alertaSeguro();
-  const pedidos = puede(usuario, "usuarios.administrar") ? await pedidosPendientes() : 0;
+  const pedidos = puede(usuario, "usuarios.administrar") ? await pedidosPendientes(usuario.edificio.id) : 0;
 
   return (
     <>

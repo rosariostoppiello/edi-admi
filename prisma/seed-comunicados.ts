@@ -1,5 +1,6 @@
 /** Comunicados de ejemplo (textos inventados) con PDF mínimos generados acá. */
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { EDIFICIO } from "./seed-edificio";
 
 /** PDF válido de una página con una línea de texto (Helvetica, sin dependencias). */
 export function pdfMinimo(texto: string): Uint8Array<ArrayBuffer> {
@@ -44,13 +45,13 @@ export async function sembrarComunicados(db: PrismaClient) {
     const datos = pdfMinimo(`${d.titulo} (documento de prueba)`);
     const archivo = await db.archivo.create({ data: { nombre: `${d.titulo}.pdf`, tipo: "application/pdf", tamano: datos.length, datos } });
     await db.comunicado.create({
-      data: { tipo: d.tipo, titulo: d.titulo, fecha: fecha(d.fecha), cuerpo: "cuerpo" in d ? d.cuerpo : "", archivoId: archivo.id, publicadoPorId: admin.id, orden: "orden" in d ? d.orden : 0 },
+      data: { edificioId: EDIFICIO, tipo: d.tipo, titulo: d.titulo, fecha: fecha(d.fecha), cuerpo: "cuerpo" in d ? d.cuerpo : "", archivoId: archivo.id, publicadoPorId: admin.id, orden: "orden" in d ? d.orden : 0 },
     });
   }
   await db.comunicado.createMany({
     data: [
-      { tipo: "AVISO", titulo: "Corte de agua programado", fecha: fecha("2026-11-10"), cuerpo: "El jueves 12 de 9 a 13 h se corta el agua en las torres 2 y 3 por mantenimiento de bombas.", publicadoPorId: admin.id },
-      { tipo: "AVISO", titulo: "Fumigación de espacios comunes", fecha: fecha("2026-10-28"), cuerpo: "El lunes 3 se fumigan los garajes y los depósitos. Retirá lo que tengas en el piso.", publicadoPorId: admin.id },
+      { edificioId: EDIFICIO, tipo: "AVISO", titulo: "Corte de agua programado", fecha: fecha("2026-11-10"), cuerpo: "El jueves 12 de 9 a 13 h se corta el agua en las torres 2 y 3 por mantenimiento de bombas.", publicadoPorId: admin.id },
+      { edificioId: EDIFICIO, tipo: "AVISO", titulo: "Fumigación de espacios comunes", fecha: fecha("2026-10-28"), cuerpo: "El lunes 3 se fumigan los garajes y los depósitos. Retirá lo que tengas en el piso.", publicadoPorId: admin.id },
     ],
   });
   return docs.length + 2;

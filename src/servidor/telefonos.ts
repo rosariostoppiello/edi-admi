@@ -8,7 +8,6 @@ import { avisar } from "./mail";
 import { error, erroresDeZod, ok, type Resultado } from "./resultado";
 import { puede } from "@/dominio/permisos";
 import { estadoPoliza, fraseVencimiento } from "@/dominio/telefonos";
-import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 
 const texto = (max: number) =>
   z
@@ -44,8 +43,8 @@ export type ClaveFicha = keyof typeof ESQUEMAS_FICHA;
 export type DatosFicha<C extends ClaveFicha> = z.infer<(typeof ESQUEMAS_FICHA)[C]>;
 
 export async function obtenerFicha<C extends ClaveFicha>(clave: C): Promise<Partial<DatosFicha<C>> | null> {
-  await exigirPermiso("telefonos.ver");
-  const f = await db.fichaContacto.findUnique({ where: { clave } });
+  const usuario = await exigirPermiso("telefonos.ver");
+  const f = await db.fichaContacto.findUnique({ where: { edificioId_clave: { edificioId: usuario.edificio.id, clave } } });
   if (!f) return null;
   const p = ESQUEMAS_FICHA[clave].partial().safeParse(f.datos);
   return p.success ? (p.data as Partial<DatosFicha<C>>) : null;
@@ -56,8 +55,9 @@ export async function guardarFicha(clave: ClaveFicha, input: unknown): Promise<R
   const p = ESQUEMAS_FICHA[clave].safeParse(input);
   if (!p.success) return erroresDeZod(p.error);
   await db.$transaction(async (tx) => {
-    await tx.fichaContacto.upsert({ where: { clave }, create: { clave, datos: p.data }, update: { datos: p.data } });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "telefonos.ficha", entidad: "ficha_contacto", entidadId: clave, detalle: p.data }, tx);
+    const edificioId = actor.edificio.id;
+    await tx.fichaContacto.upsert({ where: { edificioId_clave: { edificioId, clave } }, create: { edificioId, clave, datos: p.data }, update: { datos: p.data } });
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId, accion: "telefonos.ficha", entidad: "ficha_contacto", entidadId: clave, detalle: p.data }, tx);
   });
   return ok("Guardaste los datos.");
 }
@@ -76,7 +76,7 @@ export async function listarContactos(tipo: TipoContacto) {
   const usuario = await exigirPermiso("telefonos.ver");
   const todos = puede(usuario, "telefonos.editar");
   return db.contacto.findMany({
-    where: { tipo, ...(tipo === "COMISION" && !todos ? { consentimientoEn: { not: null } } : {}) },
+    where: { edificioId: usuario.edificio.id, tipo, ...(tipo === "COMISION" && !todos ? { consentimientoEn: { not: null } } : {}) },
     orderBy: [{ orden: "asc" }, { nombre: "asc" }],
     include: { consentimientoRegistradoPor: { select: { name: true } } },
   });
@@ -101,7 +101,7 @@ export async function guardarContacto(tipo: TipoContacto, id: string | null, inp
 
   return db.$transaction(async (tx) => {
     const antes = id ? await tx.contacto.findUnique({ where: { id } }) : null;
-    if (id && (!antes || antes.tipo !== tipo)) return error("Ese contacto ya no está.");
+    if (id && (!antes || antes.tipo !== tipo || antes.edificioId !== actor.edificio.id)) return error("Ese contacto ya no está.");
     // El consentimiento guarda cuándo se registró y quién lo registró; si se quita, deja de mostrarse.
     const conConsentimiento: Prisma.ContactoUncheckedUpdateInput =
       tipo !== "COMISION"
@@ -114,11 +114,18 @@ export async function guardarContacto(tipo: TipoContacto, id: string | null, inp
     const c = antes
       ? await tx.contacto.update({ where: { id: antes.id }, data: { ...datos, ...conConsentimiento } })
       : await tx.contacto.create({
-          data: { tipo, ...datos, ...(conConsentimiento as Pick<Prisma.ContactoUncheckedCreateInput, "consentimientoEn" | "consentimientoRegistradoPorId">), orden: (await tx.contacto.count({ where: { tipo } })) + 1 },
+          data: {
+            edificioId: actor.edificio.id,
+            tipo,
+            ...datos,
+            ...(conConsentimiento as Pick<Prisma.ContactoUncheckedCreateInput, "consentimientoEn" | "consentimientoRegistradoPorId">),
+            orden: (await tx.contacto.count({ where: { edificioId: actor.edificio.id, tipo } })) + 1,
+          },
         });
     await registrarAuditoria(
       {
         usuarioId: actor.userId,
+        edificioId: actor.edificio.id,
         accion: antes ? "telefonos.contacto_modificado" : "telefonos.contacto_alta",
         entidad: "contacto",
         entidadId: c.id,
@@ -134,9 +141,9 @@ export async function borrarContacto(id: string): Promise<Resultado> {
   const actor = await exigirPermiso("telefonos.editar");
   return db.$transaction(async (tx) => {
     const c = await tx.contacto.findUnique({ where: { id } });
-    if (!c) return error("Ese contacto ya no está.");
+    if (!c || c.edificioId !== actor.edificio.id) return error("Ese contacto ya no está.");
     await tx.contacto.delete({ where: { id } });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "telefonos.contacto_baja", entidad: "contacto", entidadId: id, detalle: { tipo: c.tipo, nombre: c.nombre } }, tx);
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "telefonos.contacto_baja", entidad: "contacto", entidadId: id, detalle: { tipo: c.tipo, nombre: c.nombre } }, tx);
     return ok(`Quitaste a ${c.nombre}.`);
   });
 }
@@ -146,8 +153,8 @@ export async function borrarContacto(id: string): Promise<Resultado> {
 // ---------------------------------------------------------------------------
 
 export async function polizaVigente() {
-  await exigirPermiso("telefonos.ver");
-  const p = await db.poliza.findFirst({ orderBy: [{ hasta: "desc" }] });
+  const usuario = await exigirPermiso("telefonos.ver");
+  const p = await db.poliza.findFirst({ where: { edificioId: usuario.edificio.id }, orderBy: [{ hasta: "desc" }] });
   if (!p) return null;
   const hasta = deFecha(p.hasta);
   return { ...p, desdeTexto: deFecha(p.desde), hastaTexto: hasta, estado: estadoPoliza(hoyUy(), hasta), frase: fraseVencimiento(hoyUy(), hasta) };
@@ -171,12 +178,12 @@ export async function guardarPoliza(id: string | null, input: unknown): Promise<
   if (!p.success) return erroresDeZod(p.error);
   const datos = { ...p.data, desde: aFecha(p.data.desde), hasta: aFecha(p.data.hasta) };
   return db.$transaction(async (tx) => {
-    const antes = id ? await tx.poliza.findUnique({ where: { id } }) : null;
+    const antes = id ? await tx.poliza.findFirst({ where: { id, edificioId: actor.edificio.id } }) : null;
     const nuevaVigencia = !antes || deFecha(antes.hasta) !== p.data.hasta;
     const r = antes
       ? await tx.poliza.update({ where: { id: antes.id }, data: { ...datos, ...(nuevaVigencia ? { avisoVencimientoEn: null } : {}) } })
-      : await tx.poliza.create({ data: datos });
-    await registrarAuditoria({ usuarioId: actor.userId, accion: "telefonos.poliza", entidad: "poliza", entidadId: r.id, detalle: p.data }, tx);
+      : await tx.poliza.create({ data: { ...datos, edificioId: actor.edificio.id } });
+    await registrarAuditoria({ usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "telefonos.poliza", entidad: "poliza", entidadId: r.id, detalle: p.data }, tx);
     return ok("Guardaste los datos de la póliza.");
   });
 }
@@ -186,8 +193,8 @@ export async function guardarPoliza(id: string | null, input: unknown): Promise<
  * Administración (una vez por vigencia). Sin cron: se llama cuando Administración
  * entra al inicio o al seguro, y desde /api/cron/seguro si se programa en el hosting.
  */
-export async function revisarVencimientoSeguro(): Promise<boolean> {
-  const p = await db.poliza.findFirst({ orderBy: [{ hasta: "desc" }] });
+export async function revisarVencimientoSeguro(edificioId: string): Promise<boolean> {
+  const p = await db.poliza.findFirst({ where: { edificioId }, orderBy: [{ hasta: "desc" }], include: { edificio: { select: { nombre: true } } } });
   if (!p || p.avisoVencimientoEn) return false;
   const hoy = hoyUy();
   const hasta = deFecha(p.hasta);
@@ -205,7 +212,7 @@ export async function revisarVencimientoSeguro(): Promise<boolean> {
         `La póliza ${p.numero} de ${p.aseguradora} ${fraseVencimiento(hoy, hasta)} (${d}/${m}/${a}).`,
         "Cuando la renueves, cargá la nueva vigencia en Teléfonos y datos de interés → Seguro de incendio.",
         "",
-        NOMBRE_COMPLEJO,
+        p.edificio.nombre,
       ].join("\n"),
     });
   }
@@ -216,7 +223,7 @@ export async function revisarVencimientoSeguro(): Promise<boolean> {
 export async function alertaSeguro() {
   const usuario = await exigirUsuario();
   if (!puede(usuario, "telefonos.editar")) return null;
-  await revisarVencimientoSeguro();
+  await revisarVencimientoSeguro(usuario.edificio.id);
   const p = await polizaVigente();
   return p && p.estado !== "VIGENTE" ? p : null;
 }

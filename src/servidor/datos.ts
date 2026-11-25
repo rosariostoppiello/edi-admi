@@ -20,7 +20,6 @@ import {
 import { erroresDeZod, type Resultado } from "./resultado";
 import { avisar } from "./mail";
 import { codigoBase } from "@/dominio/codigos";
-import { NOMBRE_COMPLEJO } from "@/lib/edificio";
 
 export type { Resultado };
 
@@ -52,8 +51,8 @@ function estado(unidad: Awaited<ReturnType<typeof bloquearUnidad>>) {
  */
 export async function obtenerFicha(unidadId: string) {
   const usuario = await exigirPermiso("datos.verUnidad", { unidadId });
-  const unidad = await db.unidad.findUnique({
-    where: { id: unidadId },
+  const unidad = await db.unidad.findFirst({
+    where: { id: unidadId, edificioId: usuario.edificio.id },
     include: {
       torre: true,
       personas: { where: { activa: true }, orderBy: { altaEn: "asc" } },
@@ -77,9 +76,9 @@ export async function obtenerFicha(unidadId: string) {
 
 /** Listado para Administración y Comisión (todas las unidades con sus responsables). */
 export async function listarUnidades() {
-  await exigirPermiso("datos.verTodos");
+  const usuario = await exigirPermiso("datos.verTodos");
   return db.unidad.findMany({
-    where: { activa: true },
+    where: { edificioId: usuario.edificio.id, activa: true },
     include: {
       torre: true,
       // Enum en orden PROPIETARIO, PROMITENTE, INQUILINO: el responsable aparece primero.
@@ -91,14 +90,14 @@ export async function listarUnidades() {
 
 /** Para Portería: solo código de la unidad y nombre del ocupante. Nada de mails ni teléfonos. */
 export async function listarOcupantes() {
-  await exigirPermiso("datos.verOcupantes");
+  const usuario = await exigirPermiso("datos.verOcupantes");
   const unidades = await db.unidad.findMany({
-    where: { activa: true },
+    where: { edificioId: usuario.edificio.id, activa: true },
     select: {
       id: true,
       numero: true,
       arrendada: true,
-      torre: { select: { codigo: true, nombre: true, orden: true } },
+      torre: { select: { numero: true, nombre: true, color: true, orden: true } },
       personas: { where: { activa: true }, select: { nombre: true, calidad: true } },
     },
     orderBy: [{ torre: { orden: "asc" } }, { numero: "asc" }],
@@ -107,7 +106,7 @@ export async function listarOcupantes() {
     const ocupante = u.arrendada
       ? u.personas.find((p) => p.calidad === "INQUILINO")
       : u.personas.find((p) => esDueno(p.calidad));
-    return { id: u.id, torre: u.torre.codigo, torreNombre: u.torre.nombre, numero: u.numero, arrendada: u.arrendada, ocupante: ocupante?.nombre ?? "Sin datos" };
+    return { id: u.id, torre: u.torre.numero, torreColor: u.torre.color, torreNombre: u.torre.nombre, numero: u.numero, arrendada: u.arrendada, ocupante: ocupante?.nombre ?? "Sin datos" };
   });
 }
 
@@ -116,9 +115,9 @@ export async function listarOcupantes() {
  * servidor (envío al publicar): no va a la UI, así que no expone mails entre unidades.
  * Llamarla solo desde acciones que ya pasaron `exigirPermiso`.
  */
-export async function destinatariosPorUnidad() {
+export async function destinatariosPorUnidad(edificioId: string) {
   const unidades = await db.unidad.findMany({
-    where: { activa: true },
+    where: { edificioId, activa: true },
     select: {
       id: true,
       arrendada: true,
@@ -176,7 +175,7 @@ export async function editarPersona(unidadId: string, personaId: string, input: 
 
     await registrarAuditoria(
       {
-        usuarioId: actor.userId,
+        usuarioId: actor.userId, edificioId: actor.edificio.id,
         accion: "persona.editada",
         entidad: "persona",
         entidadId: personaId,
@@ -208,7 +207,7 @@ export async function confirmarSinAlquilar(unidadId: string, personaId: string):
     if (unidad.arrendada) return { ok: false, error: "La unidad figura con inquilino. Dalo de baja si ya no está." } as const;
     await tx.persona.update({ where: { id: personaId }, data: { datosConfirmadosEn: new Date() } });
     await registrarAuditoria(
-      { usuarioId: actor.userId, accion: "unidad.confirmada_sin_alquilar", entidad: "unidad", entidadId: unidadId },
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "unidad.confirmada_sin_alquilar", entidad: "unidad", entidadId: unidadId },
       tx,
     );
     return { ok: true, mensaje: "Listo. La unidad figura sin alquilar." } as const;
@@ -239,7 +238,7 @@ export async function altaInquilino(unidadId: string, input: unknown): Promise<R
 
     await registrarAuditoria(
       {
-        usuarioId: actor.userId,
+        usuarioId: actor.userId, edificioId: actor.edificio.id,
         accion: "inquilino.alta",
         entidad: "unidad",
         entidadId: unidadId,
@@ -273,7 +272,7 @@ export async function bajaInquilino(unidadId: string, personaId: string): Promis
     const propia = actor.unidades.some((u) => u.personaId === personaId);
     await registrarAuditoria(
       {
-        usuarioId: actor.userId,
+        usuarioId: actor.userId, edificioId: actor.edificio.id,
         accion: "inquilino.baja",
         entidad: "unidad",
         entidadId: unidadId,
@@ -310,7 +309,7 @@ export async function agregarDestinatario(unidadId: string, input: unknown): Pro
   await db.$transaction(async (tx) => {
     const d = await tx.destinatarioExtra.create({ data: { unidadId, email, nombre: nombre || null } });
     await registrarAuditoria(
-      { usuarioId: actor.userId, accion: "destinatario.alta", entidad: "unidad", entidadId: unidadId, detalle: { id: d.id, email } },
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "destinatario.alta", entidad: "unidad", entidadId: unidadId, detalle: { id: d.id, email } },
       tx,
     );
   });
@@ -324,7 +323,7 @@ export async function quitarDestinatario(unidadId: string, destinatarioId: strin
   await db.$transaction(async (tx) => {
     await tx.destinatarioExtra.delete({ where: { id: d.id } });
     await registrarAuditoria(
-      { usuarioId: actor.userId, accion: "destinatario.baja", entidad: "unidad", entidadId: unidadId, detalle: { email: d.email } },
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "destinatario.baja", entidad: "unidad", entidadId: unidadId, detalle: { email: d.email } },
       tx,
     );
   });
@@ -356,25 +355,26 @@ export async function crearUnidad(input: unknown): Promise<Resultado & { unidadI
   if (!parse.success) return erroresDeZod(parse.error);
   const { torreId, numero, tipo, etiqueta, calidad, ...persona } = parse.data;
 
-  const torre = await db.torre.findUnique({ where: { codigo: torreId } });
+  const torre = await db.torre.findFirst({ where: { codigo: torreId, edificioId: actor.edificio.id } });
   if (!torre) return { ok: false, error: "Revisá los datos marcados.", campos: { torreId: "Esa torre no existe." } };
+  const codigo = codigoBase(torre.numero, numero);
   const repetida = await db.unidad.findUnique({ where: { torreId_numero: { torreId, numero } } });
-  if (repetida) return { ok: false, error: "Revisá los datos marcados.", campos: { numero: `Ya existe la unidad ${torreId}-${numero}.` } };
+  if (repetida) return { ok: false, error: "Revisá los datos marcados.", campos: { numero: `Ya existe la unidad ${codigo}.` } };
 
   let invitar = false;
   const unidad = await db.$transaction(async (tx) => {
-    const u = await tx.unidad.create({ data: { torreId, numero, tipo, etiqueta: etiqueta || null } });
+    const u = await tx.unidad.create({ data: { edificioId: actor.edificio.id, torreId, numero, tipo, etiqueta: etiqueta || null } });
     const { userId, necesitaInvitacion } = await vincularUsuario(tx, persona.email, persona.nombre);
     invitar = necesitaInvitacion;
     await tx.persona.create({ data: { unidadId: u.id, calidad, ...persona, userId } });
     await registrarAuditoria(
-      { usuarioId: actor.userId, accion: "unidad.alta", entidad: "unidad", entidadId: u.id, detalle: { torreId, numero, tipo, responsable: persona.nombre } },
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "unidad.alta", entidad: "unidad", entidadId: u.id, detalle: { codigo, tipo, responsable: persona.nombre } },
       tx,
     );
     return u;
   });
   if (invitar) await enviarInvitacion(persona.email);
-  return { ok: true, mensaje: `Unidad ${torreId}-${numero} creada.`, unidadId: unidad.id };
+  return { ok: true, mensaje: `Unidad ${codigo} creada.`, unidadId: unidad.id };
 }
 
 /** Venta de la unidad: el responsable anterior se da de baja y entra el nuevo. El inquilino (si hay) sigue. */
@@ -405,7 +405,7 @@ export async function cambiarPropietario(unidadId: string, input: unknown): Prom
     });
     await registrarAuditoria(
       {
-        usuarioId: actor.userId,
+        usuarioId: actor.userId, edificioId: actor.edificio.id,
         accion: "propietario.cambio",
         entidad: "unidad",
         entidadId: unidadId,
@@ -456,11 +456,12 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
     });
     if (previo) return { ok: false as const, error: "Ya avisaste la venta de esta unidad. La Administración se va a comunicar con vos." };
     const torre = await tx.torre.findUnique({ where: { codigo: unidad.torreId } });
-    const codigo = codigoBase(unidad.torreId, unidad.numero);
+    const codigo = codigoBase(torre?.numero ?? unidad.torreId, unidad.numero);
     const quien = unidad.personas.find((p) => p.userId === actor.userId);
     const solicitud = await tx.solicitud.create({
       data: {
         unidadId,
+        edificioId: actor.edificio.id,
         autorId: actor.userId,
         categoria: "VENTA_UNIDAD",
         origen: "UNIDAD",
@@ -469,7 +470,7 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
       },
     });
     await registrarAuditoria(
-      { usuarioId: actor.userId, accion: "unidad.venta_avisada", entidad: "unidad", entidadId: unidadId, detalle: { solicitudId: solicitud.id } },
+      { usuarioId: actor.userId, edificioId: actor.edificio.id, accion: "unidad.venta_avisada", entidad: "unidad", entidadId: unidadId, detalle: { solicitudId: solicitud.id } },
       tx,
     );
     return { ok: true as const, codigo, torre: torre?.nombre ?? "", nombre: quien?.nombre ?? actor.nombre };
@@ -488,7 +489,7 @@ export async function avisarVenta(unidadId: string, input: unknown): Promise<Res
         comentario ? `\nComentario:\n${comentario}` : "",
         `\nPara dar de alta al nuevo propietario, entrá a la ficha de la unidad y usá "Cambiar de propietario":`,
         `${base}/datos/${unidadId}`,
-        `\n${NOMBRE_COMPLEJO}`,
+        `\n${actor.edificio.nombre}`,
       ].join("\n"),
     });
   }

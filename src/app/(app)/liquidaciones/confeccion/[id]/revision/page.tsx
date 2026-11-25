@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Aviso } from "@/componentes/ui/aviso";
@@ -16,8 +17,9 @@ export const metadata: Metadata = { title: "Revisar y publicar la liquidación" 
 export default async function PaginaRevision({ params, searchParams }: PageProps<"/liquidaciones/confeccion/[id]/revision">) {
   const { id } = await params;
   const { rectificacion } = await searchParams;
-  const liq = (await obtenerBorrador(id))!;
-  const [armada, destinatarios, unidades] = await Promise.all([armarLiquidacion(id), contarDestinatarios(id), listarCuotas()]);
+  const liq = await obtenerBorrador(id);
+  if (!liq) notFound();
+  const [armada, destinatarios, unidades] = await Promise.all([armarLiquidacion(id, liq.edificioId), contarDestinatarios(id), listarCuotas()]);
   const l = armada!;
   const saldos = liq.primera ? await resumenSaldosIniciales(id) : null;
   const sinCuotas = unidades.filter((u) => u.gcUnidad + u.gcPropietario + u.gcGaraje === 0).length;

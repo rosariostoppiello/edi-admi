@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { exigirUsuario } from "@/servidor/sesion";
-import { NOMBRE_COMPLEJO, NOMBRE_ROL, codigoDePersona } from "@/lib/edificio";
+import { NOMBRE_ROL, codigoDePersona } from "@/lib/edificio";
 import { unidadActiva } from "@/servidor/unidad-activa";
 import { puede } from "@/dominio/permisos";
 import { alertasParaCabecera } from "@/servidor/emergencias";
@@ -34,7 +34,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <Link href="/" className="flex min-h-11 flex-wrap items-center gap-x-3 hover:opacity-90">
             <Logo />
-            <span className="text-chico text-white/85">{NOMBRE_COMPLEJO}</span>
+            <span className="text-chico text-white/85">{usuario.edificio.nombre}</span>
           </Link>
           <div className="flex flex-wrap items-center gap-3">
             <Link

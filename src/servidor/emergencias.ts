@@ -19,7 +19,7 @@ import {
   primerTelefono,
   type TipoEmergencia,
 } from "@/dominio/emergencias";
-import { NOMBRE_COMPLEJO, NOMBRE_ROL } from "@/lib/edificio";
+import { NOMBRE_ROL } from "@/lib/edificio";
 
 const LOTE = 10;
 const urlBase = () => process.env.BETTER_AUTH_URL ?? "";
@@ -94,11 +94,13 @@ export async function avisarEmergencia(input: unknown): Promise<Resultado> {
         detalle: d.detalle,
         autorId: usuario.userId,
         unidadId: unidad?.unidadId ?? null,
+        edificioId: usuario.edificio.id,
       },
     });
     await registrarAuditoria(
       {
         usuarioId: usuario.userId,
+        edificioId: usuario.edificio.id,
         accion: "emergencia.aviso",
         entidad: "emergencia",
         entidadId: creada.id,
@@ -121,7 +123,7 @@ export async function avisarEmergencia(input: unknown): Promise<Resultado> {
     ? `${usuario.nombre} (unidad ${codigo})`
     : `${usuario.nombre} (${NOMBRE_ROL[usuario.rol]})`;
   const texto = [
-    `EMERGENCIA: ${NOMBRE_TIPO[d.tipo]}`,
+    `EMERGENCIA en ${usuario.edificio.nombre}: ${NOMBRE_TIPO[d.tipo]}`,
     "",
     `Avisó: ${quien}`,
     d.lugar ? `Dónde: ${d.lugar}` : "",
@@ -129,7 +131,7 @@ export async function avisarEmergencia(input: unknown): Promise<Resultado> {
     "",
     `Para verla y avisar a todas las unidades: ${urlBase()}/emergencia/avisos/${e.id}`,
     "",
-    NOMBRE_COMPLEJO,
+    usuario.edificio.nombre,
   ]
     .filter((l, i, a) => l !== "" || a[i - 1] !== "")
     .join("\n");
@@ -164,7 +166,7 @@ const seleccion = {
   cerradaEn: true,
   nota: true,
   autor: { select: { name: true, rol: true } },
-  unidad: { select: { torreId: true, numero: true } },
+  unidad: { select: { numero: true, torre: { select: { numero: true } } } },
   difundidaPor: { select: { name: true } },
   cerradaPor: { select: { name: true } },
 } as const;
@@ -181,7 +183,7 @@ const leer = (where: object, take = 50) =>
 function mostrar(f: Fila) {
   return {
     ...f,
-    codigo: f.unidad ? codigoBase(f.unidad.torreId, f.unidad.numero) : null,
+    codigo: f.unidad ? codigoBase(f.unidad.torre.numero, f.unidad.numero) : null,
     quien: f.autor.name,
     rolAutor: NOMBRE_ROL[f.autor.rol],
     nombreTipo: NOMBRE_TIPO[f.tipo as TipoEmergencia],
@@ -198,14 +200,14 @@ export type EmergenciaVista = ReturnType<typeof mostrar>;
  */
 export async function alertasParaCabecera(usuario: UsuarioActual) {
   if (puede(usuario, "emergencia.ver")) {
-    return (await leer({ estado: "ACTIVA" }, 10)).map((f) => ({
+    return (await leer({ edificioId: usuario.edificio.id, estado: "ACTIVA" }, 10)).map((f) => ({
       id: f.id,
       texto: `${CORTO_TIPO[f.tipo as TipoEmergencia]}${f.lugar ? ` en ${f.lugar}` : ""}`,
       equipo: true,
     }));
   }
   const filas = await db.emergencia.findMany({
-    where: { estado: "ACTIVA", difundidaEn: { not: null } },
+    where: { edificioId: usuario.edificio.id, estado: "ACTIVA", difundidaEn: { not: null } },
     select: { id: true, mensajeGeneral: true },
     orderBy: { creadaEn: "desc" },
     take: 3,
@@ -218,14 +220,14 @@ export async function alertasParaCabecera(usuario: UsuarioActual) {
 }
 
 export async function listarEmergencias() {
-  await exigirPermiso("emergencia.ver");
-  return (await leer({})).map(mostrar);
+  const usuario = await exigirPermiso("emergencia.ver");
+  return (await leer({ edificioId: usuario.edificio.id })).map(mostrar);
 }
 
 export async function obtenerEmergencia(id: string) {
-  await exigirPermiso("emergencia.ver");
-  const f = await db.emergencia.findUnique({
-    where: { id },
+  const usuario = await exigirPermiso("emergencia.ver");
+  const f = await db.emergencia.findFirst({
+    where: { id, edificioId: usuario.edificio.id },
     select: seleccion,
   });
   if (!f) return null;
@@ -265,7 +267,7 @@ export async function avisarATodos(
     async (tx): Promise<{ mails: number } | Resultado> => {
       // Solo una vez y solo si sigue activa (dos porteros a la vez no duplican el envío).
       const marcada = await tx.emergencia.updateMany({
-        where: { id, estado: "ACTIVA", difundidaEn: null },
+        where: { id, edificioId: actor.edificio.id, estado: "ACTIVA", difundidaEn: null },
         data: {
           difundidaEn: new Date(),
           difundidaPorId: actor.userId,
@@ -278,7 +280,7 @@ export async function avisarATodos(
         );
       const emails = [
         ...new Set(
-          (await destinatariosPorUnidad()).flatMap((u) =>
+          (await destinatariosPorUnidad(actor.edificio.id)).flatMap((u) =>
             u.destinatarios.map((d) => d.email.toLowerCase()),
           ),
         ),
@@ -294,6 +296,7 @@ export async function avisarATodos(
       await registrarAuditoria(
         {
           usuarioId: actor.userId,
+          edificioId: actor.edificio.id,
           accion: "emergencia.difundida",
           entidad: "emergencia",
           entidadId: id,
@@ -306,7 +309,7 @@ export async function avisarATodos(
   );
   if ("ok" in r) return r;
 
-  const e = await procesarEnvios(id, "emergencia", p.data.mensaje);
+  const e = await procesarEnvios(id, "emergencia", p.data.mensaje, actor.edificio.nombre);
   return ok(
     `Avisaste a todas las unidades: se mandaron ${e.enviados} mails${e.errores ? ` (${e.errores} con error)` : ""}. Todos ven el aviso al entrar al sistema.`,
   );
@@ -331,9 +334,9 @@ export async function cerrarEmergencia(
     async (tx): Promise<{ difundida: boolean; mails: number } | Resultado> => {
       const actual = await tx.emergencia.findUnique({
         where: { id },
-        select: { estado: true, difundidaEn: true },
+        select: { estado: true, difundidaEn: true, edificioId: true },
       });
-      if (!actual) return error("No encontramos esa emergencia.");
+      if (!actual || actual.edificioId !== actor.edificio.id) return error("No encontramos esa emergencia.");
       const cerrada = await tx.emergencia.updateMany({
         where: { id, estado: "ACTIVA" },
         data: {
@@ -350,7 +353,7 @@ export async function cerrarEmergencia(
       if (actual.difundidaEn) {
         const emails = [
           ...new Set(
-            (await destinatariosPorUnidad()).flatMap((u) =>
+            (await destinatariosPorUnidad(actor.edificio.id)).flatMap((u) =>
               u.destinatarios.map((d) => d.email.toLowerCase()),
             ),
           ),
@@ -368,6 +371,7 @@ export async function cerrarEmergencia(
       await registrarAuditoria(
         {
           usuarioId: actor.userId,
+          edificioId: actor.edificio.id,
           accion: "emergencia.cerrada",
           entidad: "emergencia",
           entidadId: id,
@@ -389,7 +393,7 @@ export async function cerrarEmergencia(
     p.data.estado === "ATENDIDA"
       ? `La emergencia que avisamos ya fue atendida.${p.data.nota ? ` ${p.data.nota}` : ""}`
       : `El aviso de emergencia fue una falsa alarma: no hay ningún peligro.${p.data.nota ? ` ${p.data.nota}` : ""}`;
-  const e = await procesarEnvios(id, "emergencia-fin", texto);
+  const e = await procesarEnvios(id, "emergencia-fin", texto, actor.edificio.nombre);
   return ok(
     `${frase} y les avisaste a todas las unidades (${e.enviados} mails${e.errores ? `, ${e.errores} con error` : ""}).`,
   );
@@ -397,12 +401,12 @@ export async function cerrarEmergencia(
 
 export async function reintentarEnvios(id: string): Promise<Resultado> {
   const actor = await exigirPermiso("emergencia.gestionar");
-  const f = await db.emergencia.findUnique({
-    where: { id },
+  const f = await db.emergencia.findFirst({
+    where: { id, edificioId: actor.edificio.id },
     select: { mensajeGeneral: true, estado: true, nota: true },
   });
   if (!f) return error("No encontramos esa emergencia.");
-  const a = await procesarEnvios(id, "emergencia", f.mensajeGeneral ?? "");
+  const a = await procesarEnvios(id, "emergencia", f.mensajeGeneral ?? "", actor.edificio.nombre);
   const fin =
     f.estado === "ACTIVA"
       ? { enviados: 0, errores: 0 }
@@ -412,6 +416,7 @@ export async function reintentarEnvios(id: string): Promise<Resultado> {
           f.estado === "ATENDIDA"
             ? `La emergencia que avisamos ya fue atendida.${f.nota ? ` ${f.nota}` : ""}`
             : `El aviso de emergencia fue una falsa alarma: no hay ningún peligro.${f.nota ? ` ${f.nota}` : ""}`,
+          actor.edificio.nombre,
         );
   const r = {
     enviados: a.enviados + fin.enviados,
@@ -419,6 +424,7 @@ export async function reintentarEnvios(id: string): Promise<Resultado> {
   };
   await registrarAuditoria({
     usuarioId: actor.userId,
+    edificioId: actor.edificio.id,
     accion: "emergencia.reenvio",
     entidad: "emergencia",
     entidadId: id,
@@ -435,6 +441,7 @@ async function procesarEnvios(
   id: string,
   tipo: "emergencia" | "emergencia-fin",
   mensaje: string,
+  edificio: string,
 ) {
   const pendientes = await db.envioMail.findMany({
     where: { tipo, refId: id, estado: { in: ["PENDIENTE", "ERROR"] } },
@@ -444,7 +451,7 @@ async function procesarEnvios(
     "",
     `Más información en el sistema: ${urlBase()}/inicio`,
     "",
-    NOMBRE_COMPLEJO,
+    edificio,
   ].join("\n");
   let enviados = 0;
   let errores = 0;

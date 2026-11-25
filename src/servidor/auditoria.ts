@@ -4,6 +4,8 @@ import type { Prisma } from "@/generated/prisma/client";
 
 export interface EventoAuditoria {
   usuarioId?: string | null;
+  /** Edificio en el que pasó (null: acciones del sistema). */
+  edificioId?: string | null;
   accion: string; // ej. "liquidacion.publicada", "inquilino.baja"
   entidad: string;
   entidadId?: string | null;
@@ -22,6 +24,7 @@ export async function registrarAuditoria(
   await tx.auditoria.create({
     data: {
       usuarioId: evento.usuarioId ?? null,
+      edificioId: evento.edificioId ?? null,
       accion: evento.accion,
       entidad: evento.entidad,
       entidadId: evento.entidadId ?? null,

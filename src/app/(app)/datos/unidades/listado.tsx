@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { COLOR_TORRE } from "@/lib/edificio";
+import { colorTorre } from "@/lib/edificio";
 
 export interface FilaUnidad {
   id: string;
   torre: number;
+  torreColor: string;
   torreNombre: string;
   codigo: string;
   personas: string[];
@@ -56,7 +57,7 @@ export function ListadoUnidades({ filas, conEnlace }: { filas: FilaUnidad[]; con
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-junta-fuerte bg-losa px-4 font-bold aria-pressed:border-pizarra aria-pressed:bg-pizarra aria-pressed:text-white"
           >
             {codigo !== null && (
-              <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: COLOR_TORRE[codigo] }} />
+              <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: colorTorre(filas.find((f) => f.torre === codigo)?.torreColor) }} />
             )}
             {nombre}
           </button>
@@ -76,7 +77,7 @@ export function ListadoUnidades({ filas, conEnlace }: { filas: FilaUnidad[]; con
             const contenido = (
               <>
                 <span className="flex w-24 shrink-0 items-center gap-2 font-mono font-bold">
-                  <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: COLOR_TORRE[f.torre] }} />
+                  <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: colorTorre(f.torreColor) }} />
                   {f.codigo}
                 </span>
                 <span className="min-w-0 flex-1">

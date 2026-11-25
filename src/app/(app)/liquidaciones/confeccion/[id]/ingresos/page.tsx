@@ -105,7 +105,7 @@ export default async function PaginaIngresos({ params }: PageProps<"/liquidacion
             </p>
             <ul className="flex flex-col divide-y divide-junta">
               {ingresos.map((i) => {
-                const codigo = formatearCodigo({ torre: i.unidad.torre.codigo, numero: i.unidad.numero, sufijo: i.sufijo });
+                const codigo = formatearCodigo({ torre: i.unidad.torre.numero, numero: i.unidad.numero, sufijo: i.sufijo });
                 return (
                   <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
                     <div className="min-w-0">
@@ -160,7 +160,7 @@ export default async function PaginaIngresos({ params }: PageProps<"/liquidacion
                   <p>
                     <Monto valor={d.monto} conSimbolo className="font-bold" /> a{" "}
                     <span className="font-mono font-bold">
-                      {d.ingreso && formatearCodigo({ torre: d.ingreso.unidad.torre.codigo, numero: d.ingreso.unidad.numero, sufijo: d.ingreso.sufijo })}
+                      {d.ingreso && formatearCodigo({ torre: d.ingreso.unidad.torre.numero, numero: d.ingreso.unidad.numero, sufijo: d.ingreso.sufijo })}
                     </span>
                   </p>
                   {d.ingresoId && <BotonQuitar accion={accionEliminarIngreso.bind(null, id, d.ingresoId)} etiqueta="Desasignar el depósito" />}

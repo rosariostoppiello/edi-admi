@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { edificiosActivos } from "@/servidor/edificios";
 import { accionPedirAcceso } from "./acciones";
 import { FormPedirAcceso } from "./form";
 
 export const metadata: Metadata = { title: "Pedir acceso" };
 
-export default function PaginaPedirAcceso() {
+export default async function PaginaPedirAcceso() {
+  // Los edificios se leen en cada visita (no al compilar).
+  await connection();
+  const edificios = await edificiosActivos();
   return (
     <>
       <h1 className="text-grande font-bold">Pedí tu usuario</h1>
       <p className="mt-2 text-pizarra-suave">
         Completá tus datos. La Administración comprueba que sos de la unidad y te llega un mail para crear tu contraseña.
       </p>
-      <FormPedirAcceso accion={accionPedirAcceso} />
+      <FormPedirAcceso accion={accionPedirAcceso} edificios={edificios.length > 1 ? edificios : []} />
     </>
   );
 }

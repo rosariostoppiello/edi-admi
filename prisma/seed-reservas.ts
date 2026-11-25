@@ -4,6 +4,7 @@
  */
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { REGLAS_POR_DEFECTO, fechaUy, sumarDias } from "../src/dominio/reservas";
+import { EDIFICIO } from "./seed-edificio";
 
 const fecha = (f: string) => new Date(`${f}T00:00:00Z`);
 
@@ -16,12 +17,13 @@ export async function limpiarReservas(db: PrismaClient) {
 export async function sembrarReservas(db: PrismaClient) {
   const barbacoas = [];
   for (const [i, [nombre, torreId]] of ([["Barbacoa Torre Avenue", 2], ["Barbacoa Torre Pilay", 4], ["Barbacoa Torre Sky", 3]] as const).entries()) {
-    const b = await db.espacio.create({ data: { nombre, tipo: "BARBACOA", torreId, tarifa: 80000, reglas: REGLAS_POR_DEFECTO, orden: i + 1 } });
-    await db.espacio.create({ data: { nombre: nombre.replace("Barbacoa", "Solarium"), tipo: "SOLARIUM", torreId, barbacoaId: b.id, orden: i + 4 } });
+    const b = await db.espacio.create({ data: { edificioId: EDIFICIO, nombre, tipo: "BARBACOA", torreId, tarifa: 80000, reglas: REGLAS_POR_DEFECTO, orden: i + 1 } });
+    await db.espacio.create({ data: { edificioId: EDIFICIO, nombre: nombre.replace("Barbacoa", "Solarium"), tipo: "SOLARIUM", torreId, barbacoaId: b.id, orden: i + 4 } });
     barbacoas.push(b);
   }
   await db.espacio.create({
     data: {
+      edificioId: EDIFICIO,
       nombre: "Laundry",
       tipo: "LAUNDRY",
       orden: 7,

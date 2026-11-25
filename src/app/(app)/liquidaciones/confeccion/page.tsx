@@ -15,7 +15,7 @@ export default async function PaginaConfeccion() {
   if (!puede(usuario, "liquidacion.confeccionar")) notFound();
   const borrador = await borradorActual();
   if (borrador) redirect(`/liquidaciones/confeccion/${borrador.id}`);
-  const proximo = await proximoPeriodo();
+  const proximo = await proximoPeriodo(usuario.edificio.id);
   const hoy = new Date();
   const sugerido = periodoDe(hoy.getFullYear(), hoy.getMonth() + 1);
 

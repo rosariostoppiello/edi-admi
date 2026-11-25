@@ -22,9 +22,10 @@ export default async function PaginaUnidades() {
     const unidades = await listarUnidades();
     filas = unidades.map((u) => ({
       id: u.id,
-      torre: u.torre.codigo,
+      torre: u.torre.numero,
+      torreColor: u.torre.color,
       torreNombre: u.torre.nombre,
-      codigo: codigoBase(u.torre.codigo, u.numero),
+      codigo: codigoBase(u.torre.numero, u.numero),
       personas: u.personas.map((p) => `${p.nombre} (${NOMBRE_CALIDAD[p.calidad].toLowerCase()})`),
       alquilada: u.arrendada,
       pendiente: u.personas.some((p) => esDueno(p.calidad) && !p.datosConfirmadosEn),
@@ -35,6 +36,7 @@ export default async function PaginaUnidades() {
     filas = ocupantes.map((o) => ({
       id: o.id,
       torre: o.torre,
+      torreColor: o.torreColor,
       torreNombre: o.torreNombre,
       codigo: codigoBase(o.torre, o.numero),
       personas: [o.ocupante],
@@ -45,7 +47,7 @@ export default async function PaginaUnidades() {
     redirect("/datos");
   }
 
-  const pendientes = puede(usuario, "usuarios.administrar") ? await pedidosPendientes() : 0;
+  const pendientes = puede(usuario, "usuarios.administrar") ? await pedidosPendientes(usuario.edificio.id) : 0;
 
   return (
     <>

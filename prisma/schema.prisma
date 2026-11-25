@@ -121,18 +121,28 @@ enum Calidad {
 
 /// Torre o sector. `codigo` es el identificador que va en el código de unidad (2, 3, 4, 5…).
 model Torre {
-  codigo   Int       @id
-  nombre   String    @unique
-  tipo     TipoTorre @default(TORRE)
-  orden    Int       @default(0)
-  unidades Unidad[]
-  espacios Espacio[]
+  /// Clave interna. El número que ve la gente ("2" en 2-201) es `numero`.
+  codigo     Int       @id @default(autoincrement())
+  edificioId String
+  edificio   Edificio  @relation(fields: [edificioId], references: [id])
+  numero     Int
+  nombre     String
+  /// Color de marca de la torre (docs/design.md); vacío = gris.
+  color      String    @default("")
+  tipo       TipoTorre @default(TORRE)
+  orden      Int       @default(0)
+  unidades   Unidad[]
+  espacios   Espacio[]
 
+  @@unique([edificioId, numero])
+  @@unique([edificioId, nombre])
   @@map("torre")
 }
 
 model Unidad {
   id              String              @id @default(cuid())
+  edificioId      String
+  edificio        Edificio            @relation(fields: [edificioId], references: [id])
   torreId         Int
   torre           Torre               @relation(fields: [torreId], references: [codigo])
   numero          String
@@ -161,6 +171,7 @@ model Unidad {
   updatedAt       DateTime            @updatedAt
 
   @@unique([torreId, numero])
+  @@index([edificioId])
   @@map("unidad")
 }
 
@@ -208,18 +219,21 @@ model DestinatarioExtra {
 // ---------------------------------------------------------------------------
 
 model Auditoria {
-  id        String   @id @default(cuid())
-  fecha     DateTime @default(now())
-  usuarioId String?
-  usuario   User?    @relation(fields: [usuarioId], references: [id])
-  accion    String
-  entidad   String
-  entidadId String?
-  detalle   Json?
-  ip        String?
+  id         String   @id @default(cuid())
+  fecha      DateTime @default(now())
+  usuarioId  String?
+  usuario    User?    @relation(fields: [usuarioId], references: [id])
+  /// Edificio en el que pasó (null: acciones del sistema, ej. alta de un edificio).
+  edificioId String?
+  accion     String
+  entidad    String
+  entidadId  String?
+  detalle    Json?
+  ip         String?
 
   @@index([entidad, entidadId])
   @@index([fecha])
+  @@index([edificioId])
   @@map("auditoria")
 }
 
@@ -278,20 +292,23 @@ enum EstadoEnvio {
  * Parámetros generales (una sola fila, id = 1).
  */
 model Configuracion {
-  id                 Int    @id @default(1)
-  direccion          String @default("")
-  tasaInteresPb      Int    @default(100) // puntos básicos: 100 = 1 %
-  tasaFondoReservaPb Int    @default(500) // 500 = 5 %
-  diaVencimiento     Int    @default(25)
-  procedimientoPago  String @default("")
+  edificioId         String   @id
+  edificio           Edificio @relation(fields: [edificioId], references: [id])
+  direccion          String   @default("")
+  tasaInteresPb      Int      @default(100) // puntos básicos: 100 = 1 %
+  tasaFondoReservaPb Int      @default(500) // 500 = 5 %
+  diaVencimiento     Int      @default(25)
+  procedimientoPago  String   @default("")
   /// Número de WhatsApp de la Administración (decisión 19), solo dígitos con código de país: 598…
-  whatsapp           String @default("")
+  whatsapp           String   @default("")
 
   @@map("configuracion")
 }
 
 model Liquidacion {
   id                     String                   @id @default(cuid())
+  edificioId             String
+  edificio               Edificio                 @relation(fields: [edificioId], references: [id])
   periodo                String // "AAAA-MM"
   estado                 EstadoLiquidacion        @default(BORRADOR)
   tasaInteresPb          Int
@@ -416,7 +433,9 @@ model Importacion {
 
 model Rubro {
   id               String       @id @default(cuid())
-  codigo           String       @unique // "2.1"
+  edificioId       String
+  edificio         Edificio     @relation(fields: [edificioId], references: [id])
+  codigo           String // "2.1", único por edificio
   nombre           String
   padreId          String?
   padre            Rubro?       @relation("Subrubros", fields: [padreId], references: [id])
@@ -427,6 +446,7 @@ model Rubro {
   egresos          Egreso[]
   fijos            EgresoFijo[]
 
+  @@unique([edificioId, codigo])
   @@map("rubro")
 }
 
@@ -559,6 +579,8 @@ enum EstadoSolicitud {
 
 model Solicitud {
   id         String             @id @default(cuid())
+  edificioId String
+  edificio   Edificio           @relation(fields: [edificioId], references: [id])
   unidadId   String?
   unidad     Unidad?            @relation(fields: [unidadId], references: [id])
   autorId    String
@@ -579,6 +601,7 @@ model Solicitud {
 
   @@index([unidadId, categoria, estado])
   @@index([estado, creadaEn])
+  @@index([edificioId])
   @@map("solicitud")
 }
 
@@ -611,7 +634,9 @@ enum EstadoReserva {
 
 model Espacio {
   id          String      @id @default(cuid())
-  nombre      String      @unique
+  edificioId  String
+  edificio    Edificio    @relation(fields: [edificioId], references: [id])
+  nombre      String
   tipo        TipoEspacio
   torreId     Int?
   torre       Torre?      @relation(fields: [torreId], references: [codigo])
@@ -629,6 +654,7 @@ model Espacio {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  @@unique([edificioId, nombre])
   @@map("espacio")
 }
 
@@ -692,6 +718,8 @@ enum TipoComunicado {
 
 model Comunicado {
   id             String         @id @default(cuid())
+  edificioId     String
+  edificio       Edificio       @relation(fields: [edificioId], references: [id])
   tipo           TipoComunicado
   titulo         String
   fecha          DateTime       @db.Date
@@ -709,6 +737,7 @@ model Comunicado {
   updatedAt      DateTime       @updatedAt
 
   @@index([tipo, activo, fecha])
+  @@index([edificioId])
   @@map("comunicado")
 }
 
@@ -718,10 +747,13 @@ model Comunicado {
 
 /// Datos de una sola ficha: "ADMINISTRACION" o "PORTERIA". `datos` se valida con Zod (servidor/telefonos.ts).
 model FichaContacto {
-  clave       String   @id
+  edificioId  String
+  edificio    Edificio @relation(fields: [edificioId], references: [id])
+  clave       String
   datos       Json
   actualizada DateTime @updatedAt
 
+  @@id([edificioId, clave])
   @@map("ficha_contacto")
 }
 
@@ -733,6 +765,8 @@ enum TipoContacto {
 
 model Contacto {
   id                            String       @id @default(cuid())
+  edificioId                    String
+  edificio                      Edificio     @relation(fields: [edificioId], references: [id])
   tipo                          TipoContacto
   nombre                        String // integrante, empresa o servicio
   detalle                       String       @default("") // cargo, rubro, o qué cubre el servicio
@@ -754,6 +788,8 @@ model Contacto {
 
 model Poliza {
   id                 String    @id @default(cuid())
+  edificioId         String
+  edificio           Edificio  @relation(fields: [edificioId], references: [id])
   aseguradora        String
   numero             String
   cobertura          String    @default("")
@@ -791,6 +827,8 @@ enum EstadoEmergencia {
 /// las unidades lo manda Portería o Administración después de confirmarlo.
 model Emergencia {
   id             String           @id @default(cuid())
+  edificioId     String
+  edificio       Edificio         @relation(fields: [edificioId], references: [id])
   tipo           TipoEmergencia
   lugar          String           @default("") // "Torre 2, piso 3", "garaje"…
   detalle        String           @default("")
@@ -813,6 +851,7 @@ model Emergencia {
 
   @@index([estado, creadaEn])
   @@index([autorId, creadaEn])
+  @@index([edificioId])
   @@map("emergencia")
 }
 
@@ -830,6 +869,8 @@ enum EstadoPedidoAcceso {
 /// lo aprueba (alta + invitación) o lo rechaza.
 model PedidoAcceso {
   id            String             @id @default(cuid())
+  edificioId    String
+  edificio      Edificio           @relation(fields: [edificioId], references: [id])
   nombre        String
   email         String
   telefono      String
@@ -849,4 +890,40 @@ model PedidoAcceso {
   @@index([estado, creadoEn])
   @@index([email, estado])
   @@map("pedido_acceso")
+}
+
+// ---------------------------------------------------------------------------
+// Edificios (decisión 85): cada uno es independiente (datos, liquidación, cobranza)
+// ---------------------------------------------------------------------------
+
+enum EstadoEdificio {
+  PENDIENTE // lo pidió un administrador; falta que lo apruebe el dueño del sistema
+  ACTIVO
+  RECHAZADO
+  BAJA
+}
+
+model Edificio {
+  id            String          @id @default(cuid())
+  nombre        String
+  direccion     String          @default("")
+  estado        EstadoEdificio  @default(ACTIVO)
+  /// Módulos prendidos (claves de src/app/(app)/modulos.ts). Vacío = los de siempre.
+  modulos       String[]        @default([])
+  creadoEn      DateTime        @default(now())
+  torres        Torre[]
+  unidades      Unidad[]
+  configuracion Configuracion?
+  liquidaciones Liquidacion[]
+  rubros        Rubro[]
+  espacios      Espacio[]
+  comunicados   Comunicado[]
+  fichas        FichaContacto[]
+  contactos     Contacto[]
+  polizas       Poliza[]
+  solicitudes   Solicitud[]
+  emergencias   Emergencia[]
+  pedidosAcceso PedidoAcceso[]
+
+  @@map("edificio")
 }

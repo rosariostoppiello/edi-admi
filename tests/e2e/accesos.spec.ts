@@ -12,6 +12,8 @@ async function pedir(page: Page, datos: { nombre: string; email: string; codigo:
   await page.getByLabel("Nombre y apellido").fill(datos.nombre);
   await page.getByLabel("Mail").fill(datos.email);
   await page.getByLabel("Teléfono").fill("099 123 456");
+  // Hay dos edificios ficticios: el de las pruebas es el principal.
+  await page.getByLabel("Tu edificio").selectOption("edificio-principal");
   await page.getByLabel("Tu unidad").fill(datos.codigo);
   await page.getByLabel(datos.calidad, { exact: true }).check();
   await page.getByLabel(/Acepto que la Administración/).check();

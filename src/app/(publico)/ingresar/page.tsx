@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import Link from "next/link";
 import { enlaceWhatsapp } from "@/dominio/solicitudes";
 import { contactoAdministracion } from "@/servidor/accesos";
@@ -7,6 +8,8 @@ import { FormIngresar } from "./form";
 export const metadata: Metadata = { title: "Ingresar" };
 
 export default async function PaginaIngresar() {
+  // El contacto se lee en cada visita (no al compilar).
+  await connection();
   const contacto = await contactoAdministracion();
   return (
     <>

@@ -6,7 +6,7 @@ import { ZonaAvisos } from "@/componentes/ui/formularios";
 import { IconoTelefonos } from "@/componentes/ui/iconos";
 import { puede } from "@/dominio/permisos";
 import { enlaceTelefono, separarTelefonos } from "@/dominio/telefonos";
-import { exigirPermiso } from "@/servidor/sesion";
+import { exigirPermiso, exigirUsuario } from "@/servidor/sesion";
 import { listarContactos, obtenerFicha, polizaVigente, revisarVencimientoSeguro, type TipoContacto } from "@/servidor/telefonos";
 import { Volver } from "../../datos/volver";
 import { buscarModulo } from "../../modulos";
@@ -226,7 +226,7 @@ async function Porteria({ admin }: { admin: boolean }) {
 }
 
 async function Seguro({ admin }: { admin: boolean }) {
-  if (admin) await revisarVencimientoSeguro();
+  if (admin) await revisarVencimientoSeguro((await exigirUsuario()).edificio.id);
   const p = await polizaVigente();
   const campos = (v?: typeof p): DefCampo[] => [
     { name: "aseguradora", etiqueta: "Aseguradora", valor: v?.aseguradora },

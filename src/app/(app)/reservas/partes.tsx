@@ -129,7 +129,7 @@ export function FormNuevoEspacio({
   barbacoasSinSolarium,
 }: {
   accion: AccionForm;
-  torres: { codigo: number; nombre: string }[];
+  torres: { codigo: number; numero: number; nombre: string }[];
   barbacoasSinSolarium: { id: string; nombre: string }[];
 }) {
   const { estado, alEnviar, pendiente, errores: err } = useEnvioConservado(accion);
@@ -148,7 +148,7 @@ export function FormNuevoEspacio({
           <option value="">Sin torre</option>
           {torres.map((t) => (
             <option key={t.codigo} value={t.codigo}>
-              {t.codigo} {t.nombre}
+              {t.numero} {t.nombre}
             </option>
           ))}
         </Selector>
