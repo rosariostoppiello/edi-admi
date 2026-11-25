@@ -18,5 +18,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Todo menos: login/recuperación, API de auth, estáticos.
-  matcher: ["/((?!ingresar|recuperar|restablecer|api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|webp|woff2)$).*)"],
+  matcher: ["/((?!ingresar|recuperar|restablecer|pedir-acceso|api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|webp|woff2)$).*)"],
 };

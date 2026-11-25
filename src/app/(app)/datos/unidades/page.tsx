@@ -5,6 +5,7 @@ import { codigoBase } from "@/dominio/codigos";
 import { puede } from "@/dominio/permisos";
 import { esDueno, NOMBRE_CALIDAD } from "@/dominio/personas";
 import { listarOcupantes, listarUnidades } from "@/servidor/datos";
+import { pedidosPendientes } from "@/servidor/accesos";
 import { exigirUsuario } from "@/servidor/sesion";
 import { Volver } from "../volver";
 import { ListadoUnidades, type FilaUnidad } from "./listado";
@@ -44,14 +45,21 @@ export default async function PaginaUnidades() {
     redirect("/datos");
   }
 
+  const pendientes = puede(usuario, "usuarios.administrar") ? await pedidosPendientes() : 0;
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Volver />
         {puede(usuario, "unidades.administrar") && (
-          <BotonEnlace href="/datos/nueva" variante="secundario">
-            Nueva unidad
-          </BotonEnlace>
+          <div className="flex flex-wrap gap-3">
+            <BotonEnlace href="/datos/accesos" variante="secundario">
+              Pedidos de acceso{pendientes ? ` (${pendientes})` : ""}
+            </BotonEnlace>
+            <BotonEnlace href="/datos/nueva" variante="secundario">
+              Nueva unidad
+            </BotonEnlace>
+          </div>
         )}
       </div>
       <h1 className="mt-4 text-grande font-bold">Unidades</h1>

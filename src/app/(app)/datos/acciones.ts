@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ErrorPermiso } from "@/dominio/permisos";
 import * as datos from "@/servidor/datos";
+import { aprobarPedido, rechazarPedido } from "@/servidor/accesos";
 import { exigirUsuario } from "@/servidor/sesion";
 import { elegirUnidadActiva } from "@/servidor/unidad-activa";
 
@@ -84,4 +85,12 @@ export async function accionElegirUnidad(fd: FormData) {
   revalidatePath("/", "layout");
   const volverA = String(fd.get("volverA") ?? "/");
   redirect(volverA.startsWith("/") && !volverA.startsWith("//") ? volverA : "/");
+}
+
+// Pedidos de acceso (decisión 84)
+export async function accionAprobarPedido(id: string) {
+  return ejecutar(() => aprobarPedido(id));
+}
+export async function accionRechazarPedido(id: string, _: Estado, fd: FormData) {
+  return ejecutar(() => rechazarPedido(id, campos(fd, ["motivo"])));
 }

@@ -75,6 +75,14 @@ test("las pantallas internas de Administración tampoco tienen errores de accesi
 test("la pantalla de inicio, la de emergencia y los avisos no tienen errores de accesibilidad", async ({ page }) => {
   await page.goto("/");
   await revisar(page, "pantalla de inicio");
+  for (const ruta of ["/ingresar", "/pedir-acceso"]) {
+    await page.goto(ruta);
+    await revisar(page, ruta);
+  }
+  await ingresar(page, ADMIN);
+  await page.goto("/datos/accesos");
+  await revisar(page, "/datos/accesos");
+  await page.context().clearCookies();
   await ingresar(page, "porteria@example.com");
   for (const ruta of ["/emergencia", "/emergencia/avisos"]) {
     await page.goto(ruta);

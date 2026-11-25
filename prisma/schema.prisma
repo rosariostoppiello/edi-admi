@@ -45,6 +45,7 @@ model User {
   emergencias           Emergencia[]      @relation("EmergenciaAutor")
   emergenciasCerradas   Emergencia[]      @relation("EmergenciaCerradaPor")
   emergenciasDifundidas Emergencia[]      @relation("EmergenciaDifundidaPor")
+  pedidosResueltos      PedidoAcceso[]    @relation("PedidoAccesoResueltoPor")
 
   @@map("user")
 }
@@ -155,6 +156,7 @@ model Unidad {
   solicitudes     Solicitud[]
   reservas        Reserva[]
   emergencias     Emergencia[]
+  pedidosAcceso   PedidoAcceso[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -812,4 +814,39 @@ model Emergencia {
   @@index([estado, creadaEn])
   @@index([autorId, creadaEn])
   @@map("emergencia")
+}
+
+// ---------------------------------------------------------------------------
+// Pedidos de acceso (decisión 84): quien no tiene usuario lo pide desde el login
+// ---------------------------------------------------------------------------
+
+enum EstadoPedidoAcceso {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+/// Lo carga una persona sin sesión; la Administración comprueba que es de esa unidad y
+/// lo aprueba (alta + invitación) o lo rechaza.
+model PedidoAcceso {
+  id            String             @id @default(cuid())
+  nombre        String
+  email         String
+  telefono      String
+  /// Lo que escribió la persona ("2-201"); `unidadId` es la unidad encontrada.
+  codigo        String
+  unidadId      String
+  unidad        Unidad             @relation(fields: [unidadId], references: [id])
+  calidad       Calidad
+  mensaje       String             @default("")
+  estado        EstadoPedidoAcceso @default(PENDIENTE)
+  creadoEn      DateTime           @default(now())
+  resueltoEn    DateTime?
+  resueltoPorId String?
+  resueltoPor   User?              @relation("PedidoAccesoResueltoPor", fields: [resueltoPorId], references: [id])
+  motivo        String?
+
+  @@index([estado, creadoEn])
+  @@index([email, estado])
+  @@map("pedido_acceso")
 }
