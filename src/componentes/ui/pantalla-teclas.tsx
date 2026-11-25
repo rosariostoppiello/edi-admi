@@ -17,7 +17,7 @@ export function PantallaTeclas({
   titulo,
   Icono,
   teclas,
-  volver = { href: "/", texto: "Inicio" },
+  volver = { href: "/inicio", texto: "Inicio" },
   children,
 }: {
   titulo: string;

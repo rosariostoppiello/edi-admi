@@ -23,7 +23,7 @@ export default function ErrorPantalla({ error, retry }: { error: unknown; retry:
         <Boton type="button" onClick={() => retry()}>
           Probar de nuevo
         </Boton>
-        <Link href="/" className="inline-flex min-h-12 items-center px-2 font-bold underline underline-offset-4 hover:text-bronce">
+        <Link href="/inicio" className="inline-flex min-h-12 items-center px-2 font-bold underline underline-offset-4 hover:text-bronce">
           Volver al inicio
         </Link>
       </div>

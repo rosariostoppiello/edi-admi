@@ -74,6 +74,7 @@ async function main() {
 
   // Limpieza (solo desarrollo)
   await db.auditoria.deleteMany();
+  await db.emergencia.deleteMany();
   await db.solicitud.deleteMany();
   await limpiarComunicados(db);
   await limpiarTelefonos(db);

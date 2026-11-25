@@ -18,7 +18,7 @@ export default async function PaginaDatos() {
   // Sin unidad propia (Administración, Portería, Comisión sin unidad): directo al listado.
   if (!activa) {
     if (veListado) redirect("/datos/unidades");
-    redirect("/");
+    redirect("/inicio");
   }
 
   return (

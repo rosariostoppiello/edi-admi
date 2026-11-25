@@ -67,6 +67,10 @@ const MATRIZ: Record<Accion, { recurso?: { unidadId?: string; personaId?: string
   "solicitud.gestionar": { pueden: ["admin"] },
   "comunicado.ver": { pueden: NOMBRES },
   "comunicado.publicar": { pueden: ["admin"] },
+  "emergencia.avisar": { pueden: NOMBRES },
+  // Quién avisó lo ven solo quienes pueden actuar; el aviso a todos lo dan Portería o Administración.
+  "emergencia.ver": { pueden: ["admin", "comision", "porteria"] },
+  "emergencia.gestionar": { pueden: ["admin", "porteria"] },
   "unidades.administrar": { pueden: ["admin"] },
   "usuarios.administrar": { pueden: ["admin"] },
   "auditoria.ver": { pueden: ["admin"] },

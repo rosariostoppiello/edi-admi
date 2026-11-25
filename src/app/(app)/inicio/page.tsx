@@ -4,7 +4,7 @@ import { exigirUsuario } from "@/servidor/sesion";
 import { Aviso } from "@/componentes/ui/aviso";
 import { Tecla } from "@/componentes/ui/teclas";
 import { alertaSeguro } from "@/servidor/telefonos";
-import { MODULOS } from "./modulos";
+import { MODULOS } from "../modulos";
 
 export const metadata: Metadata = { title: "Inicio" };
 

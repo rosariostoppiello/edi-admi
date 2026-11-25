@@ -121,5 +121,5 @@ export function volverDeLiquidacionMensual(actor: Actor) {
   const liq = buscarModulo("/liquidaciones")!;
   return subteclasVisibles(liq.subteclas, actor).length > 1
     ? { href: "/liquidaciones", texto: "Liquidación de gastos comunes" }
-    : { href: "/", texto: "Inicio" };
+    : { href: "/inicio", texto: "Inicio" };
 }

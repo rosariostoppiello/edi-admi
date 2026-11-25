@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { authCliente } from "@/lib/auth-cliente";
 import { Boton } from "@/componentes/ui/boton";
-import { Campo } from "@/componentes/ui/campo";
+import { CampoClave } from "@/componentes/ui/campo-clave";
 import { Aviso } from "@/componentes/ui/aviso";
 
 export function FormRestablecer({ token, bienvenida = false }: { token: string; bienvenida?: boolean }) {
@@ -40,8 +40,8 @@ export function FormRestablecer({ token, bienvenida = false }: { token: string; 
   return (
     <form onSubmit={alEnviar} className="mt-6 flex flex-col gap-5" noValidate>
       {error && <Aviso tono="error">{error}</Aviso>}
-      <Campo etiqueta="Contraseña nueva" name="clave" type="password" autoComplete="new-password" required minLength={10} />
-      <Campo etiqueta="Repetí la contraseña" name="repetida" type="password" autoComplete="new-password" required />
+      <CampoClave etiqueta="Contraseña nueva" name="clave" autoComplete="new-password" required minLength={10} />
+      <CampoClave etiqueta="Repetí la contraseña" name="repetida" autoComplete="new-password" required />
       <Boton type="submit" disabled={enviando}>
         {enviando ? "Guardando…" : "Guardar contraseña"}
       </Boton>

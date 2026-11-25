@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/font/google";
 import "./globals.css";
+import { LEMA, MARCA } from "@/lib/marca";
 
 const texto = Atkinson_Hyperlegible_Next({
   subsets: ["latin"],
@@ -18,8 +19,8 @@ const placa = Atkinson_Hyperlegible_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Gastos comunes", template: "%s | Gastos comunes" },
-  description: "Liquidaciones, reservas, solicitudes y comunicados del edificio.",
+  title: { default: `${MARCA} · ${LEMA}`, template: `%s | ${MARCA}` },
+  description: "Liquidaciones de gastos comunes, reservas, solicitudes, comunicados y aviso de emergencias del edificio.",
   robots: { index: false, follow: false },
 };
 

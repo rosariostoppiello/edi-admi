@@ -7,6 +7,8 @@ import { getSessionCookie } from "better-auth/cookies";
  * servidor en cada página y acción (src/servidor/sesion.ts).
  */
 export function proxy(request: NextRequest) {
+  // La pantalla de inicio (/) es pública.
+  if (request.nextUrl.pathname === "/") return NextResponse.next();
   if (!getSessionCookie(request)) {
     const url = new URL("/ingresar", request.url);
     return NextResponse.redirect(url);

@@ -60,6 +60,10 @@ export const ACCIONES = [
   // Comunicados
   "comunicado.ver",
   "comunicado.publicar",
+  // Emergencias (decisión 82)
+  "emergencia.avisar", // cualquiera con sesión
+  "emergencia.ver", // alertas activas y quién avisó
+  "emergencia.gestionar", // avisar a todas las unidades y cerrar el aviso
   // Administración del sistema
   "unidades.administrar",
   "usuarios.administrar",
@@ -96,6 +100,9 @@ const POR_ROL: Partial<Record<Accion, Rol[]>> = {
   "solicitud.gestionar": ["ADMINISTRACION"],
   "comunicado.ver": TODOS,
   "comunicado.publicar": ["ADMINISTRACION"],
+  "emergencia.avisar": TODOS,
+  "emergencia.ver": ["ADMINISTRACION", "COMISION", "PORTERIA"],
+  "emergencia.gestionar": ["ADMINISTRACION", "PORTERIA"],
   "unidades.administrar": ["ADMINISTRACION"],
   "usuarios.administrar": ["ADMINISTRACION"],
   "auditoria.ver": ["ADMINISTRACION"],

@@ -14,13 +14,13 @@ export const USUARIOS_RESET = { movil: "martin.olivera.2@example.com", escritori
 export async function ingresar(page: Page, email: string, clave = CLAVE) {
   await page.goto("/ingresar");
   await page.getByLabel("Mail").fill(email);
-  await page.getByLabel("Contraseña").fill(clave);
+  await page.getByLabel("Contraseña", { exact: true }).fill(clave);
   const [respuesta] = await Promise.all([
     page.waitForResponse((r) => r.url().includes("/api/auth/sign-in/email")),
     page.getByRole("button", { name: "Ingresar" }).click(),
   ]);
   // Si el login salió bien, esperar a que termine la navegación al inicio.
-  if (respuesta.ok()) await page.waitForURL((u) => u.pathname === "/");
+  if (respuesta.ok()) await page.waitForURL((u) => u.pathname === "/inicio");
 }
 
 /** Último mail "enviado" (driver archivo) a un destinatario (y con ese asunto, si se indica). */

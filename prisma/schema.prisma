@@ -23,25 +23,28 @@ enum Rol {
 }
 
 model User {
-  id            String      @id
-  name          String
-  email         String      @unique
-  emailVerified Boolean     @default(false)
-  image         String?
-  rol           Rol         @default(UNIDAD)
-  activo        Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  personas      Persona[]
-  auditorias    Auditoria[]
-  solicitudes   Solicitud[]
-  eventos       SolicitudEvento[]
-  comunicados   Comunicado[]
-  consentimientos Contacto[] @relation("ConsentimientoRegistradoPor")
-  reservas      Reserva[]   @relation("ReservaCreadaPor")
-  cancelaciones Reserva[]   @relation("ReservaCanceladaPor")
+  id                    String            @id
+  name                  String
+  email                 String            @unique
+  emailVerified         Boolean           @default(false)
+  image                 String?
+  rol                   Rol               @default(UNIDAD)
+  activo                Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  sessions              Session[]
+  accounts              Account[]
+  personas              Persona[]
+  auditorias            Auditoria[]
+  solicitudes           Solicitud[]
+  eventos               SolicitudEvento[]
+  comunicados           Comunicado[]
+  consentimientos       Contacto[]        @relation("ConsentimientoRegistradoPor")
+  reservas              Reserva[]         @relation("ReservaCreadaPor")
+  cancelaciones         Reserva[]         @relation("ReservaCanceladaPor")
+  emergencias           Emergencia[]      @relation("EmergenciaAutor")
+  emergenciasCerradas   Emergencia[]      @relation("EmergenciaCerradaPor")
+  emergenciasDifundidas Emergencia[]      @relation("EmergenciaDifundidaPor")
 
   @@map("user")
 }
@@ -151,6 +154,7 @@ model Unidad {
   saldosIniciales SaldoInicial[]
   solicitudes     Solicitud[]
   reservas        Reserva[]
+  emergencias     Emergencia[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -760,4 +764,52 @@ model Poliza {
   updatedAt          DateTime  @updatedAt
 
   @@map("poliza")
+}
+
+// ---------------------------------------------------------------------------
+// Emergencias (botón de emergencia, decisión 82)
+// ---------------------------------------------------------------------------
+
+enum TipoEmergencia {
+  GAS
+  INCENDIO
+  AGUA
+  ASCENSOR
+  SEGURIDAD
+  OTRA
+}
+
+enum EstadoEmergencia {
+  ACTIVA
+  ATENDIDA
+  FALSA_ALARMA
+}
+
+/// Aviso de emergencia. Llega a Portería, Administración y Comisión; el aviso a todas
+/// las unidades lo manda Portería o Administración después de confirmarlo.
+model Emergencia {
+  id             String           @id @default(cuid())
+  tipo           TipoEmergencia
+  lugar          String           @default("") // "Torre 2, piso 3", "garaje"…
+  detalle        String           @default("")
+  autorId        String
+  autor          User             @relation("EmergenciaAutor", fields: [autorId], references: [id])
+  /// Unidad desde la que se avisó (null si avisó Portería, Administración o la Comisión sin unidad).
+  unidadId       String?
+  unidad         Unidad?          @relation(fields: [unidadId], references: [id])
+  estado         EstadoEmergencia @default(ACTIVA)
+  creadaEn       DateTime         @default(now())
+  /// Aviso a todas las unidades (sin decir quién avisó).
+  difundidaEn    DateTime?
+  difundidaPorId String?
+  difundidaPor   User?            @relation("EmergenciaDifundidaPor", fields: [difundidaPorId], references: [id])
+  mensajeGeneral String?
+  cerradaEn      DateTime?
+  cerradaPorId   String?
+  cerradaPor     User?            @relation("EmergenciaCerradaPor", fields: [cerradaPorId], references: [id])
+  nota           String?
+
+  @@index([estado, creadaEn])
+  @@index([autorId, creadaEn])
+  @@map("emergencia")
 }

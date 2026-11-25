@@ -32,8 +32,8 @@ test("alta y baja de inquilino: A → P+I → A, con invitación por mail", asyn
   const inq = await ctxInq.newPage();
   await inq.goto(enlace);
   await expect(inq.getByRole("heading", { name: "Creá tu contraseña" })).toBeVisible();
-  await inq.getByLabel("Contraseña nueva").fill("Clave-inquilina-2026");
-  await inq.getByLabel("Repetí la contraseña").fill("Clave-inquilina-2026");
+  await inq.getByLabel("Contraseña nueva", { exact: true }).fill("Clave-inquilina-2026");
+  await inq.getByLabel("Repetí la contraseña", { exact: true }).fill("Clave-inquilina-2026");
   await inq.getByRole("button", { name: "Guardar contraseña" }).click();
   await ingresar(inq, inquilinoEmail, "Clave-inquilina-2026");
   await expect(inq.getByRole("banner")).toContainText(`${codigo}-I`);
@@ -53,7 +53,7 @@ test("alta y baja de inquilino: A → P+I → A, con invitación por mail", asyn
   await expect(main(page)).toContainText(`figura como ${codigo}-A`);
 
   // La inquilina perdió el acceso: su sesión se cerró y no puede volver a entrar.
-  await inq.goto("/");
+  await inq.goto("/inicio");
   await expect(inq).toHaveURL(/\/ingresar$/);
   await ingresar(inq, inquilinoEmail, "Clave-inquilina-2026");
   await expect(main(inq).getByRole("alert")).toBeVisible();

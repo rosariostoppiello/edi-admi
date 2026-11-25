@@ -22,7 +22,7 @@ test("una unidad recorre los módulos por sus sub-botones, en el orden del gráf
   await ingresar(page, u.duenoEmail);
 
   for (const [modulo, ruta, subbotones] of SUBBOTONES) {
-    await page.goto("/");
+    await page.goto("/inicio");
     await page.getByRole("link", { name: new RegExp(modulo) }).click();
     await expect(page).toHaveURL(new RegExp(`${ruta}$`));
     await expect(teclas(page)).toHaveText(subbotones);
@@ -34,12 +34,12 @@ test("una unidad recorre los módulos por sus sub-botones, en el orden del gráf
   }
 
   // Liquidación: la unidad no ve Confección y salta directo a Liquidación mensual.
-  await page.goto("/");
+  await page.goto("/inicio");
   await page.getByRole("link", { name: /Liquidación de gastos comunes/ }).click();
   await expect(page).toHaveURL(/\/liquidaciones\/mensual$/);
   await expect(teclas(page)).toHaveText(["Última liquidación", "Liquidaciones anteriores"]);
   await page.getByRole("link", { name: "Inicio" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/inicio$/);
   await page.goto("/liquidaciones/confeccion");
   await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
 });

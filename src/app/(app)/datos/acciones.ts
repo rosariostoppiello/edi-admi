@@ -44,7 +44,7 @@ export async function accionAltaInquilino(unidadId: string, _: Estado, fd: FormD
 export async function accionBajaInquilino(unidadId: string, personaId: string, _: Estado) {
   const r = await ejecutar(() => datos.bajaInquilino(unidadId, personaId));
   // Si el inquilino se dio de baja a sí mismo, ya no tiene acceso a esta unidad.
-  if (r.ok && "cerroSuSesion" in r && r.cerroSuSesion) redirect("/");
+  if (r.ok && "cerroSuSesion" in r && r.cerroSuSesion) redirect("/ingresar");
   return r;
 }
 

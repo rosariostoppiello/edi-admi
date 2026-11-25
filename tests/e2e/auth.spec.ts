@@ -38,7 +38,7 @@ test("la unidad ingresa, ve su placa y los 6 botones, y sale", async ({ page }) 
 
   await page.getByRole("button", { name: "Salir" }).click();
   await expect(page).toHaveURL(/\/ingresar$/);
-  await page.goto("/");
+  await page.goto("/inicio");
   await expect(page).toHaveURL(/\/ingresar$/);
 });
 
@@ -63,8 +63,8 @@ test("recuperar contraseña por mail y entrar con la nueva", async ({ page }, in
 
   await page.goto(enlace!);
   await expect(page.getByRole("heading", { name: "Elegí tu contraseña nueva" })).toBeVisible();
-  await page.getByLabel("Contraseña nueva").fill(nueva);
-  await page.getByLabel("Repetí la contraseña").fill(nueva);
+  await page.getByLabel("Contraseña nueva", { exact: true }).fill(nueva);
+  await page.getByLabel("Repetí la contraseña", { exact: true }).fill(nueva);
   await page.getByRole("button", { name: "Guardar contraseña" }).click();
   await expect(page.getByRole("main").getByRole("status")).toContainText("cambiaste tu contraseña");
 
@@ -81,4 +81,17 @@ test("pedir recuperación de un mail inexistente responde igual (no revela usuar
   await page.getByLabel("Mail").fill("nadie@example.com");
   await page.getByRole("button", { name: "Mandarme el enlace" }).click();
   await expect(page.getByRole("main").getByRole("status")).toContainText("Si el mail está registrado");
+});
+
+test("el ojo muestra y oculta la contraseña mientras se escribe", async ({ page }) => {
+  await page.goto("/ingresar");
+  const clave = page.getByLabel("Contraseña", { exact: true });
+  const ojo = page.getByRole("button", { name: /Mostrar lo escrito/ });
+  await clave.fill("una-clave");
+  await expect(clave).toHaveAttribute("type", "password");
+  await ojo.click();
+  await expect(clave).toHaveAttribute("type", "text");
+  await expect(ojo).toHaveAttribute("aria-pressed", "true");
+  await ojo.click();
+  await expect(clave).toHaveAttribute("type", "password");
 });
