@@ -115,7 +115,7 @@ export function ReenviarInvitacion({ accion }: { accion: AccionSimple }) {
     <form action={enviar} className="flex flex-col gap-2">
       <MensajeEstado estado={estado} />
       {!estado?.ok && (
-        <button type="submit" disabled={pendiente} className="min-h-11 self-start py-2 font-bold underline underline-offset-4 hover:text-bronce">
+        <button type="submit" disabled={pendiente} className="min-h-11 self-start py-2 font-bold underline underline-offset-4 hover:text-bronce-texto">
           {pendiente ? "Enviando…" : "Reenviar invitación"}
         </button>
       )}

@@ -24,7 +24,7 @@ export function Tecla({
       href={href}
       className={`${BASE} h-full min-h-36 flex-col gap-3 p-4 active:pb-[calc(1rem+3px)] md:min-h-44 md:p-6`}
     >
-      {Icono && <Icono className="size-9 text-bronce md:size-11" />}
+      {Icono && <Icono className="size-9 text-bronce-texto md:size-11" />}
       <span className="text-medio font-bold leading-tight md:text-titulo">{nombre}</span>
       {descripcion && <span className="text-[0.9375rem] text-pizarra-suave md:text-base">{descripcion}</span>}
     </Link>

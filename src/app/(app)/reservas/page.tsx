@@ -18,7 +18,7 @@ export default async function PaginaReservas() {
   return (
     <PantallaTeclas titulo={modulo.nombre} Icono={modulo.Icono} teclas={teclas}>
       {puede(usuario, "reserva.configurarEspacios") && (
-        <Link href="/reservas/espacios" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+        <Link href="/reservas/espacios" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto">
           Configurar los espacios y las tarifas
         </Link>
       )}

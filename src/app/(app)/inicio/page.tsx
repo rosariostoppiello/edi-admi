@@ -28,7 +28,7 @@ export default async function Inicio() {
         <div className="mb-5 max-w-2xl">
           <Aviso tono="info">
             Revisá tus datos de contacto: a ese mail te llegan la liquidación y los comunicados.{" "}
-            <Link href="/datos/editar" className="underline underline-offset-4 hover:text-bronce">
+            <Link href="/datos/editar" className="underline underline-offset-4 hover:text-bronce-texto">
               Revisar mis datos
             </Link>
           </Aviso>
@@ -40,7 +40,7 @@ export default async function Inicio() {
         <div className="mb-5 max-w-2xl">
           <Aviso tono="info">
             {pedidos === 1 ? "Hay 1 pedido de acceso para revisar." : `Hay ${pedidos} pedidos de acceso para revisar.`}{" "}
-            <Link href="/datos/accesos" className="underline underline-offset-4 hover:text-bronce">
+            <Link href="/datos/accesos" className="underline underline-offset-4 hover:text-bronce-texto">
               Revisar
             </Link>
           </Aviso>
@@ -60,12 +60,12 @@ export default async function Inicio() {
       {(puede(usuario, "edificio.configurarModulos") || usuario.duenoSistema) && (
         <p className="mt-6 flex flex-wrap gap-x-6 gap-y-1">
           {puede(usuario, "edificio.configurarModulos") && (
-            <Link href="/edificio" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+            <Link href="/edificio" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto">
               Configuración del edificio
             </Link>
           )}
           {usuario.duenoSistema && (
-            <Link href="/sistema" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+            <Link href="/sistema" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto">
               Edificios del sistema
             </Link>
           )}

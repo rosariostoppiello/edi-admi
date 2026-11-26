@@ -30,7 +30,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       >
         Ir al contenido
       </a>
-      <header className="sobre-pizarra bg-pizarra text-white">
+      <header className="sobre-pizarra bg-cabecera text-white">
         <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-3">
             <Link href="/" className="flex min-h-11 items-center hover:opacity-90">

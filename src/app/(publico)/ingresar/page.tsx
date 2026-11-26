@@ -40,7 +40,7 @@ export default async function PaginaIngresar() {
                   href={enlaceWhatsapp(contacto.whatsapp, { categoria: "Acceso al sistema", asunto: "Quiero mi usuario" })}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-bold text-pizarra underline underline-offset-4 hover:text-bronce"
+                  className="font-bold text-pizarra underline underline-offset-4 hover:text-bronce-texto"
                 >
                   WhatsApp
                 </a>
@@ -50,7 +50,7 @@ export default async function PaginaIngresar() {
             {contacto.mail && (
               <>
                 {" "}a{" "}
-                <a href={`mailto:${contacto.mail}`} className="font-bold text-pizarra underline underline-offset-4 hover:text-bronce">
+                <a href={`mailto:${contacto.mail}`} className="font-bold text-pizarra underline underline-offset-4 hover:text-bronce-texto">
                   {contacto.mail}
                 </a>
               </>

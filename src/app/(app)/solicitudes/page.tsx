@@ -16,7 +16,7 @@ export default async function PaginaSolicitudes() {
   return (
     <PantallaTeclas titulo={modulo.nombre} Icono={modulo.Icono} teclas={subteclasVisibles(modulo.subteclas, usuario)}>
       {puede(usuario, "solicitud.verTodas") && (
-        <Link href="/solicitudes/bandeja" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+        <Link href="/solicitudes/bandeja" className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto">
           Bandeja de solicitudes{nuevas > 0 ? ` (${nuevas} ${nuevas === 1 ? "nueva" : "nuevas"})` : ""}
         </Link>
       )}

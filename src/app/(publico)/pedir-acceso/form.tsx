@@ -32,7 +32,7 @@ export function FormPedirAcceso({
     return (
       <div className="mt-6 flex flex-col gap-5">
         <Aviso tono="ok">{estado.mensaje}</Aviso>
-        <Link href="/ingresar" className="self-start py-2 underline underline-offset-4 hover:text-bronce">
+        <Link href="/ingresar" className="self-start py-2 underline underline-offset-4 hover:text-bronce-texto">
           Volver a ingresar
         </Link>
       </div>
@@ -97,7 +97,7 @@ function VerificarCodigo({ accion, pedidoId, aviso }: { accion: AccionForm; pedi
     return (
       <div className="mt-6 flex flex-col gap-5">
         <Aviso tono="ok">{estado.mensaje}</Aviso>
-        <Link href="/ingresar" className="self-start py-2 underline underline-offset-4 hover:text-bronce">
+        <Link href="/ingresar" className="self-start py-2 underline underline-offset-4 hover:text-bronce-texto">
           Volver a ingresar
         </Link>
       </div>

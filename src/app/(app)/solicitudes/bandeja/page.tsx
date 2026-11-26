@@ -21,7 +21,7 @@ function Filtro<T extends string>({ etiqueta, nombre, opciones, actual, otros, t
     return `/solicitudes/bandeja${q.size ? `?${q}` : ""}`;
   };
   const clase = (activo: boolean) =>
-    `inline-flex min-h-11 items-center rounded-full border-2 px-4 text-chico font-bold ${activo ? "border-pizarra bg-pizarra text-white" : "border-junta-fuerte bg-losa hover:border-bronce"}`;
+    `inline-flex min-h-11 items-center rounded-full border-2 px-4 text-chico font-bold ${activo ? "border-cabecera bg-cabecera text-white" : "border-junta-fuerte bg-losa hover:border-bronce"}`;
   return (
     <nav aria-label={etiqueta} className="flex flex-wrap gap-2">
       <Link href={href()} className={clase(!actual)} aria-current={!actual ? "page" : undefined}>

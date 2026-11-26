@@ -66,7 +66,7 @@ export default async function PaginaAccesos() {
                         <dd>
                           <a
                             href={`tel:${p.telefono.replace(/[^\d+]/g, "")}`}
-                            className="underline underline-offset-4 hover:text-bronce"
+                            className="underline underline-offset-4 hover:text-bronce-texto"
                           >
                             {p.telefono}
                           </a>

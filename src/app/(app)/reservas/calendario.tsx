@@ -95,7 +95,7 @@ export function Calendario({ desde, filas, etiqueta }: { desde: string; filas: F
 type Tono = "libre" | "propia" | "ocupada" | "nada";
 
 const TONOS: Record<Tono, string> = {
-  libre: "border-2 border-bronce bg-losa text-pizarra hover:bg-bronce hover:text-white",
+  libre: "border-2 border-bronce bg-losa text-pizarra hover:bg-bronce-fuerte hover:text-white",
   propia: "border-2 border-ok bg-ok-fondo text-ok",
   ocupada: "border border-junta bg-granito text-pizarra-suave",
   nada: "border border-dashed border-junta text-pizarra-suave",

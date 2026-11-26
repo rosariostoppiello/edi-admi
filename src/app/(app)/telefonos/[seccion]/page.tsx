@@ -37,7 +37,7 @@ function Llamar({ telefonos }: { telefonos: string }) {
         <a
           key={t}
           href={enlaceTelefono(t) ?? undefined}
-          className="inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-campo)] border-2 border-bronce bg-losa px-4 font-bold tabular-nums hover:bg-bronce hover:text-white"
+          className="inline-flex min-h-12 items-center gap-2 rounded-[var(--radius-campo)] border-2 border-bronce bg-losa px-4 font-bold tabular-nums hover:bg-bronce-fuerte hover:text-white"
         >
           <IconoTelefonos className="size-5" aria-hidden="true" />
           <span className="sr-only">Llamar al </span>
@@ -287,7 +287,7 @@ export default async function PaginaSeccion({ params }: PageProps<"/telefonos/[s
     <>
       <Volver href="/telefonos" texto="Teléfonos y datos de interés" />
       <div className="mt-4 flex items-center gap-3">
-        <IconoTelefonos className="size-10 shrink-0 text-bronce" />
+        <IconoTelefonos className="size-10 shrink-0 text-bronce-texto" />
         <h1 className="text-grande font-bold">{nombreSeccion(seccion)}</h1>
       </div>
       <div className="mt-6">

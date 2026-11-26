@@ -5,7 +5,7 @@ import { Logo } from "@/componentes/ui/logo";
 export default function LayoutPublico({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sobre-pizarra bg-pizarra px-4 py-3 text-white">
+      <header className="sobre-pizarra bg-cabecera px-4 py-3 text-white">
         <div className="mx-auto max-w-md">
           <Link href="/" className="inline-flex min-h-11 items-center hover:opacity-90">
             <Logo />

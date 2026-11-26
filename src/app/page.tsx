@@ -107,7 +107,7 @@ function Celular() {
       aria-hidden="true"
       className="mx-auto w-full max-w-[19rem] rounded-[2rem] border-[10px] border-pizarra bg-granito shadow-[0_24px_48px_-24px_rgba(29,40,48,0.55)]"
     >
-      <div className="flex items-center justify-between rounded-t-[1.35rem] bg-pizarra px-3 py-2.5 text-white">
+      <div className="flex items-center justify-between rounded-t-[1.35rem] bg-cabecera px-3 py-2.5 text-white">
         <Logo className="!text-base [&>span:last-child]:size-6" />
         <span className="rounded bg-alerta px-1.5 py-0.5 text-[0.6875rem] font-bold">
           Emergencia
@@ -123,7 +123,7 @@ function Celular() {
               key={nombre}
               className="flex min-h-20 flex-col gap-1.5 rounded-[10px] border border-junta border-b-4 border-b-junta-fuerte bg-losa p-2.5"
             >
-              <Icono className="size-6 text-bronce" />
+              <Icono className="size-6 text-bronce-texto" />
               <span className="text-[0.8125rem] font-bold leading-tight">
                 {nombre}
               </span>
@@ -141,7 +141,7 @@ export default async function PantallaDeInicio() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sobre-pizarra bg-pizarra text-white">
+      <header className="sobre-pizarra bg-cabecera text-white">
         <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link
             href="/"
@@ -159,7 +159,7 @@ export default async function PantallaDeInicio() {
       </header>
 
       <main className="flex-1">
-        <section className="sobre-pizarra bg-pizarra pb-14 text-white md:pb-20">
+        <section className="sobre-pizarra bg-cabecera pb-14 text-white md:pb-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-8 md:grid-cols-[1.15fr_1fr] md:pt-14">
             <div>
               <p className="text-medio font-bold text-bronce-claro">{MARCA}</p>
@@ -214,7 +214,7 @@ export default async function PantallaDeInicio() {
                 key={titulo}
                 className="flex flex-col gap-3 rounded-[var(--radius-tecla)] border border-junta border-b-4 border-b-junta-fuerte bg-losa p-5"
               >
-                <Icono className="size-9 text-bronce" />
+                <Icono className="size-9 text-bronce-texto" />
                 <h3 className="text-medio font-bold leading-tight">{titulo}</h3>
                 <p className="text-pizarra-suave">{texto}</p>
               </li>

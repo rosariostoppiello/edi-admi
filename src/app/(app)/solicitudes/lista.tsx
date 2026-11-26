@@ -21,7 +21,7 @@ export function Encabezado({ titulo, volver = { href: "/solicitudes", texto: "So
     <>
       <Volver href={volver.href} texto={volver.texto} />
       <div className="mt-4 flex items-center gap-3">
-        <IconoSolicitudes className="size-10 shrink-0 text-bronce" />
+        <IconoSolicitudes className="size-10 shrink-0 text-bronce-texto" />
         <h1 className="text-grande font-bold">{titulo}</h1>
       </div>
     </>

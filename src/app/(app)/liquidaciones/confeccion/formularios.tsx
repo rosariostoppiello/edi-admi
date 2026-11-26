@@ -240,7 +240,7 @@ export function EditarEgreso({
   const [abierto, setAbierto] = useState(false);
   if (!abierto) {
     return (
-      <button type="button" onClick={() => setAbierto(true)} className="min-h-11 px-2 font-bold underline underline-offset-4 hover:text-bronce">
+      <button type="button" onClick={() => setAbierto(true)} className="min-h-11 px-2 font-bold underline underline-offset-4 hover:text-bronce-texto">
         Editar
       </button>
     );

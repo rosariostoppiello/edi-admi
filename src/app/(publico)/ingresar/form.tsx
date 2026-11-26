@@ -43,7 +43,7 @@ export function FormIngresar() {
       <Boton type="submit" disabled={enviando}>
         {enviando ? "Ingresando…" : "Ingresar"}
       </Boton>
-      <Link href="/recuperar" className="self-start py-2 underline underline-offset-4 hover:text-bronce">
+      <Link href="/recuperar" className="self-start py-2 underline underline-offset-4 hover:text-bronce-texto">
         Me olvidé la contraseña
       </Link>
     </form>

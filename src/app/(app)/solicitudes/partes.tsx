@@ -85,7 +85,7 @@ export function FormSolicitud({
             <BotonWhatsapp numero={whatsapp} categoria={categoria} codigo={enviada.codigo} asunto={enviada.asunto} />
           </div>
         )}
-        <button type="button" className="min-h-11 self-start py-2 font-bold underline underline-offset-4 hover:text-bronce" onClick={() => location.reload()}>
+        <button type="button" className="min-h-11 self-start py-2 font-bold underline underline-offset-4 hover:text-bronce-texto" onClick={() => location.reload()}>
           Hacer otra solicitud
         </button>
       </div>

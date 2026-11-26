@@ -2,15 +2,29 @@
 
 /* Tokens: ver docs/design.md ("El hall del edificio") */
 :root {
-  --granito: #edefeb;
-  --losa: #ffffff;
-  --pizarra: #1d2830;
-  --pizarra-suave: #4a5761;
-  --bronce: #7a5a12;
-  --bronce-oscuro: #5e450d;
-  --bronce-claro: #e9ddbf;
-  --junta: #c9cec8;
-  --junta-fuerte: #9aa29b;
+  /* Paleta verde agua: se ajusta desde acá. */
+  --agua: #4f9b8e; /* principal: acentos, bordes destacados, íconos */
+  --agua-fuerte: #3d7f74; /* el tono del principal más cercano con contraste AA para texto blanco */
+  --agua-profundo: #2f5f57; /* texto de acento, cabecera, hover de botones */
+  --agua-medio: #d4e7e4; /* hover, bordes, fondos de íconos y tarjetas destacadas */
+  --agua-claro: #ebf4f3; /* fondo de la página y de secciones */
+  --agua-borde: #7faea6; /* bordes de campos (contraste ≥ 3:1 como antes) */
+  --blanco: #ffffff;
+  --crema: #faf8f3;
+
+  /* Tokens del sistema (nombres históricos de docs/design.md) apuntando a la paleta. */
+  --granito: var(--agua-claro);
+  --losa: var(--blanco);
+  --pizarra: #1d2830; /* texto: sin cambios */
+  --pizarra-suave: #4a5761; /* texto secundario: sin cambios */
+  --cabecera: var(--agua-profundo);
+  --bronce: var(--agua);
+  --bronce-fuerte: var(--agua-fuerte);
+  --bronce-texto: var(--agua-profundo);
+  --bronce-oscuro: var(--agua-profundo);
+  --bronce-claro: var(--agua-medio);
+  --junta: var(--agua-medio);
+  --junta-fuerte: var(--agua-borde);
   --alerta: #a1261b;
   --alerta-fondo: #f8e6e3;
   --ok: #2b6337;
@@ -29,6 +43,9 @@
   --color-pizarra: var(--pizarra);
   --color-pizarra-suave: var(--pizarra-suave);
   --color-bronce: var(--bronce);
+  --color-bronce-fuerte: var(--bronce-fuerte);
+  --color-bronce-texto: var(--bronce-texto);
+  --color-cabecera: var(--cabecera);
   --color-bronce-oscuro: var(--bronce-oscuro);
   --color-bronce-claro: var(--bronce-claro);
   --color-junta: var(--junta);
@@ -82,13 +99,13 @@ h3 {
 
 /* Foco visible y consistente en todo el sistema */
 :focus-visible {
-  outline: 3px solid var(--bronce);
+  outline: 3px solid var(--bronce-fuerte);
   outline-offset: 2px;
 }
 
-/* Sobre la cabecera pizarra el bronce no contrasta: anillo blanco */
+/* Sobre la cabecera oscura el acento no contrasta: anillo blanco */
 .sobre-pizarra :focus-visible {
-  outline-color: #ffffff;
+  outline-color: var(--blanco);
 }
 
 .cifras {

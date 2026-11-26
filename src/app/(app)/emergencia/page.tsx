@@ -18,7 +18,7 @@ export default async function PaginaEmergencia() {
     <>
       <Link
         href="/inicio"
-        className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce"
+        className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce-texto"
       >
         <IconoVolver className="size-5" />
         Inicio
@@ -28,7 +28,7 @@ export default async function PaginaEmergencia() {
         <p className="mt-2">
           <Link
             href="/emergencia/avisos"
-            className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce"
+            className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto"
           >
             Ver los avisos de emergencia
           </Link>

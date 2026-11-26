@@ -21,7 +21,7 @@ export default async function PaginaAvisos() {
     <>
       <Link
         href="/emergencia"
-        className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce"
+        className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce-texto"
       >
         <IconoVolver className="size-5" />
         Emergencia

@@ -24,7 +24,7 @@ export default async function PaginaEdificios() {
             <li key={e.id}>
               <form action={elegirEdificio.bind(null, e.id)}>
                 <button type="submit" className={TECLA}>
-                  <IconoDatos className="size-9 text-bronce" />
+                  <IconoDatos className="size-9 text-bronce-texto" />
                   <span className="text-medio font-bold leading-tight md:text-titulo">{e.nombre}</span>
                   {usuario.edificioElegido && e.id === usuario.edificio.id && <span className="text-chico text-pizarra-suave">Es con el que estás trabajando</span>}
                 </button>

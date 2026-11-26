@@ -26,7 +26,7 @@ export default async function PaginaDatos() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Volver />
         {veListado && (
-          <Link href="/datos/unidades" className="inline-flex min-h-11 items-center px-2 font-bold underline underline-offset-4 hover:text-bronce">
+          <Link href="/datos/unidades" className="inline-flex min-h-11 items-center px-2 font-bold underline underline-offset-4 hover:text-bronce-texto">
             Ver todas las unidades
           </Link>
         )}

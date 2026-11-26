@@ -21,7 +21,7 @@ export default async function PaginaSistema() {
 
   return (
     <>
-      <Link href="/inicio" className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce">
+      <Link href="/inicio" className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce-texto">
         <IconoVolver className="size-5" />
         Inicio
       </Link>

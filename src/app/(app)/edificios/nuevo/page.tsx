@@ -14,7 +14,7 @@ export default async function PaginaNuevoEdificio() {
   if (!puede(await exigirUsuario(), "edificio.solicitarAlta")) notFound();
   return (
     <>
-      <Link href="/edificio" className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce">
+      <Link href="/edificio" className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce-texto">
         <IconoVolver className="size-5" />
         Configuración del edificio
       </Link>

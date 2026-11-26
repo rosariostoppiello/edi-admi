@@ -29,12 +29,12 @@ export function PantallaTeclas({
   if (teclas.length === 1) redirect(teclas[0].ruta);
   return (
     <>
-      <Link href={volver.href} className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce">
+      <Link href={volver.href} className="-ml-2 inline-flex min-h-11 items-center gap-1 px-2 font-bold hover:text-bronce-texto">
         <IconoVolver className="size-5" />
         {volver.texto}
       </Link>
       <div className="mt-4 flex items-center gap-3">
-        {Icono && <Icono className="size-10 shrink-0 text-bronce" />}
+        {Icono && <Icono className="size-10 shrink-0 text-bronce-texto" />}
         <h1 className="text-grande font-bold">{titulo}</h1>
       </div>
       {children && <div className="mt-3 max-w-prose">{children}</div>}

@@ -90,7 +90,7 @@ export default async function PaginaSolicitud({ params }: PageProps<"/solicitude
           )}
           {whatsapp && s.estado !== "RESUELTA" && <BotonWhatsapp numero={whatsapp} categoria={NOMBRE_CATEGORIA[s.categoria]} codigo={s.codigo} asunto={s.asunto} />}
           {s.gestiona && s.categoria === "VENTA_UNIDAD" && s.unidadId && (
-            <Link href={`/datos/${s.unidadId}`} className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+            <Link href={`/datos/${s.unidadId}`} className="inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto">
               Ir a la ficha de la unidad para cambiar de propietario
             </Link>
           )}

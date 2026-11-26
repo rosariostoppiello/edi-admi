@@ -22,7 +22,7 @@ export default async function PaginaLaundry() {
         )}
       </div>
       {laundry && puede(usuario, "reserva.configurarEspacios") && (
-        <Link href={`/reservas/espacios#${laundry.id}`} className="mt-4 inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce">
+        <Link href={`/reservas/espacios#${laundry.id}`} className="mt-4 inline-flex min-h-11 items-center font-bold underline underline-offset-4 hover:text-bronce-texto">
           Editar este texto
         </Link>
       )}

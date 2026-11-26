@@ -54,7 +54,7 @@ export function ListadoUnidades({ filas, conEnlace }: { filas: FilaUnidad[]; con
             type="button"
             aria-pressed={torre === codigo}
             onClick={() => setTorre(codigo)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-junta-fuerte bg-losa px-4 font-bold aria-pressed:border-pizarra aria-pressed:bg-pizarra aria-pressed:text-white"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-junta-fuerte bg-losa px-4 font-bold aria-pressed:border-cabecera aria-pressed:bg-cabecera aria-pressed:text-white"
           >
             {codigo !== null && (
               <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: colorTorre(filas.find((f) => f.torre === codigo)?.torreColor) }} />

@@ -25,7 +25,7 @@ export default async function PaginaAnteriores() {
             {ultima ? (
               <>
                 La de {periodoEnFrase(ultima.periodo)} está en{" "}
-                <Link href="/liquidaciones/ultima" className="underline underline-offset-4 hover:text-bronce">
+                <Link href="/liquidaciones/ultima" className="underline underline-offset-4 hover:text-bronce-texto">
                   Última liquidación
                 </Link>
                 .
@@ -42,7 +42,7 @@ export default async function PaginaAnteriores() {
               <div className="min-w-0">
                 <Link
                   href={`/liquidaciones/${l.periodo}${l.estado === "ANULADA" ? `?id=${l.id}` : ""}`}
-                  className="inline-flex min-h-11 items-center text-medio font-bold underline-offset-4 hover:text-bronce hover:underline"
+                  className="inline-flex min-h-11 items-center text-medio font-bold underline-offset-4 hover:text-bronce-texto hover:underline"
                 >
                   {nombrePeriodo(l.periodo)}
                 </Link>

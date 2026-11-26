@@ -193,7 +193,7 @@ export function FormEmergencia({
         <Llamadas telefonos={telefonos} />
         <Link
           href="/inicio"
-          className="self-start py-2 underline underline-offset-4 hover:text-bronce"
+          className="self-start py-2 underline underline-offset-4 hover:text-bronce-texto"
         >
           Volver al inicio
         </Link>

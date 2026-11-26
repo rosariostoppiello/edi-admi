@@ -32,7 +32,7 @@ export default async function PaginaTipo({ params }: PageProps<"/comunicados/[ti
     <>
       <Volver href="/comunicados" texto="Comunicados de la Administración" />
       <div className="mt-4 flex items-center gap-3">
-        <IconoComunicados className="size-10 shrink-0 text-bronce" />
+        <IconoComunicados className="size-10 shrink-0 text-bronce-texto" />
         <h1 className="text-grande font-bold">{t.nombre}</h1>
       </div>
 
@@ -87,7 +87,7 @@ export default async function PaginaTipo({ params }: PageProps<"/comunicados/[ti
                           href={`/api/comunicados/${c.id}/pdf`}
                           target="_blank"
                           rel="noopener"
-                          className="inline-flex min-h-11 items-center self-start font-bold underline underline-offset-4 hover:text-bronce"
+                          className="inline-flex min-h-11 items-center self-start font-bold underline underline-offset-4 hover:text-bronce-texto"
                         >
                           Ver el PDF ({tamanoLegible(c.archivo.tamano)})
                         </a>

@@ -43,7 +43,7 @@ export default async function PaginaBarbacoas({ searchParams }: PageProps<"/rese
         {tarifas.length === 1 && tarifas[0] > 0 && <p>El uso se cobra en la liquidación del mes: {pesos(tarifas[0])} por turno.</p>}
         {reglamento?.archivoId && (
           <p>
-            <a href={`/api/comunicados/${reglamento.id}/pdf`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-bold text-pizarra underline underline-offset-4 hover:text-bronce">
+            <a href={`/api/comunicados/${reglamento.id}/pdf`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-bold text-pizarra underline underline-offset-4 hover:text-bronce-texto">
               Leer el {reglamento.titulo.toLowerCase().startsWith("reglamento") ? reglamento.titulo.toLowerCase() : `reglamento: ${reglamento.titulo}`}
             </a>
           </p>

@@ -11,7 +11,7 @@ export function Logo({ className = "" }: { className?: string }) {
       <span aria-hidden="true">Propiedad</span>
       <span
         aria-hidden="true"
-        className="inline-flex size-8 items-center justify-center rounded-[var(--radius-placa)] border-2 border-bronce bg-bronce-claro font-mono text-pizarra shadow-[inset_0_1px_0_rgba(255,255,255,0.6),inset_0_-1px_0_rgba(94,69,13,0.25)]"
+        className="inline-flex size-8 items-center justify-center rounded-[var(--radius-placa)] border-2 border-bronce bg-bronce-claro font-mono text-pizarra shadow-[inset_0_1px_0_rgba(255,255,255,0.6),inset_0_-1px_0_rgba(47,95,87,0.25)]"
       >
         H
       </span>

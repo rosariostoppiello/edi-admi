@@ -7,7 +7,7 @@ export default function NoEncontrado() {
       <p className="text-pizarra-suave">
         Puede que el enlace esté mal escrito o que no tengas acceso a esta sección.
       </p>
-      <Link href="/" className="self-start py-2 font-bold underline underline-offset-4 hover:text-bronce">
+      <Link href="/" className="self-start py-2 font-bold underline underline-offset-4 hover:text-bronce-texto">
         Volver al inicio
       </Link>
     </main>
